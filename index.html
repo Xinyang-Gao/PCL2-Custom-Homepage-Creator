@@ -2,213 +2,178 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PCL 自定义主页编辑器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>PCL 自定义主页编辑器 - 可视化设计XAML (稳定拖拽版)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --primary-color: #4a6cf7;
-            --primary-dark: #3a5ae0;
-            --light-bg: #f8fafc;
-            --card-bg: #ffffff;
-            --border-color: #e2e8f0;
-            --text-color: #1e293b;
-            --text-light: #64748b;
-            --success-color: #10b981;
-            --danger-color: #ef4444;
-            --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            --radius: 8px;
-            --sidebar-width: 280px;
-            --header-height: 60px;
-            --toolbar-height: 52px;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        .dark-mode {
-            --primary-color: #4a6cf7;
-            --primary-dark: #3a5ae0;
-            --light-bg: #0f172a;
-            --card-bg: #1e293b;
-            --border-color: #334155;
-            --text-color: #f1f5f9;
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --bg-light: #f9fafb;
+            --bg-card: #ffffff;
+            --border: #e5e7eb;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --shadow: 0 4px 12px rgba(0,0,0,0.05);
+            --radius: 12px;
+        }
+
+        body.dark {
+            --bg-light: #0f172a;
+            --bg-card: #1e293b;
+            --border: #334155;
+            --text: #f1f5f9;
             --text-light: #94a3b8;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-        }
-
         body {
-            display: flex;
-            flex-direction: column;
+            background: var(--bg-light);
+            color: var(--text);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             height: 100vh;
             overflow: hidden;
-            background-color: var(--light-bg);
-            color: var(--text-color);
-            transition: background-color 0.2s ease, color 0.2s ease;
+            transition: background 0.2s, color 0.2s;
         }
 
-        header {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-            color: white;
-            padding: 0 20px;
-            height: var(--header-height);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: var(--shadow);
-            z-index: 100;
-            flex-shrink: 0;
-        }
-
-        .logo {
-            font-size: 1.25rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .logo i {
-            font-size: 1.5rem;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .theme-toggle {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.1rem;
-            cursor: pointer;
-            padding: 6px;
-            border-radius: 50%;
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background-color 0.2s ease;
-        }
-
-        .theme-toggle:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-
-        .main-container {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
-
-        .components-panel {
-            width: var(--sidebar-width);
-            background-color: var(--card-bg);
-            border-right: 1px solid var(--border-color);
+        .app {
             display: flex;
             flex-direction: column;
+            height: 100%;
+        }
+
+        .header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             box-shadow: var(--shadow);
-            transition: transform 0.3s ease;
-            flex-shrink: 0;
             z-index: 10;
         }
 
-        .panel-header {
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--border-color);
-            font-weight: 600;
+        .logo {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            background-color: var(--card-bg);
-            height: 50px;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.25rem;
         }
 
-        .components-search {
+        .logo i {
+            color: var(--primary);
+            font-size: 1.6rem;
+        }
+
+        .theme-btn {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: var(--text);
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+
+        .theme-btn:hover {
+            background: var(--border);
+        }
+
+        .main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            transition: transform 0.2s;
+            z-index: 20;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+        }
+
+        .search-box {
             padding: 12px 16px;
-            border-bottom: 1px solid var(--border-color);
-            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border);
         }
 
-        .components-search input {
+        .search-box input {
             width: 100%;
-            padding: 10px 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 0.85rem;
-            background-color: var(--card-bg);
-            color: var(--text-color);
-            transition: border-color 0.2s ease;
-        }
-
-        .components-search input:focus {
-            outline: none;
-            border-color: var(--primary-color);
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-light);
+            color: var(--text);
         }
 
         .components-list {
-            flex: 1;
-            overflow-y: auto;
             padding: 16px;
+            flex: 1;
         }
 
-        .component-category {
-            margin-bottom: 20px;
+        .comp-category {
+            margin-bottom: 24px;
         }
 
         .category-title {
+            font-size: 0.85rem;
             font-weight: 600;
             margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--primary-color);
+            color: var(--primary);
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
+            gap: 6px;
         }
 
-        .component-item {
-            padding: 12px;
+        .comp-item {
+            background: var(--bg-light);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 12px;
             margin-bottom: 8px;
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius);
             cursor: grab;
-            transition: background-color 0.2s ease, border-color 0.2s ease;
             display: flex;
             align-items: center;
-            gap: 10px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            gap: 12px;
+            transition: all 0.2s;
+            user-select: none;
         }
 
-        .component-item:hover {
-            background-color: #f1f5f9;
-            border-color: var(--primary-color);
+        .comp-item:active {
+            cursor: grabbing;
         }
 
-        .component-item i {
-            color: var(--primary-color);
-            font-size: 1.1rem;
-            width: 18px;
-            text-align: center;
+        .comp-item:hover {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.05);
+            transform: translateX(2px);
         }
 
-        .component-help {
-            margin-left: auto;
-            color: var(--text-light);
-            cursor: help;
-            font-size: 0.85rem;
-            transition: color 0.2s ease;
-        }
-
-        .component-help:hover {
-            color: var(--primary-color);
+        .comp-item i:first-child {
+            width: 24px;
+            color: var(--primary);
         }
 
         .design-area {
@@ -216,2571 +181,738 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            background-color: var(--light-bg);
         }
 
-        .design-toolbar {
+        .toolbar {
             padding: 12px 20px;
-            background-color: var(--card-bg);
-            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
             display: flex;
-            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
             align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            height: var(--toolbar-height);
-            flex-shrink: 0;
         }
 
-        .toolbar-left, .toolbar-right {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .toolbar-center {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-        }
-
-        .component-hierarchy {
-            display: flex;
+        .btn {
+            background: var(--bg-light);
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: inline-flex;
             align-items: center;
             gap: 8px;
-            font-size: 0.85rem;
-            color: var(--text-light);
+            color: var(--text);
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .btn-danger {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .btn:hover {
+            filter: brightness(0.95);
+        }
+
+        .hierarchy-bar {
+            background: var(--bg-light);
+            padding: 8px 20px;
+            font-size: 0.8rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
             flex-wrap: wrap;
-            flex: 1;
-            justify-content: center;
+            align-items: center;
+            gap: 6px;
         }
 
         .hierarchy-item {
-            padding: 4px 8px;
-            border-radius: 4px;
             cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-
-        .hierarchy-item:hover {
-            background-color: #f1f5f9;
-            color: var(--text-color);
-        }
-
-        .hierarchy-separator {
-            color: var(--text-light);
-        }
-
-        .design-content {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .component-placeholder {
-            border: 2px dashed var(--border-color);
-            padding: 60px 20px;
-            text-align: center;
-            color: var(--text-light);
-            border-radius: var(--radius);
-            background-color: rgba(255,255,255,0.5);
-            width: 100%;
-            max-width: 600px;
-            margin-top: 30px;
-        }
-
-        .component-placeholder:hover {
-            border-color: var(--primary-color);
-        }
-
-        .component-placeholder i {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
-            color: var(--primary-color);
-            opacity: 0.7;
-        }
-
-        #preview-container {
-            min-height: 100%;
-            width: 100%;
-            max-width: 800px;
-        }
-
-        .properties-panel {
-            width: var(--sidebar-width);
-            background-color: var(--card-bg);
-            border-left: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            box-shadow: var(--shadow);
-            transition: transform 0.3s ease;
-            flex-shrink: 0;
-            position: absolute;
-            right: 0;
-            top: 0;
-            height: 100%;
-            z-index: 20;
-            transform: translateX(100%);
-        }
-
-        .properties-panel.active {
-            transform: translateX(0);
-        }
-
-        .properties-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-        }
-
-        .property-group {
-            margin-bottom: 16px;
-            background-color: var(--card-bg);
-            padding: 16px;
-            border-radius: var(--radius);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            border: 1px solid var(--border-color);
-        }
-
-        .property-title {
-            font-weight: 600;
-            margin-bottom: 14px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--primary-color);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
-        }
-
-        .property-item {
-            margin-bottom: 12px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .property-item label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--text-color);
-        }
-
-        .property-item input, .property-item select, .property-item textarea {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid var(--border-color);
+            padding: 4px 8px;
             border-radius: 6px;
-            font-size: 0.85rem;
-            background-color: var(--card-bg);
-            color: var(--text-color);
-            transition: border-color 0.2s ease;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
         }
 
-        .property-item input:focus, .property-item select:focus, .property-item textarea:focus {
-            outline: none;
-            border-color: var(--primary-color);
+        .preview-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            background: var(--bg-light);
         }
 
-        .card {
-            background-color: var(--card-bg);
+        .canvas {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .empty-placeholder {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-light);
+            border: 2px dashed var(--border);
             border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            margin-bottom: 16px;
+            background: var(--bg-card);
+        }
+
+        .card-component {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
             overflow: hidden;
-            transition: box-shadow 0.2s ease;
-            border: 1px solid var(--border-color);
+            transition: box-shadow 0.2s;
             position: relative;
         }
 
         .card-header {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
             padding: 12px 16px;
             font-weight: 600;
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            font-size: 0.9rem;
         }
 
         .card-content {
             padding: 16px;
-            min-height: 80px;
         }
 
-        .nested-components {
-            border: 2px dashed var(--border-color);
-            border-radius: 6px;
-            padding: 16px;
-            min-height: 80px;
-            margin-top: 12px;
-            background-color: rgba(255, 255, 255, 0.3);
-            transition: border-color 0.2s ease;
+        .nested-dropzone {
+            min-height: 60px;
+            border: 2px dashed transparent;
+            transition: border 0.2s, background 0.2s;
+            border-radius: 8px;
+            padding: 4px;
         }
 
-        .nested-components.empty {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-light);
-            font-style: italic;
+        .nested-dropzone.drag-over {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.08);
         }
 
-        .nested-components.empty::before {
-            content: "将组件拖放到此处";
-        }
-
-        .button {
-            padding: 10px 16px;
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            font-size: 0.85rem;
-        }
-
-        .button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-        }
-
-        .button:active {
-            transform: translateY(-1px);
-        }
-
-        .button-outline {
-            background: transparent;
-            border: 1px solid var(--primary-color);
-            color: var(--primary-color);
-        }
-
-        .button-danger {
-            background: linear-gradient(135deg, var(--danger-color), #d32f2f);
-        }
-
-        .menu-button {
-            padding: 8px 12px;
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: background-color 0.2s ease, border-color 0.2s ease;
-            color: var(--text-color);
-            font-size: 0.85rem;
-        }
-
-        .menu-button:hover {
-            background-color: #f1f5f9;
-            border-color: var(--primary-color);
+        .component-item-wrapper {
+            position: relative;
+            margin-bottom: 16px;
         }
 
         .selected {
-            box-shadow: 0 0 0 2px var(--primary-color), var(--shadow) !important;
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+            border-radius: 8px;
         }
 
-        .drag-over {
-            background-color: rgba(74, 108, 247, 0.1) !important;
-            border: 2px dashed var(--primary-color) !important;
+        .props-panel {
+            width: 300px;
+            background: var(--bg-card);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            transition: transform 0.2s;
+            z-index: 20;
+        }
+
+        .prop-group {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .prop-group h4 {
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .prop-field {
+            margin-bottom: 12px;
+        }
+
+        .prop-field label {
+            display: block;
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+            color: var(--text-light);
+        }
+
+        .prop-field input, .prop-field select, .prop-field textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-light);
+            color: var(--text);
+        }
+
+        button.small {
+            padding: 6px 12px;
+            font-size: 0.75rem;
+        }
+
+        .hint-blue { background: #e0f2fe; border-left: 4px solid #0284c7; padding: 10px; border-radius: 8px; }
+        .hint-yellow { background: #fef9c3; border-left: 4px solid #eab308; }
+        .hint-red { background: #fee2e2; border-left: 4px solid #dc2626; }
+
+        .list-item-mock {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
         }
 
         .modal {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
             z-index: 1000;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
         }
-
         .modal-content {
-            background-color: var(--card-bg);
-            padding: 24px;
-            border-radius: var(--radius);
-            width: 800px;
+            background: var(--bg-card);
+            width: 700px;
             max-width: 90%;
-            max-height: 85%;
-            overflow-y: auto;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            max-height: 80vh;
+            overflow: auto;
         }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .modal-title {
-            font-weight: 600;
-            font-size: 1.3rem;
-            color: var(--text-color);
-        }
-
-        .close {
-            cursor: pointer;
-            font-size: 1.3rem;
-            color: var(--text-light);
-            transition: color 0.2s ease;
-            padding: 5px;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .close:hover {
-            color: var(--danger-color);
-            background-color: #f1f5f9;
-        }
-
         .code-editor {
+            font-family: monospace;
             width: 100%;
             height: 400px;
-            font-family: 'Consolas', 'Monaco', 'JetBrains Mono', monospace;
-            padding: 16px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            resize: none;
-            background-color: #1e293b;
+            background: #0f172a;
             color: #e2e8f0;
-            font-size: 0.9rem;
-            line-height: 1.5;
+            padding: 12px;
+            border-radius: 12px;
         }
-
-        .notification {
+        .toast {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            padding: 12px 20px;
-            background: linear-gradient(135deg, var(--success-color), #0da271);
+            background: var(--primary);
             color: white;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            display: none;
-            z-index: 1000;
-            align-items: center;
-            gap: 10px;
-            animation: slideIn 0.3s ease;
-            max-width: 350px;
-        }
-
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        .status-bar {
-            padding: 10px 20px;
-            background-color: var(--card-bg);
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
+            padding: 8px 16px;
+            border-radius: 30px;
             font-size: 0.85rem;
-            color: var(--text-light);
-            flex-shrink: 0;
-        }
-
-        .panel-toggle {
-            display: none;
-            background: none;
-            border: none;
-            font-size: 1.1rem;
-            color: var(--text-color);
-            cursor: pointer;
-            padding: 6px;
-            border-radius: 4px;
-            transition: background-color 0.2s ease;
-        }
-
-        .panel-toggle:hover {
-            background-color: #f1f5f9;
-        }
-
-        .component-actions {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            display: none;
-            gap: 4px;
-            z-index: 10;
-        }
-
-        .card:hover .component-actions {
-            display: flex;
-        }
-
-        .component-action-btn {
-            width: 24px;
-            height: 24px;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255,255,255,0.9);
-            border: 1px solid var(--border-color);
-            cursor: pointer;
-            transition: background-color 0.2s ease, color 0.2s ease;
-            font-size: 0.8rem;
-        }
-
-        .component-action-btn:hover {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        .drag-preview {
-            position: fixed;
-            z-index: 10000;
+            z-index: 1100;
+            opacity: 0;
+            transition: opacity 0.2s;
             pointer-events: none;
-            opacity: 0.8;
-            transform: rotate(5deg);
-            max-width: 200px;
-            background: var(--card-bg);
-            border: 2px solid var(--primary-color);
-            border-radius: var(--radius);
-            padding: 10px;
-            box-shadow: var(--shadow);
-            font-size: 0.85rem;
-            font-weight: 500;
         }
-
-        .text-component {
-            padding: 8px 0;
-            line-height: 1.5;
-            color: var(--text-color);
-        }
-
-        .hint-component {
-            padding: 12px 16px;
-            border-radius: 6px;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-        }
-
-        .hint-blue {
-            background-color: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            color: rgb(29, 78, 216);
-        }
-
-        .hint-yellow {
-            background-color: rgba(245, 158, 11, 0.1);
-            border: 1px solid rgba(245, 158, 11, 0.3);
-            color: rgb(180, 83, 9);
-        }
-
-        .hint-red {
-            background-color: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: rgb(185, 28, 28);
-        }
-
-        .hint-icon {
-            font-size: 1.1rem;
-            margin-top: 2px;
-        }
-
-        .image-component {
-            margin-bottom: 16px;
-            text-align: center;
-        }
-
-        .image-component img {
-            max-width: 100%;
-            border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .list-item-component {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-
-        .list-item-component:hover {
-            background-color: #f1f5f9;
-        }
-
-        .list-item-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #eef2ff;
-            color: var(--primary-color);
-            font-size: 1rem;
-        }
-
-        .list-item-content {
-            flex: 1;
-        }
-
-        .list-item-title {
-            font-weight: 500;
-            margin-bottom: 4px;
-        }
-
-        .list-item-description {
-            font-size: 0.85rem;
-            color: var(--text-light);
-        }
-
-        .horizontal-stack {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .horizontal-stack > * {
-            flex: 1;
-        }
-
-        .vertical-stack {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .text-button-component {
-            background: none;
-            border: none;
-            color: var(--primary-color);
-            cursor: pointer;
-            padding: 8px 12px;
-            border-radius: 4px;
-            transition: background-color 0.2s ease;
-            text-align: left;
-            font-size: 0.9rem;
-        }
-
-        .text-button-component:hover {
-            background-color: #eef2ff;
-        }
-
-        @media (max-width: 992px) {
-            .components-panel, .properties-panel {
-                position: absolute;
-                height: 100%;
-                z-index: 100;
-                box-shadow: 0 0 30px rgba(0,0,0,0.3);
-            }
-            
-            .components-panel {
-                transform: translateX(-100%);
-            }
-            
-            .properties-panel {
-                transform: translateX(100%);
-                right: 0;
-            }
-            
-            .components-panel.active, .properties-panel.active {
-                transform: translateX(0);
-            }
-            
-            .panel-toggle {
-                display: flex !important;
-            }
-            
-            .design-toolbar {
-                flex-wrap: wrap;
-                gap: 10px;
-            }
-            
-            .toolbar-actions {
-                order: 2;
-                width: 100%;
-            }
+        @media (max-width: 800px) {
+            .sidebar, .props-panel { position: absolute; top: 0; bottom: 0; background: var(--bg-card); transform: translateX(-100%); }
+            .props-panel { right: 0; transform: translateX(100%); }
+            .sidebar.open { transform: translateX(0); }
+            .props-panel.open { transform: translateX(0); }
         }
     </style>
 </head>
 <body>
-    <header>
-        <div class="logo">
-            <i class="fas fa-cube"></i>
-            <span>PCL 自定义主页编辑器</span>
+<div class="app">
+    <div class="header">
+        <div class="logo"><i class="fas fa-cube"></i> PCL 主页编辑器</div>
+        <button class="theme-btn" id="themeToggle"><i class="fas fa-moon"></i></button>
+    </div>
+    <div class="main">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">组件库 <i class="fas fa-grip-vertical"></i></div>
+            <div class="search-box"><input type="text" id="compSearch" placeholder="搜索组件..."></div>
+            <div class="components-list" id="componentsList"></div>
         </div>
-        <div class="header-actions">
-            <button class="theme-toggle" id="theme-toggle" title="切换主题">
-                <i class="fas fa-moon"></i>
-            </button>
-        </div>
-    </header>
-    
-    <div class="main-container">
-        <div class="components-panel">
-            <div class="panel-header">
-                <span>组件库</span>
-                <button class="panel-toggle" id="toggle-components">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <!-- 组件搜索 -->
-            <div class="components-search">
-                <input type="text" id="components-search" placeholder="搜索组件...">
-            </div>
-            <div class="components-list">
-                <div class="component-category">
-                    <div class="category-title">
-                        <i class="fas fa-shapes"></i>
-                        <span>基础组件</span>
-                    </div>
-                    <div class="component-item" data-type="card">
-                        <i class="fas fa-square"></i>
-                        <span>卡片 (MyCard)</span>
-                        <i class="fas fa-question-circle component-help" title="用于将内容组织在卡片中。可以设置标题、边距，并且可以折叠。"></i>
-                    </div>
-                    <div class="component-item" data-type="text">
-                        <i class="fas fa-font"></i>
-                        <span>文本 (TextBlock)</span>
-                        <i class="fas fa-question-circle component-help" title="用于显示文本。可以设置文本内容、字体大小、颜色等。"></i>
-                    </div>
-                    <div class="component-item" data-type="hint">
-                        <i class="fas fa-info-circle"></i>
-                        <span>提示条 (MyHint)</span>
-                        <i class="fas fa-question-circle component-help" title="用于显示提示信息。可以设置颜色主题（Blue、Yellow、Red）。"></i>
-                    </div>
-                    <div class="component-item" data-type="image">
-                        <i class="fas fa-image"></i>
-                        <span>图片 (MyImage)</span>
-                        <i class="fas fa-question-circle component-help" title="用于显示图片。可以设置图片源、宽高、对齐方式等。"></i>
-                    </div>
-                </div>
-                
-                <div class="component-category">
-                    <div class="category-title">
-                        <i class="fas fa-mouse-pointer"></i>
-                        <span>交互组件</span>
-                    </div>
-                    <div class="component-item" data-type="button">
-                        <i class="fas fa-hand-pointer"></i>
-                        <span>按钮 (MyButton)</span>
-                        <i class="fas fa-question-circle component-help" title="用于创建可点击的按钮。可以设置文本、颜色、事件等。"></i>
-                    </div>
-                    <div class="component-item" data-type="text-button">
-                        <i class="fas fa-minus-square"></i>
-                        <span>文本按钮 (MyTextButton)</span>
-                        <i class="fas fa-question-circle component-help" title="无边框的纯文本按钮。可以设置文本和事件。"></i>
-                    </div>
-                    <div class="component-item" data-type="list-item">
-                        <i class="fas fa-list"></i>
-                        <span>列表项 (MyListItem)</span>
-                        <i class="fas fa-question-circle component-help" title="用于创建列表项。可以设置图标、标题、描述和事件。"></i>
-                    </div>
-                </div>
-                
-                <div class="component-category">
-                    <div class="category-title">
-                        <i class="fas fa-th"></i>
-                        <span>布局组件</span>
-                    </div>
-                    <div class="component-item" data-type="stack-panel">
-                        <i class="fas fa-align-justify"></i>
-                        <span>垂直布局 (StackPanel)</span>
-                        <i class="fas fa-question-circle component-help" title="用于垂直排列子组件。"></i>
-                    </div>
-                    <div class="component-item" data-type="horizontal-stack">
-                        <i class="fas fa-arrows-alt-h"></i>
-                        <span>水平布局 (Horizontal StackPanel)</span>
-                        <i class="fas fa-question-circle component-help" title="用于水平排列子组件。"></i>
-                    </div>
-                </div>
-            </div>
-            <!-- 组件统计 -->
-            <div class="components-stats">
-                <div id="components-count">共 9 个组件</div>
-            </div>
-        </div>
-        
         <div class="design-area">
-            <div class="design-toolbar">
-                <div class="toolbar-left">
-                    <button class="panel-toggle" id="toggle-components-panel">
-                        <i class="fas fa-th"></i> 组件库
-                    </button>
-                    <button class="menu-button" id="clear-all">
-                        <i class="fas fa-trash"></i> 清空所有
-                    </button>
-                </div>
-                
-                <div class="toolbar-center">
-                    <!-- 层级导航 -->
-                    <div class="component-hierarchy" id="component-hierarchy">
-                        <div class="hierarchy-item" data-level="root">根层级</div>
-                    </div>
-                </div>
-                
-                <div class="toolbar-right">
-                    <button class="button" id="xaml-tool">
-                        <i class="fas fa-code"></i> XAML工具
-                    </button>
-                </div>
+            <div class="toolbar">
+                <button class="btn" id="clearCanvasBtn"><i class="fas fa-trash"></i> 清空</button>
+                <button class="btn btn-primary" id="xamlExportBtn"><i class="fas fa-code"></i> XAML工具</button>
+                <button class="btn" id="toggleSidebarBtn"><i class="fas fa-bars"></i> 组件库</button>
             </div>
-            
-            <div class="design-content">
-                <div class="component-placeholder">
-                    <i class="fas fa-code"></i>
-                    <h3>从左侧拖放组件开始设计</h3>
-                    <p>拖拽组件到此区域开始创建您的主页</p>
-                </div>
-                
-                <div id="preview-container"></div>
+            <div class="hierarchy-bar" id="hierarchyBar"></div>
+            <div class="preview-container" id="previewContainer">
+                <div class="canvas" id="canvas"></div>
             </div>
         </div>
+        <div class="props-panel" id="propsPanel">
+            <div class="prop-group"><h4><i class="fas fa-info-circle"></i> 组件属性</h4>
+                <div class="prop-field"><label>类型</label><input id="propType" disabled></div>
+                <div class="prop-field"><label>ID</label><input id="propId" disabled></div>
+            </div>
+            <div id="dynamicProps"></div>
+            <div class="prop-group"><h4><i class="fas fa-bolt"></i> 事件 (Event)</h4>
+                <div class="prop-field"><label>EventType</label><select id="eventTypeSelect"><option value="">无</option><option value="打开网页">打开网页</option><option value="启动游戏">启动游戏</option><option value="弹出窗口">弹出窗口</option><option value="复制文本">复制文本</option><option value="打开文件">打开文件</option></select></div>
+                <div class="prop-field"><label>EventData</label><textarea id="eventDataInput" rows="2"></textarea></div>
+            </div>
+            <div class="prop-group"><div style="display:flex; gap:8px;"><button class="btn btn-primary" id="applyPropsBtn">应用更改</button><button class="btn btn-danger" id="deleteCompBtn">删除组件</button><button class="btn" id="duplicateCompBtn">复制组件</button></div></div>
+        </div>
+    </div>
+</div>
+<div class="modal" id="xamlModal"><div class="modal-content"><h3>XAML 工具</h3><div style="margin: 12px 0;"><button class="btn" id="viewXamlBtn">查看XAML</button><button class="btn" id="importXamlBtn">导入XAML</button></div><div id="xamlViewArea" style="display:none;"><textarea id="xamlCodeArea" class="code-editor" readonly></textarea><div style="margin-top:12px;"><button class="btn" id="copyXamlBtn">复制代码</button><button class="btn" id="closeModalBtn">关闭</button></div></div><div id="importArea" style="display:none;"><textarea id="importXamlText" class="code-editor" placeholder="粘贴 XAML 代码..."></textarea><div style="margin-top:12px;"><button class="btn btn-primary" id="doImportBtn">解析并加载</button><button class="btn" id="cancelImportBtn">取消</button></div></div></div></div>
+<div id="toast" class="toast"></div>
+<script>
+    // ---------- 组件元数据 ----------
+    const COMP_TYPES = {
+        card: { name: "卡片 (MyCard)", icon: "fas fa-layer-group", canNest: true, defaults: { Title: "新卡片", Margin: "0,0,0,15", CanSwap: "True", IsSwapped: "True" } },
+        text: { name: "文本 (TextBlock)", icon: "fas fa-font", canNest: false, defaults: { Text: "这是一段文本", FontSize: "14", TextWrapping: "Wrap", Foreground: "#1e293b" } },
+        hint: { name: "提示条 (MyHint)", icon: "fas fa-info-circle", canNest: false, defaults: { Text: "提示信息", Theme: "Blue" } },
+        image: { name: "图片 (MyImage)", icon: "fas fa-image", canNest: false, defaults: { Source: "https://www.baidu.com/img/flexible/logo/pc/result.png", Height: "60", HorizontalAlignment: "Center" } },
+        button: { name: "按钮 (MyButton)", icon: "fas fa-hand-pointer", canNest: false, defaults: { Text: "按钮", ColorType: "Highlight", Height: "35", Padding: "20,0", Margin: "0,4,0,10" } },
+        textbutton: { name: "文本按钮 (MyTextButton)", icon: "fas fa-minus-square", canNest: false, defaults: { Text: "文本按钮", Margin: "0,8,0,10" } },
+        listitem: { name: "列表项 (MyListItem)", icon: "fas fa-list", canNest: false, defaults: { Title: "标题", Info: "描述", Logo: "pack://application:,,,/images/Blocks/Grass.png", Type: "Clickable" } },
+        stackpanel: { name: "垂直布局 (StackPanel)", icon: "fas fa-align-justify", canNest: true, defaults: { Margin: "0,0,0,0" } },
+        horizontalstack: { name: "水平布局 (StackPanel Horizontal)", icon: "fas fa-arrows-alt-h", canNest: true, defaults: { Orientation: "Horizontal", HorizontalAlignment: "Center", Margin: "0,0,0,0" } }
+    };
+    
+    let state = { components: [], nextId: 100, selectedId: null };
+    let pendingDragType = null;   // 临时存储正在拖拽的组件类型
+    
+    // 辅助函数
+    function showToast(msg, isErr = false) { 
+        let t = document.getElementById('toast'); 
+        t.textContent = msg; 
+        t.style.background = isErr ? '#ef4444' : '#4f46e5'; 
+        t.style.opacity = '1'; 
+        setTimeout(() => t.style.opacity = '0', 2000); 
+    }
+    
+    function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+    function escapeXml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+    
+    function findCompById(id, list = state.components) {
+        for (let c of list) { if (c.id === id) return c; if (c.children) { let found = findCompById(id, c.children); if (found) return found; } }
+        return null;
+    }
+    
+    function createComponent(type, parentId = null) {
+        const def = COMP_TYPES[type];
+        if (!def) return null;
+        const id = state.nextId++;
+        const comp = { id, type, name: def.name, parentId, children: [], props: JSON.parse(JSON.stringify(def.defaults)), events: { type: "", data: "" } };
+        return comp;
+    }
+    
+    function addComponent(comp, targetParentId = null) {
+        if (targetParentId === null) { 
+            state.components.push(comp); 
+            return true; 
+        }
+        const parent = findCompById(targetParentId);
+        if (parent && COMP_TYPES[parent.type]?.canNest) { 
+            parent.children.push(comp); 
+            comp.parentId = targetParentId; 
+            return true; 
+        }
+        return false;
+    }
+    
+    function removeCompById(id) {
+        const removeFromList = (list) => { 
+            for (let i=0; i<list.length; i++) { 
+                if (list[i].id === id) { list.splice(i,1); return true; } 
+                if (list[i].children && removeFromList(list[i].children)) return true; 
+            } return false; 
+        };
+        if (removeFromList(state.components)) { 
+            if (state.selectedId === id) state.selectedId = null; 
+            renderCanvas(); 
+            return true; 
+        }
+        return false;
+    }
+    
+    // ---------- 渲染核心 ----------
+    function renderComponent(comp, container) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'component-item-wrapper';
+        wrapper.setAttribute('data-id', comp.id);
+        wrapper.setAttribute('data-type', comp.type);
         
-        <div class="properties-panel">
-            <div class="panel-header">
-                <span>属性面板</span>
-                <button class="panel-toggle" id="toggle-properties">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="properties-content">
-                <div class="property-group">
-                    <div class="property-title">
-                        <i class="fas fa-info-circle"></i>
-                        <span>组件信息</span>
-                    </div>
-                    <div class="property-item">
-                        <label for="comp-type">组件类型</label>
-                        <input type="text" id="comp-type" disabled>
-                    </div>
-                    <div class="property-item">
-                        <label for="comp-id">组件ID</label>
-                        <input type="text" id="comp-id" disabled>
-                    </div>
-                </div>
-                
-                <div class="property-group">
-                    <div class="property-title">
-                        <i class="fas fa-sliders-h"></i>
-                        <span>基本属性</span>
-                    </div>
-                    <div id="common-properties">
-                        <!-- 通用属性将在这里动态生成 -->
-                    </div>
-                </div>
-                
-                <div class="property-group">
-                    <div class="property-title">
-                        <i class="fas fa-bolt"></i>
-                        <span>事件设置</span>
-                    </div>
-                    <div class="property-item">
-                        <label for="event-type">事件类型</label>
-                        <select id="event-type">
-                            <option value="">无事件</option>
-                            <option value="打开网页">打开网页</option>
-                            <option value="启动游戏">启动游戏</option>
-                            <option value="执行命令">执行命令/打开文件</option>
-                            <option value="弹出窗口">弹出窗口</option>
-                            <option value="复制文本">复制文本</option>
-                        </select>
-                    </div>
-                    <div class="property-item">
-                        <label for="event-data">事件数据</label>
-                        <textarea id="event-data" rows="2" placeholder="输入事件相关数据..."></textarea>
-                    </div>
-                </div>
-                
-                <!-- 嵌套验证提示 -->
-                <div class="property-group">
-                    <div class="property-title">
-                        <i class="fas fa-sitemap"></i>
-                        <span>嵌套验证</span>
-                    </div>
-                    <div class="nested-validation" id="nested-validation">
-                        <!-- 嵌套验证信息将在这里显示 -->
-                    </div>
-                </div>
-                
-                <div class="property-group">
-                    <div class="property-title">
-                        <i class="fas fa-tools"></i>
-                        <span>操作</span>
-                    </div>
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <button class="button" id="apply-properties">
-                            <i class="fas fa-check"></i> 应用更改
-                        </button>
-                        <button class="button button-danger" id="remove-component">
-                            <i class="fas fa-trash"></i> 删除组件
-                        </button>
-                        <button class="button button-outline" id="duplicate-component">
-                            <i class="fas fa-copy"></i> 复制组件
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="status-bar">
-        <div id="status-message">就绪</div>
-        <div id="component-count">组件: 0</div>
-    </div>
-
-    <!-- XAML工具模态框 -->
-    <div class="modal" id="xaml-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">XAML 工具</h2>
-                <span class="close">&times;</span>
-            </div>
-            <div>
-                <div style="margin-bottom: 15px;">
-                    <button class="button" id="view-xaml" style="margin-right: 10px;">
-                        <i class="fas fa-eye"></i> 查看XAML
-                    </button>
-                    <button class="button button-outline" id="import-xaml">
-                        <i class="fas fa-file-import"></i> 导入XAML
-                    </button>
-                </div>
-                
-                <div id="xaml-content-container" style="display: none;">
-                    <textarea id="xaml-code" class="code-editor" readonly></textarea>
-                    <div style="margin-top: 15px; display: flex; gap: 10px;">
-                        <button class="button" id="copy-xaml">
-                            <i class="fas fa-copy"></i> 复制代码
-                        </button>
-                        <button class="button button-outline" id="close-xaml-view">
-                            <i class="fas fa-times"></i> 关闭
-                        </button>
-                    </div>
-                </div>
-                
-                <div id="import-content-container" style="display: none;">
-                    <textarea id="import-xaml-code" class="code-editor" placeholder="在此粘贴您的XAML代码..."></textarea>
-                    <div style="margin-top: 15px; display: flex; gap: 10px;">
-                        <button class="button" id="parse-xaml">
-                            <i class="fas fa-code"></i> 解析并生成卡片
-                        </button>
-                        <button class="button button-outline" id="close-import">
-                            <i class="fas fa-times"></i> 取消
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 通知 -->
-    <div class="notification" id="notification">
-        <i class="fas fa-check-circle"></i>
-        <span id="notification-text">操作成功</span>
-    </div>
-
-    <script>
-        // 全局变量
-        let currentProject = {
-            components: [],
-            selectedComponent: null,
-            nextId: 1
-        };
-
-        let isDragging = false;
-        let dragComponent = null;
-        let dragPreview = null;
-
-        // 组件类型定义
-        const componentTypes = {
-            'card': {
-                name: '卡片 (MyCard)',
-                icon: 'fas fa-square',
-                properties: {
-                    header: { type: 'text', label: '标题', value: '卡片标题' },
-                    margin: { type: 'number', label: '边距', value: '8' },
-                    padding: { type: 'number', label: '内边距', value: '16' },
-                    isCollapsible: { type: 'checkbox', label: '可折叠', value: false },
-                    isExpanded: { type: 'checkbox', label: '默认展开', value: true }
-                },
-                canNest: true
-            },
-            'text': {
-                name: '文本 (TextBlock)',
-                icon: 'fas fa-font',
-                properties: {
-                    text: { type: 'textarea', label: '文本内容', value: '这是一段文本' },
-                    fontSize: { type: 'number', label: '字体大小', value: '14' },
-                    fontWeight: { 
-                        type: 'select', 
-                        label: '字体粗细', 
-                        value: 'Normal',
-                        options: ['Normal', 'Bold', 'Light']
-                    },
-                    textColor: { type: 'color', label: '文本颜色', value: '#1e293b' }
-                },
-                canNest: false
-            },
-            'hint': {
-                name: '提示条 (MyHint)',
-                icon: 'fas fa-info-circle',
-                properties: {
-                    text: { type: 'textarea', label: '提示内容', value: '这是一个提示信息' },
-                    hintType: { 
-                        type: 'select', 
-                        label: '提示类型', 
-                        value: 'Blue',
-                        options: ['Blue', 'Yellow', 'Red']
-                    }
-                },
-                canNest: false
-            },
-            'image': {
-                name: '图片 (MyImage)',
-                icon: 'fas fa-image',
-                properties: {
-                    source: { type: 'text', label: '图片地址', value: 'https://via.placeholder.com/300x150' },
-                    width: { type: 'number', label: '宽度', value: '300' },
-                    height: { type: 'number', label: '高度', value: '150' },
-                    stretch: { 
-                        type: 'select', 
-                        label: '拉伸方式', 
-                        value: 'Uniform',
-                        options: ['None', 'Fill', 'Uniform', 'UniformToFill']
-                    }
-                },
-                canNest: false
-            },
-            'button': {
-                name: '按钮 (MyButton)',
-                icon: 'fas fa-hand-pointer',
-                properties: {
-                    content: { type: 'text', label: '按钮文本', value: '点击我' },
-                    background: { type: 'color', label: '背景颜色', value: '#4a6cf7' },
-                    foreground: { type: 'color', label: '文字颜色', value: '#ffffff' },
-                    padding: { type: 'number', label: '内边距', value: '12' }
-                },
-                canNest: false
-            },
-            'text-button': {
-                name: '文本按钮 (MyTextButton)',
-                icon: 'fas fa-minus-square',
-                properties: {
-                    text: { type: 'text', label: '按钮文本', value: '文本按钮' },
-                    textColor: { type: 'color', label: '文字颜色', value: '#4a6cf7' }
-                },
-                canNest: false
-            },
-            'list-item': {
-                name: '列表项 (MyListItem)',
-                icon: 'fas fa-list',
-                properties: {
-                    icon: { type: 'text', label: '图标', value: 'fas fa-cube' },
-                    title: { type: 'text', label: '标题', value: '列表项标题' },
-                    description: { type: 'textarea', label: '描述', value: '列表项描述' }
-                },
-                canNest: false
-            },
-            'stack-panel': {
-                name: '垂直布局 (StackPanel)',
-                icon: 'fas fa-align-justify',
-                properties: {
-                    margin: { type: 'number', label: '边距', value: '0' },
-                    padding: { type: 'number', label: '内边距', value: '0' }
-                },
-                canNest: true
-            },
-            'horizontal-stack': {
-                name: '水平布局 (Horizontal StackPanel)',
-                icon: 'fas fa-arrows-alt-h',
-                properties: {
-                    margin: { type: 'number', label: '边距', value: '0' },
-                    padding: { type: 'number', label: '内边距', value: '0' }
-                },
-                canNest: true
-            }
-        };
-
-        // DOM 加载完成后初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeApp();
+        if (comp.type === 'card') {
+            wrapper.innerHTML = `<div class="card-component"><div class="card-header"><span>${escapeHtml(comp.props.Title || '卡片')}</span><div><i class="fas fa-arrows-alt"></i></div></div><div class="card-content"><div class="nested-dropzone" data-parent-id="${comp.id}" data-placeholder="将组件拖入卡片"></div></div></div>`;
+            const dropzone = wrapper.querySelector('.nested-dropzone');
+            comp.children.forEach(child => renderComponent(child, dropzone));
+        } 
+        else if (comp.type === 'stackpanel') {
+            wrapper.innerHTML = `<div class="card-component" style="background:var(--bg-card); padding:8px; border:1px dashed var(--border);"><div style="font-size:0.7rem; color:var(--text-light);"><i class="fas fa-layer-group"></i> 垂直布局</div><div class="nested-dropzone" data-parent-id="${comp.id}"></div></div>`;
+            const dz = wrapper.querySelector('.nested-dropzone');
+            comp.children.forEach(child => renderComponent(child, dz));
+        }
+        else if (comp.type === 'horizontalstack') {
+            wrapper.innerHTML = `<div class="card-component" style="background:var(--bg-card); padding:8px; border:1px dashed var(--border);"><div style="font-size:0.7rem;"><i class="fas fa-arrows-alt-h"></i> 水平布局</div><div class="nested-dropzone horizontal" data-parent-id="${comp.id}" style="display:flex; gap:8px; flex-wrap:wrap;"></div></div>`;
+            const dz = wrapper.querySelector('.nested-dropzone');
+            comp.children.forEach(child => renderComponent(child, dz));
+        }
+        else {
+            let innerHtml = '';
+            if (comp.type === 'text') innerHtml = `<div style="margin:4px 0; color:${comp.props.Foreground || '#000'}">${escapeHtml(comp.props.Text || '文本')}</div>`;
+            else if (comp.type === 'hint') innerHtml = `<div class="hint-${(comp.props.Theme||'blue').toLowerCase()}" style="padding:8px; border-radius:8px;">${escapeHtml(comp.props.Text)}</div>`;
+            else if (comp.type === 'image') innerHtml = `<img src="${comp.props.Source}" style="max-width:100%; height:${comp.props.Height || 'auto'}" />`;
+            else if (comp.type === 'button') innerHtml = `<button class="btn" style="background:${comp.props.ColorType === 'Highlight' ? '#4f46e5' : '#333'}; color:white; border:none; padding:8px 16px; border-radius:30px;">${escapeHtml(comp.props.Text)}</button>`;
+            else if (comp.type === 'textbutton') innerHtml = `<button style="background:none; border:none; color:var(--primary); cursor:pointer;">${escapeHtml(comp.props.Text)}</button>`;
+            else if (comp.type === 'listitem') innerHtml = `<div class="list-item-mock"><i class="fas fa-cube"></i><div><strong>${escapeHtml(comp.props.Title)}</strong><div style="font-size:12px;">${escapeHtml(comp.props.Info)}</div></div></div>`;
+            wrapper.innerHTML = innerHtml;
+        }
+        wrapper.addEventListener('click', (e) => { e.stopPropagation(); selectComponent(comp.id); });
+        container.appendChild(wrapper);
+    }
+    
+    function renderCanvas() {
+        const canvas = document.getElementById('canvas');
+        canvas.innerHTML = '';
+        if (state.components.length === 0) { 
+            canvas.innerHTML = '<div class="empty-placeholder"><i class="fas fa-drag-drop" style="font-size:2rem"></i><p>从左侧拖拽组件至此</p></div>'; 
+            return; 
+        }
+        state.components.forEach(comp => renderComponent(comp, canvas));
+        // 高亮当前选中的组件
+        if (state.selectedId) { 
+            document.querySelectorAll(`[data-id="${state.selectedId}"]`).forEach(el => el.classList.add('selected')); 
+        }
+        updateHierarchyBar();
+        updatePropsPanel();
+    }
+    
+    function selectComponent(id) {
+        state.selectedId = id;
+        document.querySelectorAll('.component-item-wrapper').forEach(el => el.classList.remove('selected'));
+        const selEl = document.querySelector(`[data-id="${id}"]`);
+        if (selEl) selEl.classList.add('selected');
+        updatePropsPanel();
+        updateHierarchyBar();
+    }
+    
+    function updatePropsPanel() {
+        const comp = findCompById(state.selectedId);
+        if (!comp) { 
+            document.getElementById('propType').value = ''; 
+            document.getElementById('dynamicProps').innerHTML = ''; 
+            return; 
+        }
+        document.getElementById('propType').value = COMP_TYPES[comp.type]?.name || comp.type;
+        document.getElementById('propId').value = comp.id;
+        const eventTypeSel = document.getElementById('eventTypeSelect');
+        const eventDataInp = document.getElementById('eventDataInput');
+        eventTypeSel.value = comp.events?.type || '';
+        eventDataInp.value = comp.events?.data || '';
+        const container = document.getElementById('dynamicProps');
+        container.innerHTML = '';
+        for (let [key, val] of Object.entries(comp.props)) {
+            const div = document.createElement('div'); div.className = 'prop-field';
+            div.innerHTML = `<label>${key}</label><input data-prop="${key}" value="${escapeHtml(String(val))}" />`;
+            container.appendChild(div);
+        }
+    }
+    
+    function applyCurrentProps() {
+        const comp = findCompById(state.selectedId);
+        if (!comp) return;
+        document.querySelectorAll('#dynamicProps input').forEach(inp => {
+            let key = inp.getAttribute('data-prop');
+            if (key) comp.props[key] = inp.value;
         });
-
-        // 初始化应用
-        function initializeApp() {
-            setupEventListeners();
-            setupDragAndDrop();
-            updateComponentCount();
-            updateStatus('就绪');
-        }
-
-        // 设置事件监听器
-        function setupEventListeners() {
-            // 主题切换
-            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
-            
-            // 面板切换
-            document.getElementById('toggle-components').addEventListener('click', toggleComponentsPanel);
-            document.getElementById('toggle-properties').addEventListener('click', togglePropertiesPanel);
-            document.getElementById('toggle-components-panel').addEventListener('click', toggleComponentsPanel);
-            
-            // 工具栏按钮
-            document.getElementById('clear-all').addEventListener('click', clearAllComponents);
-            document.getElementById('xaml-tool').addEventListener('click', showXamlModal);
-            
-            // XAML模态框事件
-            document.getElementById('view-xaml').addEventListener('click', showXamlView);
-            document.getElementById('import-xaml').addEventListener('click', showImportView);
-            document.getElementById('copy-xaml').addEventListener('click', copyXamlToClipboard);
-            document.getElementById('parse-xaml').addEventListener('click', parseXamlToComponents);
-            document.getElementById('close-xaml-view').addEventListener('click', closeXamlView);
-            document.getElementById('close-import').addEventListener('click', closeImportView);
-            
-            // 属性面板操作
-            document.getElementById('apply-properties').addEventListener('click', applyProperties);
-            document.getElementById('remove-component').addEventListener('click', removeSelectedComponent);
-            document.getElementById('duplicate-component').addEventListener('click', duplicateSelectedComponent);
-            
-            // 组件搜索
-            document.getElementById('components-search').addEventListener('input', filterComponents);
-            
-            // 帮助提示
-            document.querySelectorAll('.component-help').forEach(help => {
-                help.addEventListener('click', showComponentHelp);
-            });
-            
-            // 关闭模态框
-            document.querySelectorAll('.close').forEach(closeBtn => {
-                closeBtn.addEventListener('click', function() {
-                    document.getElementById('xaml-modal').style.display = 'none';
-                });
-            });
-            
-            // 点击模态框外部关闭
-            window.addEventListener('click', function(event) {
-                if (event.target === document.getElementById('xaml-modal')) {
-                    document.getElementById('xaml-modal').style.display = 'none';
-                }
-            });
-            
-            // 点击设计区域空白处取消选择
-            document.querySelector('.design-content').addEventListener('click', function(e) {
-                if (e.target === this || e.target.classList.contains('component-placeholder')) {
-                    document.querySelectorAll('.selected').forEach(el => {
-                        el.classList.remove('selected');
-                    });
-                    currentProject.selectedComponent = null;
-                    updatePropertiesPanel({ type: '', name: '', properties: {} });
-                }
-            });
-        }
-
-        // 设置拖放功能
-        function setupDragAndDrop() {
-            const componentItems = document.querySelectorAll('.component-item');
-            const designArea = document.querySelector('.design-content');
-            const previewContainer = document.getElementById('preview-container');
-            
-            // 为组件项添加拖拽事件
-            componentItems.forEach(item => {
-                item.addEventListener('dragstart', handleDragStart);
-                item.addEventListener('dragend', handleDragEnd);
-            });
-            
-            // 设计区域拖放事件
-            designArea.addEventListener('dragover', handleDragOver);
-            designArea.addEventListener('dragenter', handleDragEnter);
-            designArea.addEventListener('dragleave', handleDragLeave);
-            designArea.addEventListener('drop', handleDrop);
-            
-            // 预览容器拖放事件（用于嵌套）
-            if (previewContainer) {
-                previewContainer.addEventListener('dragover', handleDragOver);
-                previewContainer.addEventListener('dragenter', handleDragEnter);
-                previewContainer.addEventListener('dragleave', handleDragLeave);
-                previewContainer.addEventListener('drop', handleDrop);
-            }
-        }
-
-        // 拖拽开始
-        function handleDragStart(e) {
-            isDragging = true;
-            dragComponent = e.target.closest('.component-item').getAttribute('data-type');
-            
-            // 创建拖拽预览
-            dragPreview = document.createElement('div');
-            dragPreview.className = 'drag-preview';
-            dragPreview.textContent = componentTypes[dragComponent].name;
-            document.body.appendChild(dragPreview);
-            
-            e.dataTransfer.setData('text/plain', dragComponent);
-            e.dataTransfer.effectAllowed = 'copy';
-            
-            // 更新拖拽预览位置
-            updateDragPreview(e);
-            
-            updateStatus(`正在拖拽: ${componentTypes[dragComponent].name}`);
-        }
-
-        // 拖拽结束
-        function handleDragEnd(e) {
-            isDragging = false;
-            dragComponent = null;
-            
-            if (dragPreview) {
-                document.body.removeChild(dragPreview);
-                dragPreview = null;
-            }
-            
-            // 移除所有拖拽样式
-            document.querySelectorAll('.drag-over').forEach(el => {
-                el.classList.remove('drag-over');
-            });
-            
-            updateStatus('就绪');
-        }
-
-        // 拖拽经过
-        function handleDragOver(e) {
+        comp.events = { type: document.getElementById('eventTypeSelect').value, data: document.getElementById('eventDataInput').value };
+        renderCanvas();
+        showToast('属性已更新');
+    }
+    
+    function updateHierarchyBar() {
+        const bar = document.getElementById('hierarchyBar');
+        if (!state.selectedId) { bar.innerHTML = '<span>未选中组件</span>'; return; }
+        let path = [];
+        let cur = findCompById(state.selectedId);
+        while (cur) { path.unshift(cur); cur = findCompById(cur.parentId); }
+        bar.innerHTML = path.map(c => `<span class="hierarchy-item" data-id="${c.id}">${c.name}</span>`).join(' <i class="fas fa-chevron-right"></i> ');
+        document.querySelectorAll('.hierarchy-item').forEach(el => el.addEventListener('click', (e) => { selectComponent(parseInt(el.getAttribute('data-id'))); }));
+    }
+    
+    // ---------- 全新拖拽逻辑 (无重复放置) ----------
+    function initDragAndDrop() {
+        // 组件库拖拽源: 在build时绑定dragstart
+        // 全局放置监听 (使用事件委托，避免重复绑定)
+        const designContainer = document.getElementById('previewContainer');
+        
+        // 全局 dragover 必须阻止默认以允许放置
+        document.body.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'copy';
-            
-            // 更新拖拽预览位置
-            updateDragPreview(e);
-        }
-
-        // 拖拽进入
-        function handleDragEnter(e) {
+        });
+        
+        // 高亮管理: 记录当前悬停的dropzone
+        let currentDragOverElement = null;
+        
+        // 全局 dragover 用于动态添加高亮
+        designContainer.addEventListener('dragover', (e) => {
             e.preventDefault();
-            const target = e.target.closest('.nested-components, .design-content, #preview-container');
-            if (target) {
-                target.classList.add('drag-over');
+            e.dataTransfer.dropEffect = 'copy';
+            // 寻找实际有效的放置区域
+            const targetZone = e.target.closest('.nested-dropzone, .canvas');
+            if (targetZone && targetZone !== currentDragOverElement) {
+                // 移除之前的悬停样式
+                if (currentDragOverElement) currentDragOverElement.classList.remove('drag-over');
+                currentDragOverElement = targetZone;
+                targetZone.classList.add('drag-over');
+            } else if (!targetZone && currentDragOverElement) {
+                currentDragOverElement.classList.remove('drag-over');
+                currentDragOverElement = null;
             }
-        }
-
-        // 拖拽离开
-        function handleDragLeave(e) {
-            const target = e.target.closest('.nested-components, .design-content, #preview-container');
-            if (target && !target.contains(e.relatedTarget || e.toElement)) {
-                target.classList.remove('drag-over');
+        });
+        
+        // 全局 dragleave 清除高亮
+        designContainer.addEventListener('dragleave', (e) => {
+            if (currentDragOverElement) {
+                currentDragOverElement.classList.remove('drag-over');
+                currentDragOverElement = null;
             }
-        }
-
-        // 放置
-        function handleDrop(e) {
+        });
+        
+        // 关键: drop 事件处理，只添加一次组件
+        designContainer.addEventListener('drop', (e) => {
             e.preventDefault();
+            // 清除高亮
+            if (currentDragOverElement) {
+                currentDragOverElement.classList.remove('drag-over');
+                currentDragOverElement = null;
+            }
             
-            const componentType = e.dataTransfer.getData('text/plain');
-            if (!componentType) return;
+            // 获取拖拽的类型
+            let compType = pendingDragType;
+            if (!compType) {
+                // 兼容从外部或者dataTransfer读取
+                const dragData = e.dataTransfer.getData('text/plain');
+                if (dragData && COMP_TYPES[dragData]) compType = dragData;
+            }
+            if (!compType || !COMP_TYPES[compType]) {
+                // 可能拖拽的不是有效组件
+                return;
+            }
             
-            // 确定放置目标
-            let dropTarget = e.target;
-            let parentComponent = null;
-            let isNested = false;
+            // 确定放置目标父容器ID
+            let targetParentId = null;
+            const dropZone = e.target.closest('.nested-dropzone, .canvas');
+            if (!dropZone) return;
             
-            // 查找最近的嵌套容器
-            while (dropTarget && dropTarget !== document.body) {
-                if (dropTarget.classList.contains('nested-components')) {
-                    parentComponent = dropTarget.closest('.component-instance');
-                    isNested = true;
-                    break;
+            if (dropZone.classList.contains('nested-dropzone')) {
+                const parentIdAttr = dropZone.getAttribute('data-parent-id');
+                if (parentIdAttr) targetParentId = parseInt(parentIdAttr);
+            } else if (dropZone.classList.contains('canvas')) {
+                targetParentId = null; // 根容器
+            }
+            
+            // 验证是否可以放置 (父容器是否支持嵌套)
+            if (targetParentId !== null) {
+                const parentComp = findCompById(targetParentId);
+                if (!parentComp || !COMP_TYPES[parentComp.type]?.canNest) {
+                    showToast('该容器不允许放置子组件', true);
+                    return;
                 }
-                if (dropTarget.id === 'preview-container') {
-                    break;
-                }
-                dropTarget = dropTarget.parentElement;
             }
             
             // 创建新组件
-            const newComponent = createComponent(componentType, parentComponent ? parentComponent.id : null);
+            const newComp = createComponent(compType, targetParentId);
+            if (!newComp) return;
             
-            // 添加到项目
-            if (parentComponent) {
-                const parentData = findComponentById(parentComponent.id);
-                if (parentData) {
-                    parentData.children.push(newComponent);
-                }
+            const success = addComponent(newComp, targetParentId);
+            if (success) {
+                renderCanvas();
+                showToast(`添加 ${COMP_TYPES[compType].name}`);
+                // 可选: 自动选中新组件
+                selectComponent(newComp.id);
             } else {
-                currentProject.components.push(newComponent);
+                showToast('无法添加到此处', true);
             }
             
-            // 渲染组件
-            const targetContainer = isNested ? parentComponent.querySelector('.nested-components') : document.getElementById('preview-container');
-            if (targetContainer) {
-                renderComponent(newComponent, targetContainer);
+            // 清理拖拽数据，避免重复添加
+            pendingDragType = null;
+        });
+        
+        // 拖拽结束清理全局标志
+        document.addEventListener('dragend', () => {
+            pendingDragType = null;
+            if (currentDragOverElement) {
+                currentDragOverElement.classList.remove('drag-over');
+                currentDragOverElement = null;
             }
-            
-            // 更新UI
-            updateComponentCount();
-            updateStatus(`已添加: ${componentTypes[componentType].name}`);
-            
-            // 移除拖拽样式
-            document.querySelectorAll('.drag-over').forEach(el => {
-                el.classList.remove('drag-over');
-            });
-            
-            // 隐藏占位符
-            const placeholder = document.querySelector('.component-placeholder');
-            if (placeholder) {
-                placeholder.style.display = 'none';
-            }
-        }
-
-        // 更新拖拽预览位置
-        function updateDragPreview(e) {
-            if (!dragPreview) return;
-            
-            dragPreview.style.left = (e.pageX + 10) + 'px';
-            dragPreview.style.top = (e.pageY + 10) + 'px';
-        }
-
-        // 创建组件数据
-        function createComponent(type, parentId = null) {
-            const id = `comp_${currentProject.nextId++}`;
-            const componentDef = componentTypes[type];
-            
-            const component = {
-                id: id,
-                type: type,
-                name: componentDef.name,
-                properties: {},
-                events: {
-                    type: '',
-                    data: ''
-                },
-                children: [],
-                parentId: parentId
-            };
-            
-            // 设置默认属性
-            for (const [key, propDef] of Object.entries(componentDef.properties)) {
-                component.properties[key] = propDef.value;
-            }
-            
-            return component;
-        }
-
-        // 渲染组件
-        function renderComponent(componentData, container) {
-            if (!container) return;
-            
-            const componentElement = document.createElement('div');
-            componentElement.className = `component-instance ${componentData.type}-component`;
-            componentElement.id = componentData.id;
-            
-            // 根据组件类型渲染不同的内容
-            switch (componentData.type) {
-                case 'card':
-                    renderCardComponent(componentElement, componentData);
-                    break;
-                case 'text':
-                    renderTextComponent(componentElement, componentData);
-                    break;
-                case 'hint':
-                    renderHintComponent(componentElement, componentData);
-                    break;
-                case 'image':
-                    renderImageComponent(componentElement, componentData);
-                    break;
-                case 'button':
-                    renderButtonComponent(componentElement, componentData);
-                    break;
-                case 'text-button':
-                    renderTextButtonComponent(componentElement, componentData);
-                    break;
-                case 'list-item':
-                    renderListItemComponent(componentElement, componentData);
-                    break;
-                case 'stack-panel':
-                    renderStackPanelComponent(componentElement, componentData);
-                    break;
-                case 'horizontal-stack':
-                    renderHorizontalStackComponent(componentElement, componentData);
-                    break;
-            }
-            
-            // 添加点击事件
-            componentElement.addEventListener('click', function(e) {
-                e.stopPropagation();
-                selectComponent(componentData);
-            });
-            
-            // 添加到容器
-            container.appendChild(componentElement);
-            
-            // 递归渲染子组件
-            if (componentData.children.length > 0 && componentTypes[componentData.type].canNest) {
-                const nestedContainer = componentElement.querySelector('.nested-components');
-                if (nestedContainer) {
-                    componentData.children.forEach(child => {
-                        renderComponent(child, nestedContainer);
-                    });
-                }
-            }
-        }
-
-        // 渲染卡片组件
-        function renderCardComponent(element, data) {
-            element.innerHTML = `
-                <div class="card">
-                    <div class="card-header">
-                        <span>${data.properties.header || '卡片标题'}</span>
-                        <div class="component-actions">
-                            <button class="component-action-btn edit-btn" title="编辑">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="component-action-btn delete-btn" title="删除">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-content">
-                        <div class="nested-components ${data.children.length === 0 ? 'empty' : ''}">
-                            ${data.children.length === 0 ? '将组件拖放到此处' : ''}
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            // 设置样式
-            element.style.margin = `${data.properties.margin || 8}px 0`;
-            const cardContent = element.querySelector('.card-content');
-            if (cardContent) {
-                cardContent.style.padding = `${data.properties.padding || 16}px`;
-            }
-            
-            // 为编辑和删除按钮添加事件监听器
-            const editBtn = element.querySelector('.edit-btn');
-            const deleteBtn = element.querySelector('.delete-btn');
-            
-            if (editBtn) {
-                editBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    selectComponent(data);
-                    togglePropertiesPanel();
-                });
-            }
-            
-            if (deleteBtn) {
-                deleteBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    // 从DOM中移除
-                    const componentElement = document.getElementById(data.id);
-                    if (componentElement) {
-                        componentElement.remove();
-                    }
-                    
-                    // 从数据结构中移除
-                    if (data.parentId) {
-                        const parent = findComponentById(data.parentId);
-                        if (parent) {
-                            parent.children = parent.children.filter(child => child.id !== data.id);
-                        }
-                    } else {
-                        currentProject.components = currentProject.components.filter(comp => comp.id !== data.id);
-                    }
-                    
-                    // 清除选择
-                    if (currentProject.selectedComponent && currentProject.selectedComponent.id === data.id) {
-                        currentProject.selectedComponent = null;
-                        updatePropertiesPanel({ type: '', name: '', properties: {} });
-                    }
-                    
-                    updateComponentCount();
-                    showNotification('组件已删除');
-                    updateStatus('组件已删除');
-                    
-                    // 如果没有组件了，显示占位符
-                    if (currentProject.components.length === 0) {
-                        const placeholder = document.querySelector('.component-placeholder');
-                        if (placeholder) {
-                            placeholder.style.display = 'block';
-                        }
-                    }
-                });
-            }
-        }
-
-        // 渲染文本组件
-        function renderTextComponent(element, data) {
-            element.innerHTML = `
-                <div class="text-component">
-                    ${data.properties.text || '这是一段文本'}
-                </div>
-            `;
-            
-            // 设置样式
-            const textComponent = element.querySelector('.text-component');
-            if (textComponent) {
-                textComponent.style.fontSize = `${data.properties.fontSize || 14}px`;
-                textComponent.style.color = data.properties.textColor || '#1e293b';
-                textComponent.style.fontWeight = data.properties.fontWeight || 'Normal';
-            }
-        }
-
-        // 渲染提示条组件
-        function renderHintComponent(element, data) {
-            const hintClass = `hint-${data.properties.hintType?.toLowerCase() || 'blue'}`;
-            const hintIcon = data.properties.hintType === 'Red' ? 'fas fa-exclamation-triangle' : 
-                            data.properties.hintType === 'Yellow' ? 'fas fa-exclamation-circle' : 'fas fa-info-circle';
-            
-            element.innerHTML = `
-                <div class="hint-component ${hintClass}">
-                    <i class="${hintIcon} hint-icon"></i>
-                    <span>${data.properties.text || '这是一个提示信息'}</span>
-                </div>
-            `;
-        }
-
-        // 渲染图片组件
-        function renderImageComponent(element, data) {
-            element.innerHTML = `
-                <div class="image-component">
-                    <img src="${data.properties.source || 'https://via.placeholder.com/300x150'}" 
-                         alt="图片" 
-                         width="${data.properties.width || 300}" 
-                         height="${data.properties.height || 150}">
-                </div>
-            `;
-        }
-
-        // 渲染按钮组件
-        function renderButtonComponent(element, data) {
-            element.innerHTML = `
-                <button class="button" style="background: ${data.properties.background || '#4a6cf7'}; color: ${data.properties.foreground || '#ffffff'}; padding: ${data.properties.padding || 12}px;">
-                    ${data.properties.content || '点击我'}
-                </button>
-            `;
-        }
-
-        // 渲染文本按钮组件
-        function renderTextButtonComponent(element, data) {
-            element.innerHTML = `
-                <button class="text-button-component" style="color: ${data.properties.textColor || '#4a6cf7'}">
-                    ${data.properties.text || '文本按钮'}
-                </button>
-            `;
-        }
-
-        // 渲染列表项组件
-        function renderListItemComponent(element, data) {
-            element.innerHTML = `
-                <div class="list-item-component">
-                    <div class="list-item-icon">
-                        <i class="${data.properties.icon || 'fas fa-cube'}"></i>
-                    </div>
-                    <div class="list-item-content">
-                        <div class="list-item-title">${data.properties.title || '列表项标题'}</div>
-                        <div class="list-item-description">${data.properties.description || '列表项描述'}</div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // 渲染垂直布局组件
-        function renderStackPanelComponent(element, data) {
-            element.innerHTML = `
-                <div class="vertical-stack">
-                    <div class="nested-components ${data.children.length === 0 ? 'empty' : ''}">
-                        ${data.children.length === 0 ? '将组件拖放到此处' : ''}
-                    </div>
-                </div>
-            `;
-            
-            element.style.margin = `${data.properties.margin || 0}px 0`;
-            const verticalStack = element.querySelector('.vertical-stack');
-            if (verticalStack) {
-                verticalStack.style.padding = `${data.properties.padding || 0}px`;
-            }
-        }
-
-        // 渲染水平布局组件
-        function renderHorizontalStackComponent(element, data) {
-            element.innerHTML = `
-                <div class="horizontal-stack">
-                    <div class="nested-components ${data.children.length === 0 ? 'empty' : ''}">
-                        ${data.children.length === 0 ? '将组件拖放到此处' : ''}
-                    </div>
-                </div>
-            `;
-            
-            element.style.margin = `${data.properties.margin || 0}px 0`;
-            const horizontalStack = element.querySelector('.horizontal-stack');
-            if (horizontalStack) {
-                horizontalStack.style.padding = `${data.properties.padding || 0}px`;
-            }
-        }
-
-        // 选择组件
-        function selectComponent(componentData) {
-            // 移除之前的选择
-            document.querySelectorAll('.selected').forEach(el => {
-                el.classList.remove('selected');
-            });
-            
-            // 选中当前组件
-            const componentElement = document.getElementById(componentData.id);
-            if (componentElement) {
-                componentElement.classList.add('selected');
-                currentProject.selectedComponent = componentData;
-                
-                // 更新属性面板
-                updatePropertiesPanel(componentData);
-                
-                // 更新层级导航
-                updateHierarchyNavigation(componentData);
-                
-                updateStatus(`已选择: ${componentData.name}`);
-            }
-        }
-
-        // 更新属性面板
-        function updatePropertiesPanel(componentData) {
-            const compType = document.getElementById('comp-type');
-            const compId = document.getElementById('comp-id');
-            const commonProperties = document.getElementById('common-properties');
-            const eventType = document.getElementById('event-type');
-            const eventData = document.getElementById('event-data');
-            
-            if (!compType || !compId || !commonProperties || !eventType || !eventData) return;
-            
-            // 更新基本信息
-            compType.value = componentData.name || '';
-            compId.value = componentData.id || '';
-            
-            // 更新事件
-            eventType.value = componentData.events?.type || '';
-            eventData.value = componentData.events?.data || '';
-            
-            // 清空通用属性区域
-            commonProperties.innerHTML = '';
-            
-            // 获取组件定义
-            const componentDef = componentTypes[componentData.type];
-            if (!componentDef) return;
-            
-            // 生成属性控件
-            for (const [key, propDef] of Object.entries(componentDef.properties)) {
-                const propertyItem = document.createElement('div');
-                propertyItem.className = 'property-item';
-                
-                const label = document.createElement('label');
-                label.textContent = propDef.label;
-                label.htmlFor = `prop-${key}`;
-                
-                let input;
-                
-                switch (propDef.type) {
-                    case 'text':
-                    case 'number':
-                    case 'color':
-                        input = document.createElement('input');
-                        input.type = propDef.type;
-                        input.id = `prop-${key}`;
-                        input.value = componentData.properties[key] !== undefined ? componentData.properties[key] : propDef.value;
-                        if (propDef.type === 'number') {
-                            input.min = '0';
-                        }
-                        break;
-                        
-                    case 'textarea':
-                        input = document.createElement('textarea');
-                        input.id = `prop-${key}`;
-                        input.rows = 3;
-                        input.value = componentData.properties[key] !== undefined ? componentData.properties[key] : propDef.value;
-                        break;
-                        
-                    case 'select':
-                        input = document.createElement('select');
-                        input.id = `prop-${key}`;
-                        propDef.options.forEach(option => {
-                            const optionElement = document.createElement('option');
-                            optionElement.value = option;
-                            optionElement.textContent = option;
-                            if (option === (componentData.properties[key] !== undefined ? componentData.properties[key] : propDef.value)) {
-                                optionElement.selected = true;
-                            }
-                            input.appendChild(optionElement);
-                        });
-                        break;
-                        
-                    case 'checkbox':
-                        const checkboxContainer = document.createElement('div');
-                        checkboxContainer.style.display = 'flex';
-                        checkboxContainer.style.alignItems = 'center';
-                        checkboxContainer.style.gap = '8px';
-                        
-                        input = document.createElement('input');
-                        input.type = 'checkbox';
-                        input.id = `prop-${key}`;
-                        input.checked = componentData.properties[key] !== undefined ? componentData.properties[key] : propDef.value;
-                        
-                        checkboxContainer.appendChild(input);
-                        checkboxContainer.appendChild(label);
-                        propertyItem.appendChild(checkboxContainer);
-                        break;
-                }
-                
-                if (propDef.type !== 'checkbox') {
-                    propertyItem.appendChild(label);
-                    propertyItem.appendChild(input);
-                }
-                
-                commonProperties.appendChild(propertyItem);
-            }
-            
-            // 更新嵌套验证信息
-            updateNestedValidation(componentData);
-        }
-
-        // 更新嵌套验证信息
-        function updateNestedValidation(componentData) {
-            const validationContainer = document.getElementById('nested-validation');
-            if (!validationContainer) return;
-            
-            const componentDef = componentTypes[componentData.type];
-            
-            validationContainer.innerHTML = '';
-            
-            if (componentDef && componentDef.canNest) {
-                const validationItem = document.createElement('div');
-                validationItem.className = 'validation-item validation-ok';
-                validationItem.innerHTML = `
-                    <i class="fas fa-check-circle"></i>
-                    <span>此组件可以包含子组件</span>
-                `;
-                validationContainer.appendChild(validationItem);
-                
-                if (componentData.children && componentData.children.length > 0) {
-                    const childCount = document.createElement('div');
-                    childCount.className = 'validation-item';
-                    childCount.innerHTML = `
-                        <i class="fas fa-sitemap"></i>
-                        <span>包含 ${componentData.children.length} 个子组件</span>
-                    `;
-                    validationContainer.appendChild(childCount);
-                }
-            } else if (componentDef) {
-                const validationItem = document.createElement('div');
-                validationItem.className = 'validation-item validation-warning';
-                validationItem.innerHTML = `
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span>此组件不能包含子组件</span>
-                `;
-                validationContainer.appendChild(validationItem);
-            }
-        }
-
-        // 更新层级导航
-        function updateHierarchyNavigation(componentData) {
-            const hierarchyContainer = document.getElementById('component-hierarchy');
-            if (!hierarchyContainer) return;
-            
-            // 构建层级路径
-            const path = [];
-            let current = componentData;
-            
-            while (current) {
-                path.unshift({
-                    id: current.id,
-                    name: current.name
-                });
-                
-                if (current.parentId) {
-                    current = findComponentById(current.parentId);
-                } else {
-                    current = null;
-                }
-            }
-            
-            // 渲染层级导航
-            hierarchyContainer.innerHTML = '';
-            
-            path.forEach((item, index) => {
-                const hierarchyItem = document.createElement('div');
-                hierarchyItem.className = 'hierarchy-item';
-                hierarchyItem.textContent = item.name;
-                hierarchyItem.setAttribute('data-level', index === 0 ? 'root' : 'child');
-                
-                hierarchyItem.addEventListener('click', function() {
-                    const comp = findComponentById(item.id);
-                    if (comp) {
-                        selectComponent(comp);
-                    }
-                });
-                
-                hierarchyContainer.appendChild(hierarchyItem);
-                
-                if (index < path.length - 1) {
-                    const separator = document.createElement('div');
-                    separator.className = 'hierarchy-separator';
-                    separator.innerHTML = '<i class="fas fa-chevron-right"></i>';
-                    hierarchyContainer.appendChild(separator);
+        });
+    }
+    
+    // 构建组件库，并绑定dragstart
+    function buildComponentLib() {
+        const container = document.getElementById('componentsList');
+        container.innerHTML = '';
+        for (let [key, val] of Object.entries(COMP_TYPES)) {
+            const div = document.createElement('div'); 
+            div.className = 'comp-item'; 
+            div.setAttribute('data-type', key); 
+            div.setAttribute('draggable', 'true');
+            div.innerHTML = `<i class="${val.icon}"></i><span>${val.name}</span><i class="fas fa-grip-vertical" style="margin-left:auto; opacity:0.5"></i>`;
+            // dragstart 设置拖拽类型和数据
+            div.addEventListener('dragstart', (e) => {
+                pendingDragType = key;
+                e.dataTransfer.setData('text/plain', key);
+                e.dataTransfer.effectAllowed = 'copy';
+                // 可选：设置拖拽图标
+                if (e.target.closest) {
+                    let dragIcon = document.createElement('div');
+                    dragIcon.textContent = val.name;
+                    e.dataTransfer.setDragImage(dragIcon, 10, 10);
                 }
             });
-        }
-
-        // 应用属性更改
-        function applyProperties() {
-            if (!currentProject.selectedComponent) {
-                showNotification('请先选择一个组件', 'warning');
-                return;
-            }
-            
-            const componentData = currentProject.selectedComponent;
-            const componentDef = componentTypes[componentData.type];
-            
-            if (!componentDef) return;
-            
-            // 更新属性
-            for (const [key] of Object.entries(componentDef.properties)) {
-                const input = document.getElementById(`prop-${key}`);
-                if (input) {
-                    if (input.type === 'checkbox') {
-                        componentData.properties[key] = input.checked;
-                    } else {
-                        componentData.properties[key] = input.value;
-                    }
-                }
-            }
-            
-            // 更新事件
-            componentData.events.type = document.getElementById('event-type').value;
-            componentData.events.data = document.getElementById('event-data').value;
-            
-            // 重新渲染组件
-            const componentElement = document.getElementById(componentData.id);
-            if (componentElement) {
-                const container = componentElement.parentElement;
-                componentElement.remove();
-                renderComponent(componentData, container);
-                
-                // 重新选择组件以更新属性面板
-                selectComponent(componentData);
-            }
-            
-            showNotification('属性已应用');
-            updateStatus('属性已更新');
-        }
-
-        // 删除选中的组件
-        function removeSelectedComponent() {
-            if (!currentProject.selectedComponent) {
-                showNotification('请先选择一个组件', 'warning');
-                return;
-            }
-            
-            if (!confirm('确定要删除这个组件吗？')) {
-                return;
-            }
-            
-            const componentData = currentProject.selectedComponent;
-            
-            // 从DOM中移除
-            const componentElement = document.getElementById(componentData.id);
-            if (componentElement) {
-                componentElement.remove();
-            }
-            
-            // 从数据结构中移除
-            if (componentData.parentId) {
-                const parent = findComponentById(componentData.parentId);
-                if (parent) {
-                    parent.children = parent.children.filter(child => child.id !== componentData.id);
-                }
-            } else {
-                currentProject.components = currentProject.components.filter(comp => comp.id !== componentData.id);
-            }
-            
-            // 清除选择
-            currentProject.selectedComponent = null;
-            updatePropertiesPanel({ type: '', name: '', properties: {} });
-            
-            updateComponentCount();
-            showNotification('组件已删除');
-            updateStatus('组件已删除');
-            
-            // 如果没有组件了，显示占位符
-            if (currentProject.components.length === 0) {
-                const placeholder = document.querySelector('.component-placeholder');
-                if (placeholder) {
-                    placeholder.style.display = 'block';
-                }
-            }
-        }
-
-        // 复制选中的组件
-        function duplicateSelectedComponent() {
-            if (!currentProject.selectedComponent) {
-                showNotification('请先选择一个组件', 'warning');
-                return;
-            }
-            
-            const originalComponent = currentProject.selectedComponent;
-            
-            // 创建深拷贝
-            const duplicatedComponent = JSON.parse(JSON.stringify(originalComponent));
-            duplicatedComponent.id = `comp_${currentProject.nextId++}`;
-            duplicatedComponent.name = `${originalComponent.name} (副本)`;
-            
-            // 添加到项目
-            if (originalComponent.parentId) {
-                const parent = findComponentById(originalComponent.parentId);
-                if (parent) {
-                    parent.children.push(duplicatedComponent);
-                }
-            } else {
-                currentProject.components.push(duplicatedComponent);
-            }
-            
-            // 渲染新组件
-            const container = originalComponent.parentId ? 
-                document.querySelector(`#${originalComponent.parentId} .nested-components`) : 
-                document.getElementById('preview-container');
-            
-            if (container) {
-                renderComponent(duplicatedComponent, container);
-            }
-            
-            updateComponentCount();
-            showNotification('组件已复制');
-            updateStatus('组件已复制');
-        }
-
-        // 查找组件
-        function findComponentById(id) {
-            // 在根组件中查找
-            for (const comp of currentProject.components) {
-                if (comp.id === id) return comp;
-                
-                // 递归在子组件中查找
-                const found = findComponentInChildren(comp, id);
-                if (found) return found;
-            }
-            
-            return null;
-        }
-
-        // 在子组件中查找
-        function findComponentInChildren(component, id) {
-            if (component.children) {
-                for (const child of component.children) {
-                    if (child.id === id) return child;
-                    
-                    const found = findComponentInChildren(child, id);
-                    if (found) return found;
-                }
-            }
-            
-            return null;
-        }
-
-        // 切换主题
-        function toggleTheme() {
-            document.body.classList.toggle('dark-mode');
-            const themeIcon = document.querySelector('#theme-toggle i');
-            
-            if (document.body.classList.contains('dark-mode')) {
-                themeIcon.className = 'fas fa-sun';
-                updateStatus('已切换到深色主题');
-            } else {
-                themeIcon.className = 'fas fa-moon';
-                updateStatus('已切换到浅色主题');
-            }
-        }
-
-        // 切换组件面板
-        function toggleComponentsPanel() {
-            const componentsPanel = document.querySelector('.components-panel');
-            if (componentsPanel) {
-                componentsPanel.classList.toggle('active');
-            }
-        }
-
-        // 切换属性面板
-        function togglePropertiesPanel() {
-            const propertiesPanel = document.querySelector('.properties-panel');
-            if (propertiesPanel) {
-                propertiesPanel.classList.toggle('active');
-            }
-        }
-
-        // 清空所有组件
-        function clearAllComponents() {
-            if (currentProject.components.length === 0) {
-                showNotification('没有可清除的组件', 'warning');
-                return;
-            }
-            
-            if (!confirm('确定要清空所有组件吗？此操作不可撤销。')) {
-                return;
-            }
-            
-            currentProject.components = [];
-            currentProject.selectedComponent = null;
-            
-            const previewContainer = document.getElementById('preview-container');
-            if (previewContainer) {
-                previewContainer.innerHTML = '';
-            }
-            
-            const placeholder = document.querySelector('.component-placeholder');
-            if (placeholder) {
-                placeholder.style.display = 'block';
-            }
-            
-            updatePropertiesPanel({ type: '', name: '', properties: {} });
-            updateComponentCount();
-            
-            showNotification('所有组件已清除');
-            updateStatus('设计区域已清空');
-        }
-
-        // 过滤组件
-        function filterComponents() {
-            const searchTerm = document.getElementById('components-search').value.toLowerCase();
-            const componentItems = document.querySelectorAll('.component-item');
-            
-            componentItems.forEach(item => {
-                const componentName = item.querySelector('span').textContent.toLowerCase();
-                if (componentName.includes(searchTerm)) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
-                }
+            div.addEventListener('dragend', () => {
+                // 确保清理，避免残留
+                pendingDragType = null;
             });
+            container.appendChild(div);
         }
-
-        // 显示组件帮助
-        function showComponentHelp(e) {
-            e.stopPropagation();
-            
-            const componentItem = e.target.closest('.component-item');
-            if (!componentItem) return;
-            
-            const componentType = componentItem.getAttribute('data-type');
-            const componentDef = componentTypes[componentType];
-            
-            if (!componentDef) return;
-            
-            const helpContent = document.getElementById('help-content');
-            if (helpContent) {
-                helpContent.innerHTML = `
-                    <h3>${componentDef.name}</h3>
-                    <p>${e.target.title}</p>
-                    <div style="margin-top: 16px;">
-                        <h4>属性:</h4>
-                        <ul>
-                            ${Object.entries(componentDef.properties).map(([key, prop]) => 
-                                `<li><strong>${prop.label}</strong>: ${prop.type} 类型</li>`
-                            ).join('')}
-                        </ul>
-                    </div>
-                    <div style="margin-top: 12px;">
-                        <p><strong>嵌套支持:</strong> ${componentDef.canNest ? '是' : '否'}</p>
-                    </div>
-                `;
-            }
-            
-            const helpModal = document.getElementById('help-modal');
-            if (helpModal) {
-                helpModal.style.display = 'flex';
-            }
-        }
-
-        // 更新组件计数
-        function updateComponentCount() {
-            const count = countComponents(currentProject.components);
-            const componentCountElement = document.getElementById('component-count');
-            if (componentCountElement) {
-                componentCountElement.textContent = `组件: ${count}`;
-            }
-            
-            const componentsCountElement = document.getElementById('components-count');
-            if (componentsCountElement) {
-                componentsCountElement.textContent = `共 ${Object.keys(componentTypes).length} 个组件`;
+    }
+    
+    // ---------- XAML 导入导出 (保持不变, 略作优化)----------
+    function generateXAML(comps, indent = 0) {
+        let xaml = '';
+        for (let comp of comps) {
+            let spaces = '  '.repeat(indent);
+            if (comp.type === 'card') {
+                let margin = comp.props.Margin || '0,0,0,15';
+                let canSwap = comp.props.CanSwap || 'True';
+                let isSwapped = comp.props.IsSwapped || 'True';
+                xaml += `${spaces}<local:MyCard Title="${escapeXml(comp.props.Title)}" Margin="${margin}" CanSwap="${canSwap}" IsSwapped="${isSwapped}">\n`;
+                xaml += `${spaces}  <StackPanel Margin="25,40,23,15">\n`;
+                for (let child of comp.children) xaml += generateXAML([child], indent + 2);
+                xaml += `${spaces}  </StackPanel>\n${spaces}</local:MyCard>\n\n`;
+            } else if (comp.type === 'text') {
+                let fore = comp.props.Foreground ? ` Foreground="${comp.props.Foreground}"` : '';
+                xaml += `${spaces}  <TextBlock TextWrapping="${comp.props.TextWrapping || 'Wrap'}" FontSize="${comp.props.FontSize || '14'}"${fore} Text="${escapeXml(comp.props.Text)}" />\n`;
+            } else if (comp.type === 'hint') {
+                xaml += `${spaces}  <local:MyHint Text="${escapeXml(comp.props.Text)}" Theme="${comp.props.Theme || 'Blue'}" />\n`;
+            } else if (comp.type === 'image') {
+                xaml += `${spaces}  <local:MyImage Height="${comp.props.Height || '60'}" HorizontalAlignment="${comp.props.HorizontalAlignment || 'Center'}" Source="${escapeXml(comp.props.Source)}" />\n`;
+            } else if (comp.type === 'button') {
+                let evt = comp.events?.type ? ` EventType="${comp.events.type}" EventData="${escapeXml(comp.events.data || '')}"` : '';
+                xaml += `${spaces}  <local:MyButton Margin="${comp.props.Margin || '0,4,0,10'}" Height="${comp.props.Height || '35'}" Padding="${comp.props.Padding || '20,0'}" ColorType="${comp.props.ColorType || 'Highlight'}" Text="${escapeXml(comp.props.Text)}"${evt} />\n`;
+            } else if (comp.type === 'textbutton') {
+                let evt = comp.events?.type ? ` EventType="${comp.events.type}" EventData="${escapeXml(comp.events.data || '')}"` : '';
+                xaml += `${spaces}  <local:MyTextButton Margin="${comp.props.Margin || '0,8,0,10'}" HorizontalAlignment="Center" Text="${escapeXml(comp.props.Text)}"${evt} />\n`;
+            } else if (comp.type === 'listitem') {
+                let evt = comp.events?.type ? ` EventType="${comp.events.type}" EventData="${escapeXml(comp.events.data || '')}"` : '';
+                xaml += `${spaces}  <local:MyListItem Margin="-5,0,-5,8" Logo="${escapeXml(comp.props.Logo)}" Title="${escapeXml(comp.props.Title)}" Info="${escapeXml(comp.props.Info)}" Type="Clickable"${evt} />\n`;
+            } else if (comp.type === 'stackpanel') {
+                xaml += `${spaces}  <StackPanel Margin="${comp.props.Margin || '0'}">\n`;
+                for (let c of comp.children) xaml += generateXAML([c], indent + 2);
+                xaml += `${spaces}  </StackPanel>\n`;
+            } else if (comp.type === 'horizontalstack') {
+                xaml += `${spaces}  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="${comp.props.Margin || '0'}">\n`;
+                for (let c of comp.children) xaml += generateXAML([c], indent + 2);
+                xaml += `${spaces}  </StackPanel>\n`;
             }
         }
-
-        // 递归计算组件数量
-        function countComponents(components) {
-            let count = components.length;
-            components.forEach(component => {
-                if (component.children) {
-                    count += countComponents(component.children);
-                }
-            });
-            return count;
-        }
-
-        // 更新状态栏
-        function updateStatus(message) {
-            const statusMessage = document.getElementById('status-message');
-            if (statusMessage) {
-                statusMessage.textContent = message;
-            }
-        }
-
-        // 显示通知
-        function showNotification(message, type = 'success') {
-            const notification = document.getElementById('notification');
-            const notificationText = document.getElementById('notification-text');
-            
-            if (!notification || !notificationText) return;
-            
-            notificationText.textContent = message;
-            
-            // 设置通知类型样式
-            notification.className = 'notification';
-            if (type === 'warning') {
-                notification.style.background = 'linear-gradient(135deg, var(--warning-color), #e68a00)';
-            } else if (type === 'error') {
-                notification.style.background = 'linear-gradient(135deg, var(--danger-color), #d32f2f)';
-            } else {
-                notification.style.background = 'linear-gradient(135deg, var(--success-color), #0da271)';
-            }
-            
-            notification.style.display = 'flex';
-            
-            // 3秒后自动隐藏
-            setTimeout(() => {
-                notification.style.display = 'none';
-            }, 3000);
-        }
-
-        // 显示XAML模态框
-        function showXamlModal() {
-            document.getElementById('xaml-modal').style.display = 'flex';
-            // 默认显示查看XAML界面
-            showXamlView();
-        }
-
-        // 显示查看XAML界面
-        function showXamlView() {
-            const xamlCode = generateXamlFromComponents(currentProject.components);
-            document.getElementById('xaml-code').value = xamlCode;
-            
-            // 显示查看XAML容器，隐藏导入容器
-            document.getElementById('xaml-content-container').style.display = 'block';
-            document.getElementById('import-content-container').style.display = 'none';
-        }
-
-        // 显示导入XAML界面
-        function showImportView() {
-            document.getElementById('import-xaml-code').value = '';
-            
-            // 显示导入容器，隐藏查看XAML容器
-            document.getElementById('import-content-container').style.display = 'block';
-            document.getElementById('xaml-content-container').style.display = 'none';
-        }
-
-        // 关闭查看XAML界面
-        function closeXamlView() {
-            document.getElementById('xaml-content-container').style.display = 'none';
-            document.getElementById('xaml-modal').style.display = 'none';
-        }
-
-        // 关闭导入界面
-        function closeImportView() {
-            document.getElementById('import-content-container').style.display = 'none';
-            document.getElementById('xaml-modal').style.display = 'none';
-        }
-
-        // 生成XAML代码
-        function generateXamlFromComponents(components) {
-            let xaml = '';
-            
-            for (const component of components) {
-                xaml += generateXamlForComponent(component, 0);
-            }
-            
-            return xaml;
-        }
-
-        // 生成单个组件的XAML代码
-        function generateXamlForComponent(component, indentLevel) {
-            const indent = '  '.repeat(indentLevel);
-            let xaml = '';
-            
-            switch (component.type) {
-                case 'card':
-                    const margin = component.properties.margin || '0,0,0,15';
-                    const canSwap = component.properties.isCollapsible ? 'True' : 'False';
-                    const isSwapped = component.properties.isExpanded ? 'True' : 'False';
-                    
-                    xaml += `${indent}<local:MyCard Title="${component.properties.header || '卡片标题'}" Margin="${margin}" CanSwap="${canSwap}" IsSwapped="${isSwapped}">\n`;
-                    xaml += `${indent}  <StackPanel Margin="25,40,23,15">\n`;
-                    
-                    // 递归生成子组件
-                    for (const child of component.children) {
-                        xaml += generateXamlForComponent(child, indentLevel + 2);
-                    }
-                    
-                    xaml += `${indent}  </StackPanel>\n`;
-                    xaml += `${indent}</local:MyCard>\n\n`;
-                    break;
-                    
-                case 'text':
-                    xaml += `${indent}  <TextBlock TextWrapping="Wrap" Margin="0,0,0,4"`;
-                    if (component.properties.fontSize && component.properties.fontSize !== '14') {
-                        xaml += ` FontSize="${component.properties.fontSize}"`;
-                    }
-                    if (component.properties.textColor && component.properties.textColor !== '#1e293b') {
-                        xaml += ` Foreground="${component.properties.textColor}"`;
-                    }
-                    xaml += ` Text="${component.properties.text || '这是一段文本'}" />\n`;
-                    break;
-                    
-                case 'hint':
-                    const theme = component.properties.hintType || 'Blue';
-                    xaml += `${indent}  <local:MyHint Text="${component.properties.text || '这是一个提示信息'}"`;
-                    if (theme !== 'Blue') {
-                        xaml += ` Theme="${theme}"`;
-                    }
-                    xaml += ` />\n`;
-                    break;
-                    
-                case 'image':
-                    xaml += `${indent}  <local:MyImage Height="${component.properties.height || '150'}" HorizontalAlignment="Center" Source="${component.properties.source || 'https://via.placeholder.com/300x150'}" />\n`;
-                    break;
-                    
-                case 'button':
-                    const colorType = component.properties.background === '#4a6cf7' ? 'Highlight' : 'Black';
-                    xaml += `${indent}  <local:MyButton Margin="0,4,0,10" Height="${component.properties.height || '35'}" HorizontalAlignment="Left" Padding="${component.properties.padding || '25'},0,${component.properties.padding || '25'},0"`;
-                    if (colorType !== 'Black') {
-                        xaml += ` ColorType="${colorType}"`;
-                    }
-                    xaml += ` Text="${component.properties.content || '点击我'}"`;
-                    if (component.events.type) {
-                        xaml += ` EventType="${component.events.type}" EventData="${component.events.data}"`;
-                    }
-                    xaml += ` />\n`;
-                    break;
-                    
-                case 'text-button':
-                    xaml += `${indent}  <local:MyTextButton Margin="0,8,0,10" HorizontalAlignment="Center" Text="${component.properties.text || '文本按钮'}"`;
-                    if (component.events.type) {
-                        xaml += ` EventType="${component.events.type}" EventData="${component.events.data}"`;
-                    }
-                    xaml += ` />\n`;
-                    break;
-                    
-                case 'list-item':
-                    xaml += `${indent}  <local:MyListItem Margin="-5,0,-5,8"\n`;
-                    xaml += `${indent}            Logo="${component.properties.icon || 'fas fa-cube'}" Title="${component.properties.title || '列表项标题'}" Info="${component.properties.description || '列表项描述'}"`;
-                    if (component.events.type) {
-                        xaml += ` EventType="${component.events.type}" EventData="${component.events.data}"`;
-                    }
-                    xaml += ` Type="Clickable" />\n`;
-                    break;
-                    
-                case 'stack-panel':
-                    xaml += `${indent}  <StackPanel Margin="${component.properties.margin || '0'},${component.properties.padding || '0'},${component.properties.margin || '0'},${component.properties.padding || '0'}">\n`;
-                    
-                    // 递归生成子组件
-                    for (const child of component.children) {
-                        xaml += generateXamlForComponent(child, indentLevel + 2);
-                    }
-                    
-                    xaml += `${indent}  </StackPanel>\n`;
-                    break;
-                    
-                case 'horizontal-stack':
-                    xaml += `${indent}  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="${component.properties.margin || '0'},${component.properties.padding || '0'},${component.properties.margin || '0'},${component.properties.padding || '0'}">\n`;
-                    
-                    // 递归生成子组件
-                    for (const child of component.children) {
-                        xaml += generateXamlForComponent(child, indentLevel + 2);
-                    }
-                    
-                    xaml += `${indent}  </StackPanel>\n`;
-                    break;
-            }
-            
-            return xaml;
-        }
-
-        // 复制XAML到剪贴板
-        function copyXamlToClipboard() {
-            const xamlCode = document.getElementById('xaml-code');
-            xamlCode.select();
-            document.execCommand('copy');
-            
-            showNotification('XAML代码已复制到剪贴板');
-        }
-
-        // 解析XAML并生成组件
-        function parseXamlToComponents() {
-            const xamlCode = document.getElementById('import-xaml-code').value;
-            
-            if (!xamlCode.trim()) {
-                showNotification('请输入XAML代码', 'warning');
-                return;
-            }
-            
-            try {
-                // 解析XAML代码并生成组件
-                const components = parseXamlString(xamlCode);
-                
-                if (components.length === 0) {
-                    showNotification('未解析到任何组件', 'warning');
-                    return;
-                }
-                
-                // 清空当前项目
-                currentProject.components = [];
-                currentProject.nextId = 1;
-                
-                // 渲染新组件
-                const previewContainer = document.getElementById('preview-container');
-                previewContainer.innerHTML = '';
-                
-                for (const component of components) {
-                    currentProject.components.push(component);
-                    renderComponent(component, previewContainer);
-                }
-                
-                // 隐藏占位符
-                const placeholder = document.querySelector('.component-placeholder');
-                if (placeholder) {
-                    placeholder.style.display = 'none';
-                }
-                
-                updateComponentCount();
-                showNotification('XAML代码解析成功');
-                updateStatus('XAML代码已解析并生成组件');
-                
-                // 关闭模态框
-                document.getElementById('xaml-modal').style.display = 'none';
-            } catch (error) {
-                console.error('XAML解析错误:', error);
-                showNotification('XAML代码解析失败，请检查格式', 'error');
-            }
-        }
-
-        // 解析XAML字符串为组件数据
-        function parseXamlString(xaml) {
-            const components = [];
-            
-            // 简单的XAML解析器，只处理PCL相关的标签
+        return xaml;
+    }
+    
+    function importFromXAML(xmlStr) {
+        try {
             const parser = new DOMParser();
-            // 为XAML添加必要的命名空间
-            const xamlWithNamespaces = `<?xml version="1.0" encoding="UTF-8"?>
-            <Root xmlns:local="clr-namespace:PCL;assembly=Plain Craft Launcher 2" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
-            ${xaml}
-            </Root>`;
-            
-            try {
-                const xmlDoc = parser.parseFromString(xamlWithNamespaces, 'text/xml');
-                
-                // 解析根级MyCard组件
-                const cards = xmlDoc.querySelectorAll('local\\:MyCard, MyCard');
-                cards.forEach(card => {
-                    const component = parseCardElement(card);
-                    components.push(component);
-                });
-                
-                // 如果没有找到MyCard，尝试直接解析其他组件
-                if (components.length === 0) {
-                    // 解析StackPanel
-                    const stackPanels = xmlDoc.querySelectorAll('StackPanel');
-                    stackPanels.forEach(panel => {
-                        const component = parseStackPanelElement(panel);
-                        if (component) components.push(component);
-                    });
-                    
-                    // 解析TextBlock
-                    const textBlocks = xmlDoc.querySelectorAll('TextBlock');
-                    textBlocks.forEach(textBlock => {
-                        const component = parseTextBlockElement(textBlock);
-                        if (component) components.push(component);
-                    });
-                    
-                    // 解析MyHint
-                    const hints = xmlDoc.querySelectorAll('local\\:MyHint, MyHint');
-                    hints.forEach(hint => {
-                        const component = parseHintElement(hint);
-                        if (component) components.push(component);
-                    });
-                    
-                    // 解析MyImage
-                    const images = xmlDoc.querySelectorAll('local\\:MyImage, MyImage');
-                    images.forEach(image => {
-                        const component = parseImageElement(image);
-                        if (component) components.push(component);
-                    });
-                    
-                    // 解析MyButton
-                    const buttons = xmlDoc.querySelectorAll('local\\:MyButton, MyButton');
-                    buttons.forEach(button => {
-                        const component = parseButtonElement(button);
-                        if (component) components.push(component);
-                    });
-                    
-                    // 解析MyTextButton
-                    const textButtons = xmlDoc.querySelectorAll('local\\:MyTextButton, MyTextButton');
-                    textButtons.forEach(textButton => {
-                        const component = parseTextButtonElement(textButton);
-                        if (component) components.push(component);
-                    });
-                    
-                    // 解析MyListItem
-                    const listItems = xmlDoc.querySelectorAll('local\\:MyListItem, MyListItem');
-                    listItems.forEach(listItem => {
-                        const component = parseListItemElement(listItem);
-                        if (component) components.push(component);
-                    });
+            const xml = parser.parseFromString(`<root>${xmlStr}</root>`, 'text/xml');
+            if (xml.querySelector('parsererror')) throw new Error('XML格式错误');
+            function parseNode(node, parentId = null) {
+                let tag = node.tagName?.toLowerCase();
+                if (!tag) return null;
+                if (tag.includes('mycard')) {
+                    let comp = createComponent('card', parentId);
+                    comp.props.Title = node.getAttribute('Title') || '卡片';
+                    comp.props.Margin = node.getAttribute('Margin') || '0,0,0,15';
+                    comp.props.CanSwap = node.getAttribute('CanSwap') || 'True';
+                    comp.props.IsSwapped = node.getAttribute('IsSwapped') || 'True';
+                    let stack = node.querySelector('stackpanel');
+                    if (stack) {
+                        for (let child of stack.children) { let childComp = parseNode(child, comp.id); if (childComp) comp.children.push(childComp); }
+                    }
+                    return comp;
+                } else if (tag.includes('textblock')) {
+                    let comp = createComponent('text', parentId);
+                    comp.props.Text = node.getAttribute('Text') || '文本';
+                    comp.props.FontSize = node.getAttribute('FontSize') || '14';
+                    comp.props.Foreground = node.getAttribute('Foreground') || '#1e293b';
+                    return comp;
+                } else if (tag.includes('myhint')) {
+                    let comp = createComponent('hint', parentId);
+                    comp.props.Text = node.getAttribute('Text') || '提示';
+                    comp.props.Theme = node.getAttribute('Theme') || 'Blue';
+                    return comp;
+                } else if (tag.includes('myimage')) {
+                    let comp = createComponent('image', parentId);
+                    comp.props.Source = node.getAttribute('Source') || '';
+                    comp.props.Height = node.getAttribute('Height') || '60';
+                    return comp;
+                } else if (tag.includes('mybutton')) {
+                    let comp = createComponent('button', parentId);
+                    comp.props.Text = node.getAttribute('Text') || '按钮';
+                    comp.props.ColorType = node.getAttribute('ColorType') || 'Highlight';
+                    comp.events = { type: node.getAttribute('EventType') || '', data: node.getAttribute('EventData') || '' };
+                    return comp;
+                } else if (tag.includes('mytextbutton')) {
+                    let comp = createComponent('textbutton', parentId);
+                    comp.props.Text = node.getAttribute('Text') || '文本按钮';
+                    comp.events = { type: node.getAttribute('EventType') || '', data: node.getAttribute('EventData') || '' };
+                    return comp;
+                } else if (tag.includes('mylistitem')) {
+                    let comp = createComponent('listitem', parentId);
+                    comp.props.Title = node.getAttribute('Title') || '';
+                    comp.props.Info = node.getAttribute('Info') || '';
+                    comp.props.Logo = node.getAttribute('Logo') || '';
+                    comp.events = { type: node.getAttribute('EventType') || '', data: node.getAttribute('EventData') || '' };
+                    return comp;
+                } else if (tag === 'stackpanel' && node.getAttribute('orientation') !== 'Horizontal') {
+                    let comp = createComponent('stackpanel', parentId);
+                    for (let child of node.children) { let c = parseNode(child, comp.id); if (c) comp.children.push(c); }
+                    return comp;
+                } else if (tag === 'stackpanel' && node.getAttribute('orientation') === 'Horizontal') {
+                    let comp = createComponent('horizontalstack', parentId);
+                    for (let child of node.children) { let c = parseNode(child, comp.id); if (c) comp.children.push(c); }
+                    return comp;
                 }
-            } catch (e) {
-                console.error('XAML解析错误:', e);
-                throw e;
+                return null;
             }
-            
-            return components;
-        }
-
-        // 解析Card元素
-        function parseCardElement(card) {
-            const id = `comp_${currentProject.nextId++}`;
-            const component = {
-                id: id,
-                type: 'card',
-                name: '卡片 (MyCard)',
-                properties: {
-                    header: card.getAttribute('Title') || '卡片标题',
-                    margin: card.getAttribute('Margin') || '0,0,0,15',
-                    isCollapsible: card.getAttribute('CanSwap') === 'True',
-                    isExpanded: card.getAttribute('IsSwapped') === 'True'
-                },
-                events: { type: '', data: '' },
-                children: [],
-                parentId: null
-            };
-            
-            // 解析StackPanel内容
-            const stackPanel = card.querySelector('StackPanel');
-            if (stackPanel) {
-                const children = parseStackPanelContent(stackPanel);
-                component.children = children;
-                
-                // 设置子组件的父ID
-                children.forEach(child => {
-                    child.parentId = id;
-                });
+            let newComponents = [];
+            for (let node of xml.documentElement.children) {
+                let comp = parseNode(node);
+                if (comp) newComponents.push(comp);
             }
-            
-            return component;
-        }
-
-        // 解析StackPanel元素
-        function parseStackPanelElement(panel) {
-            const id = `comp_${currentProject.nextId++}`;
-            const component = {
-                id: id,
-                type: 'stack-panel',
-                name: '垂直布局 (StackPanel)',
-                properties: {
-                    margin: panel.getAttribute('Margin') || '0',
-                    padding: panel.getAttribute('Padding') || '0'
-                },
-                events: { type: '', data: '' },
-                children: [],
-                parentId: null
-            };
-            
-            // 解析内容
-            const children = parseStackPanelContent(panel);
-            component.children = children;
-            
-            // 设置子组件的父ID
-            children.forEach(child => {
-                child.parentId = id;
-            });
-            
-            return component;
-        }
-
-        // 解析StackPanel内容
-        function parseStackPanelContent(panel) {
-            const children = [];
-            
-            // 遍历StackPanel的所有子元素
-            const childNodes = panel.children;
-            for (let i = 0; i < childNodes.length; i++) {
-                const child = childNodes[i];
-                const tagName = child.tagName.toLowerCase();
-                
-                let component = null;
-                
-                if (tagName.includes('textblock')) {
-                    component = parseTextBlockElement(child);
-                } else if (tagName.includes('myhint') || tagName.includes('hint')) {
-                    component = parseHintElement(child);
-                } else if (tagName.includes('myimage') || tagName.includes('image')) {
-                    component = parseImageElement(child);
-                } else if (tagName.includes('mybutton') || tagName.includes('button')) {
-                    component = parseButtonElement(child);
-                } else if (tagName.includes('mytextbutton') || tagName.includes('textbutton')) {
-                    component = parseTextButtonElement(child);
-                } else if (tagName.includes('mylistitem') || tagName.includes('listitem')) {
-                    component = parseListItemElement(child);
-                } else if (tagName.includes('stackpanel')) {
-                    component = parseStackPanelElement(child);
-                }
-                
-                if (component) {
-                    children.push(component);
-                }
-            }
-            
-            return children;
-        }
-
-        // 解析TextBlock元素
-        function parseTextBlockElement(textBlock) {
-            const id = `comp_${currentProject.nextId++}`;
-            return {
-                id: id,
-                type: 'text',
-                name: '文本 (TextBlock)',
-                properties: {
-                    text: textBlock.getAttribute('Text') || textBlock.textContent || '这是一段文本',
-                    fontSize: textBlock.getAttribute('FontSize') || '14',
-                    fontWeight: textBlock.getAttribute('FontWeight') || 'Normal',
-                    textColor: textBlock.getAttribute('Foreground') || '#1e293b'
-                },
-                events: { type: '', data: '' },
-                children: [],
-                parentId: null
-            };
-        }
-
-        // 解析Hint元素
-        function parseHintElement(hint) {
-            const id = `comp_${currentProject.nextId++}`;
-            return {
-                id: id,
-                type: 'hint',
-                name: '提示条 (MyHint)',
-                properties: {
-                    text: hint.getAttribute('Text') || hint.textContent || '这是一个提示信息',
-                    hintType: hint.getAttribute('Theme') || 'Blue'
-                },
-                events: { type: '', data: '' },
-                children: [],
-                parentId: null
-            };
-        }
-
-        // 解析Image元素
-        function parseImageElement(image) {
-            const id = `comp_${currentProject.nextId++}`;
-            return {
-                id: id,
-                type: 'image',
-                name: '图片 (MyImage)',
-                properties: {
-                    source: image.getAttribute('Source') || 'https://via.placeholder.com/300x150',
-                    width: image.getAttribute('Width') || '300',
-                    height: image.getAttribute('Height') || '150',
-                    stretch: image.getAttribute('Stretch') || 'Uniform'
-                },
-                events: { type: '', data: '' },
-                children: [],
-                parentId: null
-            };
-        }
-
-        // 解析Button元素
-        function parseButtonElement(button) {
-            const id = `comp_${currentProject.nextId++}`;
-            return {
-                id: id,
-                type: 'button',
-                name: '按钮 (MyButton)',
-                properties: {
-                    content: button.getAttribute('Text') || '点击我',
-                    background: button.getAttribute('ColorType') === 'Highlight' ? '#4a6cf7' : '#000000',
-                    foreground: '#ffffff',
-                    padding: button.getAttribute('Padding') ? button.getAttribute('Padding').split(',')[0] : '12'
-                },
-                events: {
-                    type: button.getAttribute('EventType') || '',
-                    data: button.getAttribute('EventData') || ''
-                },
-                children: [],
-                parentId: null
-            };
-        }
-
-        // 解析TextButton元素
-        function parseTextButtonElement(textButton) {
-            const id = `comp_${currentProject.nextId++}`;
-            return {
-                id: id,
-                type: 'text-button',
-                name: '文本按钮 (MyTextButton)',
-                properties: {
-                    text: textButton.getAttribute('Text') || '文本按钮',
-                    textColor: '#4a6cf7'
-                },
-                events: {
-                    type: textButton.getAttribute('EventType') || '',
-                    data: textButton.getAttribute('EventData') || ''
-                },
-                children: [],
-                parentId: null
-            };
-        }
-
-        // 解析ListItem元素
-        function parseListItemElement(listItem) {
-            const id = `comp_${currentProject.nextId++}`;
-            return {
-                id: id,
-                type: 'list-item',
-                name: '列表项 (MyListItem)',
-                properties: {
-                    icon: listItem.getAttribute('Logo') || 'fas fa-cube',
-                    title: listItem.getAttribute('Title') || '列表项标题',
-                    description: listItem.getAttribute('Info') || '列表项描述'
-                },
-                events: {
-                    type: listItem.getAttribute('EventType') || '',
-                    data: listItem.getAttribute('EventData') || ''
-                },
-                children: [],
-                parentId: null
-            };
-        }
-    </script>
+            if (newComponents.length) { state.components = newComponents; state.nextId = Math.max(200, ...newComponents.map(c=>c.id)) + 1; state.selectedId = null; renderCanvas(); showToast('导入成功'); }
+            else showToast('未找到有效组件', true);
+        } catch(e) { showToast('解析失败: '+e.message, true); }
+    }
+    
+    // ---------- 事件绑定 & 初始化 ----------
+    document.getElementById('clearCanvasBtn').onclick = () => { if(confirm('清空所有组件？')){ state.components = []; state.selectedId = null; renderCanvas(); } };
+    document.getElementById('applyPropsBtn').onclick = () => applyCurrentProps();
+    document.getElementById('deleteCompBtn').onclick = () => { if(state.selectedId && confirm('删除组件？')) { removeCompById(state.selectedId); state.selectedId = null; renderCanvas(); } };
+    document.getElementById('duplicateCompBtn').onclick = () => { if(state.selectedId){ let original = findCompById(state.selectedId); if(original){ let copy = JSON.parse(JSON.stringify(original)); copy.id = state.nextId++; copy.name = copy.name+' 副本'; copy.parentId = null; copy.children = []; if(original.parentId){ let parent = findCompById(original.parentId); if(parent) parent.children.push(copy); } else state.components.push(copy); renderCanvas(); showToast('已复制'); } } };
+    document.getElementById('xamlExportBtn').onclick = () => { document.getElementById('xamlModal').style.display = 'flex'; document.getElementById('xamlViewArea').style.display = 'block'; document.getElementById('importArea').style.display = 'none'; document.getElementById('xamlCodeArea').value = generateXAML(state.components); };
+    document.getElementById('viewXamlBtn').onclick = () => { document.getElementById('xamlViewArea').style.display = 'block'; document.getElementById('importArea').style.display = 'none'; document.getElementById('xamlCodeArea').value = generateXAML(state.components); };
+    document.getElementById('importXamlBtn').onclick = () => { document.getElementById('xamlViewArea').style.display = 'none'; document.getElementById('importArea').style.display = 'block'; document.getElementById('importXamlText').value = ''; };
+    document.getElementById('doImportBtn').onclick = () => { let code = document.getElementById('importXamlText').value; if(code.trim()) importFromXAML(code); document.getElementById('xamlModal').style.display = 'none'; };
+    document.getElementById('copyXamlBtn').onclick = () => { let text = document.getElementById('xamlCodeArea'); text.select(); document.execCommand('copy'); showToast('已复制XAML'); };
+    document.getElementById('closeModalBtn').onclick = () => document.getElementById('xamlModal').style.display = 'none';
+    document.getElementById('cancelImportBtn').onclick = () => document.getElementById('xamlModal').style.display = 'none';
+    document.getElementById('toggleSidebarBtn').onclick = () => document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('themeToggle').onclick = () => { document.body.classList.toggle('dark'); };
+    window.onclick = (e) => { if(e.target === document.getElementById('xamlModal')) document.getElementById('xamlModal').style.display = 'none'; };
+    
+    // 启动
+    buildComponentLib();
+    initDragAndDrop();   // 全新拖拽系统，无重复添加
+    renderCanvas();
+</script>
 </body>
 </html>
-
-
-
