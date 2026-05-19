@@ -187,35 +187,75 @@
         updateHierarchyBar();
     }
 
+    // ---------- 属性分组逻辑 ----------
+    function getPropGroups(comp) {
+        if (!comp) return [];
+        const groups = {
+            content: { title: "内容", icon: "fas fa-align-left", fields: [] },
+            appearance: { title: "外观样式", icon: "fas fa-palette", fields: [] },
+            layout: { title: "布局与边距", icon: "fas fa-expand-alt", fields: [] },
+            behavior: { title: "行为", icon: "fas fa-cog", fields: [] },
+            other: { title: "其他", icon: "fas fa-ellipsis-h", fields: [] }
+        };
+        const specificContentKeys = ["Text", "Title", "Info", "Source", "Logo"];
+        const appearanceKeys = ["Foreground", "FontSize", "TextWrapping", "Theme", "ColorType", "LogoScale", "Type"];
+        const layoutKeys = ["Margin", "Padding", "Width", "Height", "HorizontalAlignment", "VerticalAlignment", "ColumnsDefinition", "RowsDefinition", "Orientation"];
+        const behaviorKeys = ["CanSwap", "IsSwapped", "ToolTip", "EnableCache", "UseAnimation", "SwapLogoRight", "HasMouseAnimation", "IsHitTestVisible"];
+
+        for (let [key, val] of Object.entries(comp.props)) {
+            if (specificContentKeys.includes(key)) groups.content.fields.push({ key, val });
+            else if (appearanceKeys.includes(key)) groups.appearance.fields.push({ key, val });
+            else if (layoutKeys.includes(key)) groups.layout.fields.push({ key, val });
+            else if (behaviorKeys.includes(key)) groups.behavior.fields.push({ key, val });
+            else groups.other.fields.push({ key, val });
+        }
+        // 只返回非空分组
+        return Object.values(groups).filter(g => g.fields.length > 0);
+    }
+
     function updatePropsPanel() {
         const comp = findComponentById(state.selectedId);
+        const typeNameSpan = document.getElementById('compTypeName');
+        const compIdSpan = document.getElementById('compIdDisplay');
         if (!comp) {
-            document.getElementById('propType').value = '';
+            if (typeNameSpan) typeNameSpan.innerText = '未选中';
+            if (compIdSpan) compIdSpan.innerText = '-';
             document.getElementById('dynamicProps').innerHTML = '';
             document.getElementById('eventTypeSelect').value = '';
             document.getElementById('eventDataInput').value = '';
             return;
         }
-        document.getElementById('propType').value = COMP_TYPES[comp.type]?.name || comp.type;
-        document.getElementById('propId').value = comp.id;
-        document.getElementById('eventTypeSelect').value = comp.events?.type || '';
-        document.getElementById('eventDataInput').value = comp.events?.data || '';
+        if (typeNameSpan) typeNameSpan.innerText = COMP_TYPES[comp.type]?.name || comp.type;
+        if (compIdSpan) compIdSpan.innerText = comp.id;
+
         const container = document.getElementById('dynamicProps');
         container.innerHTML = '';
-        // 显示所有 props，包括通用布局属性
-        const allProps = { ...comp.props };
-        for (let [key, val] of Object.entries(allProps)) {
-            const div = document.createElement('div'); div.className = 'prop-field';
-            div.innerHTML = `<label>${key}</label><input data-prop="${key}" value="${escapeHtml(String(val))}" />`;
-            container.appendChild(div);
+        const groups = getPropGroups(comp);
+        for (let group of groups) {
+            const section = document.createElement('div');
+            section.className = 'prop-section';
+            section.innerHTML = `<div class="prop-section-title"><i class="${group.icon}"></i> ${group.title}</div>`;
+            for (let field of group.fields) {
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'prop-field';
+                const isLongText = (field.key === 'Text' || field.key === 'Info' || field.key === 'EventData');
+                const inputHtml = isLongText
+                    ? `<textarea data-prop="${field.key}" rows="2">${escapeHtml(String(field.val))}</textarea>`
+                    : `<input data-prop="${field.key}" value="${escapeHtml(String(field.val))}" />`;
+                fieldDiv.innerHTML = `<label>${field.key}</label>${inputHtml}`;
+                section.appendChild(fieldDiv);
+            }
+            container.appendChild(section);
         }
-        // 添加通用属性（若缺失可提示，但已包含在 props 中）
+
+        document.getElementById('eventTypeSelect').value = comp.events?.type || '';
+        document.getElementById('eventDataInput').value = comp.events?.data || '';
     }
 
     function applyCurrentProps() {
         const comp = findComponentById(state.selectedId);
         if (!comp) return;
-        document.querySelectorAll('#dynamicProps input').forEach(inp => {
+        document.querySelectorAll('#dynamicProps input, #dynamicProps textarea').forEach(inp => {
             const key = inp.getAttribute('data-prop');
             if (key) comp.props[key] = inp.value;
         });
@@ -335,7 +375,6 @@
         }
     }
 
-    // 获取树中最大 ID
     function getMaxId(comps) {
         let max = 0;
         const traverse = (list) => {
@@ -348,7 +387,7 @@
         return max;
     }
 
-    // 导入 XAML (完整支持 Grid 和容器)
+    // 导入 XAML
     function importFromXAML(xmlStr) {
         try {
             const wrappedXml = `<root xmlns:local="http://tempuri.org/pcl">${xmlStr}</root>`;
@@ -377,14 +416,12 @@
                 if (!type || !COMP_TYPES[type]) return null;
 
                 const comp = createComponent(type, parentId);
-                // 通用属性提取
                 const commonProps = ['Margin', 'ToolTip', 'HorizontalAlignment', 'VerticalAlignment'];
                 commonProps.forEach(prop => {
                     const val = node.getAttribute(prop);
                     if (val !== null) comp.props[prop] = val;
                 });
 
-                // 特定属性
                 if (type === 'card') {
                     comp.props.Title = node.getAttribute('Title') || '卡片';
                     comp.props.CanSwap = node.getAttribute('CanSwap') ?? 'True';
@@ -395,7 +432,6 @@
                     }
                 }
                 else if (type === 'grid') {
-                    // 解析 ColumnDefinitions 和 RowDefinitions
                     let colsDef = '', rowsDef = '';
                     for (let child of node.children) {
                         const childName = child.tagName?.toLowerCase();
@@ -452,7 +488,6 @@
                     comp.props.Logo = node.getAttribute('Logo') || 'pack://application:,,,/images/Blocks/Grass.png';
                     comp.props.Type = node.getAttribute('Type') || 'Clickable';
                 }
-                // 事件
                 const evType = node.getAttribute('EventType');
                 const evData = node.getAttribute('EventData');
                 if (evType) comp.events = { type: evType, data: evData || '' };
@@ -480,13 +515,12 @@
         }
     }
 
-    // 生成 XAML (完整支持 Grid 和通用属性)
+    // 生成 XAML
     function generateXAML(comps, indent = 0) {
         let xaml = '';
         const spaces = '  '.repeat(indent);
         for (let comp of comps) {
             const attrs = [];
-            // 通用属性
             const commonAttrs = ['Margin', 'ToolTip', 'HorizontalAlignment', 'VerticalAlignment'];
             commonAttrs.forEach(attr => {
                 if (comp.props[attr] && comp.props[attr] !== '') attrs.push(`${attr}="${escapeXml(comp.props[attr])}"`);
@@ -496,19 +530,15 @@
                 attrs.push(`CanSwap="${comp.props.CanSwap || 'True'}"`);
                 attrs.push(`IsSwapped="${comp.props.IsSwapped || 'True'}"`);
                 xaml += `${spaces}<local:MyCard ${attrs.join(' ')}>\n`;
-                // 直接输出子组件（不再额外包裹 StackPanel）
                 for (let child of comp.children) xaml += generateXAML([child], indent + 1);
                 xaml += `${spaces}</local:MyCard>\n\n`;
             } else if (comp.type === 'grid') {
                 xaml += `${spaces}<Grid ${attrs.join(' ')}>\n`;
-                // 输出列定义
                 if (comp.props.ColumnsDefinition) {
                     const cols = comp.props.ColumnsDefinition.split(';');
                     if (cols.length && !(cols.length === 1 && cols[0] === '')) {
                         xaml += `${spaces}  <Grid.ColumnDefinitions>\n`;
-                        cols.forEach(w => {
-                            xaml += `${spaces}    <ColumnDefinition Width="${escapeXml(w.trim())}"/>\n`;
-                        });
+                        cols.forEach(w => { xaml += `${spaces}    <ColumnDefinition Width="${escapeXml(w.trim())}"/>\n`; });
                         xaml += `${spaces}  </Grid.ColumnDefinitions>\n`;
                     }
                 }
@@ -516,9 +546,7 @@
                     const rows = comp.props.RowsDefinition.split(';');
                     if (rows.length && !(rows.length === 1 && rows[0] === '')) {
                         xaml += `${spaces}  <Grid.RowDefinitions>\n`;
-                        rows.forEach(h => {
-                            xaml += `${spaces}    <RowDefinition Height="${escapeXml(h.trim())}"/>\n`;
-                        });
+                        rows.forEach(h => { xaml += `${spaces}    <RowDefinition Height="${escapeXml(h.trim())}"/>\n`; });
                         xaml += `${spaces}  </Grid.RowDefinitions>\n`;
                     }
                 }
@@ -597,6 +625,17 @@
             document.body.classList.toggle('dark');
             localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
         };
+        // 复制组件ID
+        const copyIdBtn = document.getElementById('copyIdBtn');
+        if (copyIdBtn) {
+            copyIdBtn.addEventListener('click', () => {
+                const idSpan = document.getElementById('compIdDisplay');
+                if (idSpan && idSpan.innerText !== '-') {
+                    navigator.clipboard.writeText(idSpan.innerText);
+                    showToast(`已复制ID: ${idSpan.innerText}`);
+                }
+            });
+        }
         window.onclick = (e) => { if (e.target === document.getElementById('xamlModal')) document.getElementById('xamlModal').style.display = 'none'; };
         // 实时保存属性（失焦）
         document.getElementById('dynamicProps')?.addEventListener('change', applyCurrentProps);

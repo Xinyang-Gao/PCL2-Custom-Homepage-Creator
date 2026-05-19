@@ -31,33 +31,63 @@
                 <div class="canvas" id="canvas"></div>
             </div>
         </div>
+
+        <!-- 重构后的属性面板 -->
         <div class="props-panel" id="propsPanel">
-            <div class="prop-group"><h4><i class="fas fa-info-circle"></i> 组件属性</h4>
-                <div class="prop-field"><label>类型</label><input id="propType" disabled></div>
-                <div class="prop-field"><label>ID</label><input id="propId" disabled></div>
+            <!-- 组件信息头部（小字显示类型和ID） -->
+            <div class="props-info-header" id="propsInfoHeader">
+                <div class="comp-type-badge" id="compTypeBadge">
+                    <i class="fas fa-puzzle-piece"></i> <span id="compTypeName">未选中</span>
+                </div>
+                <div class="comp-id-row">
+                    <span class="id-label">ID</span>
+                    <code id="compIdDisplay">-</code>
+                    <button class="id-copy-btn" id="copyIdBtn" title="复制ID"><i class="far fa-copy"></i></button>
+                </div>
             </div>
-            <div id="dynamicProps"></div>
-            <div class="prop-group"><h4><i class="fas fa-bolt"></i> 事件 (Event)</h4>
-                <div class="prop-field"><label>EventType</label><select id="eventTypeSelect">
-                    <option value="">无</option>
-                    <option value="打开网页">打开网页</option>
-                    <option value="启动游戏">启动游戏</option>
-                    <option value="弹出窗口">弹出窗口</option>
-                    <option value="复制文本">复制文本</option>
-                    <option value="打开文件">打开文件</option>
-                    <option value="内存优化">内存优化</option>
-                    <option value="下载文件">下载文件</option>
-                    <option value="清理垃圾">清理垃圾</option>
-                    <option value="打开帮助">打开帮助</option>
-                    <option value="修改变量">修改变量</option>
-                    <option value="刷新页面">刷新页面</option>
-                </select></div>
-                <div class="prop-field"><label>EventData</label><textarea id="eventDataInput" rows="2"></textarea></div>
+
+            <!-- 动态属性分组容器 -->
+            <div id="dynamicProps" class="props-groups-container"></div>
+
+            <!-- 事件配置区域 -->
+            <div class="prop-section">
+                <div class="prop-section-title">
+                    <i class="fas fa-bolt"></i> 事件绑定
+                </div>
+                <div class="prop-field">
+                    <label>EventType</label>
+                    <select id="eventTypeSelect">
+                        <option value="">无</option>
+                        <option value="打开网页">打开网页</option>
+                        <option value="启动游戏">启动游戏</option>
+                        <option value="弹出窗口">弹出窗口</option>
+                        <option value="复制文本">复制文本</option>
+                        <option value="打开文件">打开文件</option>
+                        <option value="内存优化">内存优化</option>
+                        <option value="下载文件">下载文件</option>
+                        <option value="清理垃圾">清理垃圾</option>
+                        <option value="打开帮助">打开帮助</option>
+                        <option value="修改变量">修改变量</option>
+                        <option value="刷新页面">刷新页面</option>
+                    </select>
+                </div>
+                <div class="prop-field">
+                    <label>EventData</label>
+                    <textarea id="eventDataInput" rows="2" placeholder="事件数据，例如网址、弹窗内容（标题|内容）等"></textarea>
+                </div>
             </div>
-            <div class="prop-group"><div style="display:flex; gap:8px;"><button class="btn btn-primary" id="applyPropsBtn">应用更改</button><button class="btn btn-danger" id="deleteCompBtn">删除组件</button><button class="btn" id="duplicateCompBtn">复制组件</button></div></div>
+
+            <!-- 操作按钮组 -->
+            <div class="prop-actions">
+                <button class="btn btn-primary" id="applyPropsBtn"><i class="fas fa-check"></i> 应用更改</button>
+                <button class="btn btn-danger" id="deleteCompBtn"><i class="fas fa-trash-alt"></i> 删除组件</button>
+                <button class="btn" id="duplicateCompBtn"><i class="fas fa-copy"></i> 复制组件</button>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- 模态框（XAML工具） -->
 <div class="modal" id="xamlModal"><div class="modal-content"><h3>XAML 工具</h3><div style="margin: 12px 0;"><button class="btn" id="viewXamlBtn">查看XAML</button><button class="btn" id="importXamlBtn">导入XAML</button></div><div id="xamlViewArea" style="display:none;"><textarea id="xamlCodeArea" class="code-editor" readonly></textarea><div style="margin-top:12px;"><button class="btn" id="copyXamlBtn">复制代码</button><button class="btn" id="closeModalBtn">关闭</button></div></div><div id="importArea" style="display:none;"><textarea id="importXamlText" class="code-editor" placeholder="粘贴 XAML 代码..."></textarea><div style="margin-top:12px;"><button class="btn btn-primary" id="doImportBtn">解析并加载</button><button class="btn" id="cancelImportBtn">取消</button></div></div></div></div>
 <div id="toast" class="toast"></div>
 
