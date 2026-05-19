@@ -34,7 +34,6 @@
 
         <!-- 重构后的属性面板 -->
         <div class="props-panel" id="propsPanel">
-            <!-- 组件信息头部（小字显示类型和ID） -->
             <div class="props-info-header" id="propsInfoHeader">
                 <div class="comp-type-badge" id="compTypeBadge">
                     <i class="fas fa-puzzle-piece"></i> <span id="compTypeName">未选中</span>
@@ -45,11 +44,7 @@
                     <button class="id-copy-btn" id="copyIdBtn" title="复制ID"><i class="far fa-copy"></i></button>
                 </div>
             </div>
-
-            <!-- 动态属性分组容器 -->
             <div id="dynamicProps" class="props-groups-container"></div>
-
-            <!-- 事件配置区域 -->
             <div class="prop-section">
                 <div class="prop-section-title">
                     <i class="fas fa-bolt"></i> 事件绑定
@@ -76,8 +71,6 @@
                     <textarea id="eventDataInput" rows="2" placeholder="事件数据，例如网址、弹窗内容（标题|内容）等"></textarea>
                 </div>
             </div>
-
-            <!-- 操作按钮组 -->
             <div class="prop-actions">
                 <button class="btn btn-primary" id="applyPropsBtn"><i class="fas fa-check"></i> 应用更改</button>
                 <button class="btn btn-danger" id="deleteCompBtn"><i class="fas fa-trash-alt"></i> 删除组件</button>
@@ -87,9 +80,36 @@
     </div>
 </div>
 
-<!-- 模态框（XAML工具） -->
-<div class="modal" id="xamlModal"><div class="modal-content"><h3>XAML 工具</h3><div style="margin: 12px 0;"><button class="btn" id="viewXamlBtn">查看XAML</button><button class="btn" id="importXamlBtn">导入XAML</button></div><div id="xamlViewArea" style="display:none;"><textarea id="xamlCodeArea" class="code-editor" readonly></textarea><div style="margin-top:12px;"><button class="btn" id="copyXamlBtn">复制代码</button><button class="btn" id="closeModalBtn">关闭</button></div></div><div id="importArea" style="display:none;"><textarea id="importXamlText" class="code-editor" placeholder="粘贴 XAML 代码..."></textarea><div style="margin-top:12px;"><button class="btn btn-primary" id="doImportBtn">解析并加载</button><button class="btn" id="cancelImportBtn">取消</button></div></div></div></div>
+<!-- XAML工具弹窗（增强：下载文件） -->
+<div class="modal" id="xamlModal">
+    <div class="modal-content">
+        <h3><i class="fas fa-code"></i> XAML 工具</h3>
+        <div style="margin: 12px 0;">
+            <button class="btn" id="viewXamlBtn"><i class="fas fa-eye"></i> 查看XAML</button>
+            <button class="btn" id="importXamlBtn"><i class="fas fa-upload"></i> 导入XAML</button>
+        </div>
+        <div id="xamlViewArea" style="display:none;">
+            <textarea id="xamlCodeArea" class="code-editor" readonly></textarea>
+            <div class="modal-actions">
+                <button class="btn" id="copyXamlBtn"><i class="fas fa-copy"></i> 复制代码</button>
+                <button class="btn btn-primary" id="downloadXamlBtn"><i class="fas fa-download"></i> 下载为XAML文件</button>
+                <button class="btn" id="closeModalBtn"><i class="fas fa-times"></i> 关闭</button>
+            </div>
+        </div>
+        <div id="importArea" style="display:none;">
+            <textarea id="importXamlText" class="code-editor" placeholder="粘贴 XAML 代码..."></textarea>
+            <div style="margin-top:12px;">
+                <button class="btn btn-primary" id="doImportBtn"><i class="fas fa-code-branch"></i> 解析并加载</button>
+                <button class="btn" id="cancelImportBtn"><i class="fas fa-times"></i> 取消</button>
+            </div>
+        </div>
+    </div>
+</div>
 <div id="toast" class="toast"></div>
+<!-- 全局拖拽视觉层 -->
+<div class="global-drag-overlay" id="globalDragOverlay">
+    <i class="fas fa-file-import"></i> 释放文件以导入 XAML
+</div>
 
 <script src="/script.js"></script>
 </body>
