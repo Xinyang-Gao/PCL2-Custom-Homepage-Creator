@@ -1,3 +1,4 @@
+// script.js (修改版，暴露核心API并增加服务器交互逻辑)
 (function () {
     // ----------------------------- 组件元数据 -----------------------------
     const COMP_TYPES = {
@@ -254,17 +255,13 @@
             showToast('请选择 .xaml 或 .xml 文件', true);
             return;
         }
-        // 导入前确认替换
         if (confirm('导入文件将替换当前所有组件，是否继续？')) {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const content = e.target.result;
                 try {
-                    // 复用原有导入解析函数
                     importFromXAML(content);
-                    // 关闭模态框
                     document.getElementById('xamlModal').style.display = 'none';
-                    // 重置文件input
                     const fileInput = document.getElementById('xamlFileInput');
                     if (fileInput) fileInput.value = '';
                 } catch (err) {
@@ -276,7 +273,6 @@
         }
     }
 
-    // 全局拖拽导入（保持不变）
     function handleFileImport(file) {
         if (!file) return;
         const ext = file.name.split('.').pop().toLowerCase();
@@ -328,7 +324,6 @@
         showToast(`已下载 ${filename}`);
     }
 
-    // 拖拽添加组件逻辑
     let pendingDragType = null;
     let currentDropZone = null;
     function initDragAndDrop() {
@@ -385,7 +380,7 @@
 
     function getMaxId(comps) { let max = 0; const traverse = (list) => { for (let c of list) { if (c.id > max) max = c.id; if (c.children) traverse(c.children); } }; traverse(comps); return max; }
 
-    // 原 XAML 导入解析逻辑（保持不变）
+    // XAML 导入解析逻辑
     function importFromXAML(xmlStr) {
         try {
             const wrappedXml = `<root xmlns:local="http://tempuri.org/pcl">${xmlStr}</root>`;
@@ -476,6 +471,261 @@
         return xaml;
     }
 
+    // ----------------------------- 后端交互模块 -----------------------------
+    let currentSelectedServerFile = '';
+
+    async function loadServerFileList() {
+        try {
+            const res = await fetch('/api/files');
+            const data = await res.json();
+            if (data.success && data.files) {
+                const select = document.getElementById('serverFileSelect');
+                select.innerHTML = '<option value="">-- 选择文件 --</option>';
+                data.files.forEach(file => {
+                    const option = document.createElement('option');
+                    option.value = file;
+                    option.textContent = file;
+                    select.appendChild(option);
+                });
+                if (currentSelectedServerFile && data.files.includes(currentSelectedServerFile)) {
+                    select.value = currentSelectedServerFile;
+                } else {
+                    currentSelectedServerFile = '';
+                    document.getElementById('overwriteCurrentBtn').disabled = true;
+                }
+                return data.files;
+            } else {
+                showToast('获取文件列表失败', true);
+                return [];
+            }
+        } catch (err) {
+            showToast('网络错误: ' + err.message, true);
+            return [];
+        }
+    }
+
+    async function saveToServer(filename, content) {
+        try {
+            const res = await fetch('/api/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename, content })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message);
+                await loadServerFileList();
+                return true;
+            } else {
+                showToast('保存失败: ' + (data.error || '未知错误'), true);
+                return false;
+            }
+        } catch (err) {
+            showToast('请求失败: ' + err.message, true);
+            return false;
+        }
+    }
+
+    async function loadFromServer(filename) {
+        try {
+            const res = await fetch(`/api/load?filename=${encodeURIComponent(filename)}`);
+            const data = await res.json();
+            if (data.success && data.content) {
+                if (confirm(`加载 "${filename}" 将替换当前所有组件，是否继续？`)) {
+                    importFromXAML(data.content);
+                    showToast(`已加载 ${filename}`);
+                    return true;
+                }
+            } else {
+                showToast('加载失败: ' + (data.error || '文件内容为空'), true);
+            }
+            return false;
+        } catch (err) {
+            showToast('请求失败: ' + err.message, true);
+            return false;
+        }
+    }
+
+    async function deleteServerFile(filename) {
+        if (!confirm(`确定删除文件 "${filename}" 吗？此操作不可恢复。`)) return false;
+        try {
+            const res = await fetch('/api/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(`已删除 ${filename}`);
+                if (currentSelectedServerFile === filename) {
+                    currentSelectedServerFile = '';
+                    document.getElementById('overwriteCurrentBtn').disabled = true;
+                }
+                await loadServerFileList();
+                return true;
+            } else {
+                showToast('删除失败: ' + (data.error || '未知错误'), true);
+                return false;
+            }
+        } catch (err) {
+            showToast('请求失败: ' + err.message, true);
+            return false;
+        }
+    }
+
+    function bindServerUIEvents() {
+        const serverModal = document.getElementById('serverModal');
+        const serverManageBtn = document.getElementById('serverManageBtn');
+        const closeServerModalBtn = document.getElementById('closeServerModalBtn');
+        const refreshBtn = document.getElementById('refreshFileListBtn');
+        const loadBtn = document.getElementById('loadServerFileBtn');
+        const deleteBtn = document.getElementById('deleteServerFileBtn');
+        const saveAsNewBtn = document.getElementById('saveAsNewBtn');
+        const overwriteBtn = document.getElementById('overwriteCurrentBtn');
+        const fileSelect = document.getElementById('serverFileSelect');
+
+        serverManageBtn.onclick = () => {
+            serverModal.style.display = 'flex';
+            loadServerFileList();
+        };
+        closeServerModalBtn.onclick = () => { serverModal.style.display = 'none'; };
+        refreshBtn.onclick = loadServerFileList;
+        loadBtn.onclick = async () => {
+            const filename = fileSelect.value;
+            if (!filename) { showToast('请选择一个文件', true); return; }
+            await loadFromServer(filename);
+            serverModal.style.display = 'none';
+        };
+        deleteBtn.onclick = async () => {
+            const filename = fileSelect.value;
+            if (!filename) { showToast('请选择一个文件', true); return; }
+            await deleteServerFile(filename);
+        };
+        saveAsNewBtn.onclick = async () => {
+            const newName = document.getElementById('newFileNameInput').value.trim();
+            if (!newName) { showToast('请输入文件名（例如 mypage.xml）', true); return; }
+            if (!newName.endsWith('.xml')) { showToast('文件名必须以 .xml 结尾', true); return; }
+            const xamlContent = generateXAML(state.components);
+            if (!xamlContent.trim()) { showToast('没有可保存的内容', true); return; }
+            await saveToServer(newName, xamlContent);
+            document.getElementById('newFileNameInput').value = '';
+        };
+        fileSelect.addEventListener('change', (e) => {
+            currentSelectedServerFile = e.target.value;
+            overwriteBtn.disabled = !currentSelectedServerFile;
+        });
+        overwriteBtn.onclick = async () => {
+            if (!currentSelectedServerFile) { showToast('没有选中的文件', true); return; }
+            const xamlContent = generateXAML(state.components);
+            if (!xamlContent.trim()) { showToast('没有可保存的内容', true); return; }
+            await saveToServer(currentSelectedServerFile, xamlContent);
+        };
+        window.onclick = (e) => { if (e.target === serverModal) serverModal.style.display = 'none'; };
+    }
+
+    // 暴露给全局供其他部分使用（比如新按钮调用导出）
+    window.__editorAPI = {
+        exportXAML: () => generateXAML(state.components),
+        importXAML: importFromXAML,
+        getComponents: () => state.components
+    };
+
+    // 本地文件操作模块
+let currentLocalFilePath = '';  // 记录最后打开/保存的路径
+
+async function loadFromLocalPath(filePath) {
+    try {
+        const res = await fetch('/api/local/load', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: filePath })
+        });
+        const data = await res.json();
+        if (data.success && data.content) {
+            if (confirm(`加载 "${data.path}" 将替换当前所有组件，是否继续？`)) {
+                importFromXAML(data.content);
+                currentLocalFilePath = data.path;
+                document.getElementById('localFilePath').value = currentLocalFilePath;
+                showToast(`已加载 ${data.path}`);
+                return true;
+            }
+        } else {
+            showToast('加载失败: ' + (data.error || '未知错误'), true);
+            return false;
+        }
+    } catch (err) {
+        showToast('请求失败: ' + err.message, true);
+        return false;
+    }
+}
+
+async function saveToLocalPath(filePath) {
+    const xamlContent = generateXAML(state.components);
+    if (!xamlContent.trim()) {
+        showToast('没有可保存的内容', true);
+        return false;
+    }
+    try {
+        const res = await fetch('/api/local/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: filePath, content: xamlContent })
+        });
+        const data = await res.json();
+        if (data.success) {
+            currentLocalFilePath = data.path;
+            document.getElementById('localFilePath').value = currentLocalFilePath;
+            showToast(`已保存到 ${data.path}`);
+            return true;
+        } else {
+            showToast('保存失败: ' + (data.error || '未知错误'), true);
+            return false;
+        }
+    } catch (err) {
+        showToast('请求失败: ' + err.message, true);
+        return false;
+    }
+}
+
+function bindLocalFileEvents() {
+    const modal = document.getElementById('localFileModal');
+    const openBtn = document.getElementById('localFileBtn');
+    const closeBtn = document.getElementById('closeLocalModalBtn');
+    const loadBtn = document.getElementById('localLoadBtn');
+    const saveBtn = document.getElementById('localSaveBtn');
+    const pathInput = document.getElementById('localFilePath');
+
+    openBtn.onclick = () => {
+        modal.style.display = 'flex';
+        if (currentLocalFilePath) pathInput.value = currentLocalFilePath;
+    };
+    closeBtn.onclick = () => { modal.style.display = 'none'; };
+    window.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+
+    loadBtn.onclick = async () => {
+        let path = pathInput.value.trim();
+        if (!path) {
+            showToast('请输入文件路径', true);
+            return;
+        }
+        // 简单规范化：将反斜杠转为正斜杠（后端会自动处理）
+        path = path.replace(/\\/g, '/');
+        await loadFromLocalPath(path);
+        modal.style.display = 'none';
+    };
+
+    saveBtn.onclick = async () => {
+        let path = pathInput.value.trim();
+        if (!path) {
+            showToast('请输入文件路径', true);
+            return;
+        }
+        path = path.replace(/\\/g, '/');
+        await saveToLocalPath(path);
+        modal.style.display = 'none';
+    };
+}
+
     function bindUIEvents() {
         document.getElementById('clearCanvasBtn').onclick = () => { if (confirm('清空所有组件？')) { state.components = []; state.selectedId = null; renderCanvas(); } };
         document.getElementById('applyPropsBtn').onclick = applyCurrentProps;
@@ -486,11 +736,9 @@
         document.getElementById('importXamlBtn').onclick = () => { 
             document.getElementById('xamlViewArea').style.display = 'none'; 
             document.getElementById('importArea').style.display = 'block'; 
-            // 每次打开导入区清空文件选择
             const fileInput = document.getElementById('xamlFileInput');
             if (fileInput) fileInput.value = '';
         };
-        // 文件导入按钮逻辑（替换原来的doImportBtn）
         const doImportFileBtn = document.getElementById('doImportFileBtn');
         if (doImportFileBtn) {
             doImportFileBtn.onclick = () => {
@@ -517,6 +765,14 @@
         document.getElementById('eventDataInput')?.addEventListener('blur', applyCurrentProps);
     }
 
-    function init() { buildComponentLibrary(); initDragAndDrop(); initGlobalFileDragAndDrop(); bindUIEvents(); renderCanvas(); }
+    function init() { 
+        buildComponentLibrary(); 
+        initDragAndDrop(); 
+        initGlobalFileDragAndDrop(); 
+        bindUIEvents(); 
+        bindServerUIEvents(); 
+        renderCanvas(); 
+        bindLocalFileEvents();
+    }
     init();
 })();

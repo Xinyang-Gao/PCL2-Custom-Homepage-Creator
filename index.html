@@ -1,9 +1,10 @@
-﻿<!DOCTYPE html>
+﻿<!-- index.html (修改版，新增“服务器文件”管理模态框) -->
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>PCL 主页编辑器</title>
+    <title>PCL 主页编辑器 - 云端同步版</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/style.css">
 </head>
@@ -11,7 +12,11 @@
 <div class="app">
     <div class="header">
         <div class="logo"><i class="fas fa-cube"></i> PCL 主页编辑器</div>
-        <button class="theme-btn" id="themeToggle"><i class="fas fa-moon"></i></button>
+        <div style="display: flex; gap: 12px;">
+            <button class="btn" id="localFileBtn"><i class="fas fa-hdd"></i> 本地文件</button>
+            <button class="theme-btn" id="serverManageBtn" title="服务器文件管理"><i class="fas fa-cloud-upload-alt"></i></button>
+            <button class="theme-btn" id="themeToggle"><i class="fas fa-moon"></i></button>
+        </div>
     </div>
     <div class="main">
         <div class="sidebar" id="sidebar">
@@ -111,8 +116,70 @@
         </div>
     </div>
 </div>
+
+<!-- 服务器文件管理弹窗 -->
+<div class="modal" id="serverModal">
+    <div class="modal-content" style="max-width: 550px;">
+        <h3><i class="fas fa-cloud-upload-alt"></i> 服务器文件管理</h3>
+        <div style="margin: 16px 0;">
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 6px; font-weight: 500;">📁 当前服务器上的XML文件</label>
+                <select id="serverFileSelect" style="width: 100%; padding: 10px; border-radius: var(--radius-md); background: var(--bg-subtle); border: 1px solid var(--border-light);">
+                    <option value="">-- 选择文件 --</option>
+                </select>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn" id="refreshFileListBtn"><i class="fas fa-sync-alt"></i> 刷新列表</button>
+                    <button class="btn btn-primary" id="loadServerFileBtn"><i class="fas fa-folder-open"></i> 加载选中文件</button>
+                    <button class="btn btn-danger" id="deleteServerFileBtn"><i class="fas fa-trash"></i> 删除文件</button>
+                </div>
+            </div>
+            <hr style="margin: 16px 0; border-color: var(--border-light);">
+            <div>
+                <label style="display: block; margin-bottom: 6px; font-weight: 500;">💾 保存当前设计到服务器</label>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <input type="text" id="newFileNameInput" placeholder="新文件名.xml" style="flex: 1; padding: 10px; border-radius: var(--radius-md); background: var(--bg-subtle); border: 1px solid var(--border-light);">
+                    <button class="btn btn-primary" id="saveAsNewBtn"><i class="fas fa-save"></i> 另存为新文件</button>
+                    <button class="btn" id="overwriteCurrentBtn" disabled><i class="fas fa-file-export"></i> 覆盖当前选中</button>
+                </div>
+                <div class="hint-blue" style="margin-top: 12px; font-size: 0.7rem;">
+                    <i class="fas fa-info-circle"></i> 保存的文件将存放在服务器 designs/ 目录下，方便后续加载。
+                </div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn" id="closeServerModalBtn"><i class="fas fa-times"></i> 关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 本地文件操作弹窗 -->
+<div class="modal" id="localFileModal">
+    <div class="modal-content" style="max-width: 550px;">
+        <h3><i class="fas fa-folder-open"></i> 本地文件操作（直接读写磁盘）</h3>
+        <div style="margin: 16px 0;">
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 6px; font-weight: 500;">📂 文件路径</label>
+                <input type="text" id="localFilePath" placeholder="例如：D:\Minecraft\PCL\Custom.xaml" style="width: 100%; padding: 10px; border-radius: var(--radius-md); background: var(--bg-subtle); border: 1px solid var(--border-light); font-family: monospace;">
+                <div class="hint-blue" style="margin-top: 6px; font-size: 0.7rem;">
+                    <i class="fas fa-info-circle"></i> 支持绝对路径（Windows 建议使用正斜杠 / 或双反斜杠 \\），仅限 .xaml/.xml 文件
+                </div>
+            </div>
+            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                <button class="btn btn-primary" id="localLoadBtn"><i class="fas fa-folder-open"></i> 从该路径加载</button>
+                <button class="btn btn-primary" id="localSaveBtn"><i class="fas fa-save"></i> 保存当前设计到该路径</button>
+            </div>
+            <hr style="margin: 12px 0; border-color: var(--border-light);">
+            <div style="font-size: 0.75rem; color: var(--text-tertiary);">
+                <i class="fas fa-database"></i> 提示：服务器端的“快照备份”功能（designs/目录）仍然可用，用于版本管理。
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn" id="closeLocalModalBtn"><i class="fas fa-times"></i> 关闭</button>
+        </div>
+    </div>
+</div>
+
 <div id="toast" class="toast"></div>
-<!-- 全局拖拽视觉层 -->
 <div class="global-drag-overlay" id="globalDragOverlay">
     <i class="fas fa-file-import"></i> 释放文件以导入 XAML
 </div>
