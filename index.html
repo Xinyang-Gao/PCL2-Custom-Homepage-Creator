@@ -32,7 +32,7 @@
             </div>
         </div>
 
-        <!-- 重构后的属性面板 -->
+        <!-- 属性面板 -->
         <div class="props-panel" id="propsPanel">
             <div class="props-info-header" id="propsInfoHeader">
                 <div class="comp-type-badge" id="compTypeBadge">
@@ -80,7 +80,7 @@
     </div>
 </div>
 
-<!-- XAML工具弹窗（增强：下载文件） -->
+<!-- XAML工具弹窗 -->
 <div class="modal" id="xamlModal">
     <div class="modal-content">
         <h3><i class="fas fa-code"></i> XAML 工具</h3>
@@ -97,9 +97,15 @@
             </div>
         </div>
         <div id="importArea" style="display:none;">
-            <textarea id="importXamlText" class="code-editor" placeholder="粘贴 XAML 代码..."></textarea>
-            <div style="margin-top:12px;">
-                <button class="btn btn-primary" id="doImportBtn"><i class="fas fa-code-branch"></i> 解析并加载</button>
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px; font-size: 0.85rem; font-weight: 500;">选择 XAML/XML 文件：</label>
+                <input type="file" id="xamlFileInput" accept=".xaml,.xml" style="margin-bottom: 12px; width: 100%;" />
+                <div style="font-size: 0.75rem; color: var(--text-tertiary); background: var(--bg-subtle); padding: 8px; border-radius: var(--radius-md);">
+                    <i class="fas fa-info-circle"></i> 支持 .xaml 或 .xml 文件，导入后将替换当前所有组件。
+                </div>
+            </div>
+            <div style="margin-top:12px; display: flex; gap: 12px;">
+                <button class="btn btn-primary" id="doImportFileBtn"><i class="fas fa-file-import"></i> 导入所选文件</button>
                 <button class="btn" id="cancelImportBtn"><i class="fas fa-times"></i> 取消</button>
             </div>
         </div>

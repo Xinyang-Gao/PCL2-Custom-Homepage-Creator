@@ -243,19 +243,52 @@
         document.querySelectorAll('.hierarchy-item').forEach(el => el.addEventListener('click', (e) => { selectComponent(parseInt(el.getAttribute('data-id'))); }));
     }
 
-    // ---------- 拖拽导入文件 + 全局视觉 ----------
+    // 文件导入核心逻辑（复用已有importFromXAML，添加确认）
+    function importFromXAMLFile(file) {
+        if (!file) {
+            showToast('请选择一个 XAML/XML 文件', true);
+            return;
+        }
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (ext !== 'xaml' && ext !== 'xml') {
+            showToast('请选择 .xaml 或 .xml 文件', true);
+            return;
+        }
+        // 导入前确认替换
+        if (confirm('导入文件将替换当前所有组件，是否继续？')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const content = e.target.result;
+                try {
+                    // 复用原有导入解析函数
+                    importFromXAML(content);
+                    // 关闭模态框
+                    document.getElementById('xamlModal').style.display = 'none';
+                    // 重置文件input
+                    const fileInput = document.getElementById('xamlFileInput');
+                    if (fileInput) fileInput.value = '';
+                } catch (err) {
+                    showToast('解析失败: ' + err.message, true);
+                }
+            };
+            reader.onerror = () => showToast('文件读取失败', true);
+            reader.readAsText(file, 'UTF-8');
+        }
+    }
+
+    // 全局拖拽导入（保持不变）
     function handleFileImport(file) {
         if (!file) return;
         const ext = file.name.split('.').pop().toLowerCase();
         if (ext !== 'xaml' && ext !== 'xml') { showToast('请拖入 .xaml 或 .xml 文件', true); return; }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const content = e.target.result;
-            importFromXAML(content);
-        };
-        reader.onerror = () => showToast('文件读取失败', true);
-        reader.readAsText(file, 'UTF-8');
+        if (confirm('拖入文件将替换当前所有组件，是否继续？')) {
+            const reader = new FileReader();
+            reader.onload = (e) => { importFromXAML(e.target.result); };
+            reader.onerror = () => showToast('文件读取失败', true);
+            reader.readAsText(file, 'UTF-8');
+        }
     }
+
     function initGlobalFileDragAndDrop() {
         const overlay = document.getElementById('globalDragOverlay');
         document.body.addEventListener('dragover', (e) => {
@@ -282,7 +315,7 @@
             }
         });
     }
-    // 下载XAML文件
+
     function downloadXaml(content, filename = 'design.xaml') {
         const blob = new Blob([content], { type: 'text/plain' });
         const link = document.createElement('a');
@@ -295,7 +328,7 @@
         showToast(`已下载 ${filename}`);
     }
 
-    // 原有导入/生成 + 事件绑定增强
+    // 拖拽添加组件逻辑
     let pendingDragType = null;
     let currentDropZone = null;
     function initDragAndDrop() {
@@ -349,7 +382,10 @@
         }
         document.getElementById('compSearch')?.addEventListener('input', (e) => { const kw = e.target.value.trim().toLowerCase(); document.querySelectorAll('.comp-item').forEach(item => { const nameSpan = item.querySelector('span')?.innerText.toLowerCase() || ''; item.classList.toggle('hidden', kw !== '' && !nameSpan.includes(kw)); }); });
     }
+
     function getMaxId(comps) { let max = 0; const traverse = (list) => { for (let c of list) { if (c.id > max) max = c.id; if (c.children) traverse(c.children); } }; traverse(comps); return max; }
+
+    // 原 XAML 导入解析逻辑（保持不变）
     function importFromXAML(xmlStr) {
         try {
             const wrappedXml = `<root xmlns:local="http://tempuri.org/pcl">${xmlStr}</root>`;
@@ -358,14 +394,40 @@
             const parseNode = (node, parentId = null) => {
                 const tagName = node.tagName?.toLowerCase(); if (!tagName) return null;
                 let type = null;
-                if (tagName.includes('mycard')) type = 'card'; else if (tagName.includes('textblock')) type = 'text'; else if (tagName.includes('myhint')) type = 'hint'; else if (tagName.includes('myimage')) type = 'image'; else if (tagName.includes('mybutton')) type = 'button'; else if (tagName.includes('mytextbutton')) type = 'textbutton'; else if (tagName.includes('mylistitem')) type = 'listitem'; else if (tagName === 'stackpanel') { const orientation = node.getAttribute('Orientation') || node.getAttribute('orientation'); type = orientation && orientation.toLowerCase() === 'horizontal' ? 'horizontalstack' : 'stackpanel'; } else if (tagName === 'grid') type = 'grid';
+                if (tagName.includes('mycard')) type = 'card';
+                else if (tagName.includes('textblock')) type = 'text';
+                else if (tagName.includes('myhint')) type = 'hint';
+                else if (tagName.includes('myimage')) type = 'image';
+                else if (tagName.includes('mybutton')) type = 'button';
+                else if (tagName.includes('mytextbutton')) type = 'textbutton';
+                else if (tagName.includes('mylistitem')) type = 'listitem';
+                else if (tagName === 'stackpanel') { const orientation = node.getAttribute('Orientation') || node.getAttribute('orientation'); type = orientation && orientation.toLowerCase() === 'horizontal' ? 'horizontalstack' : 'stackpanel'; }
+                else if (tagName === 'grid') type = 'grid';
                 if (!type || !COMP_TYPES[type]) return null;
                 const comp = createComponent(type, parentId);
                 const commonProps = ['Margin', 'ToolTip', 'HorizontalAlignment', 'VerticalAlignment'];
                 commonProps.forEach(prop => { const val = node.getAttribute(prop); if (val !== null) comp.props[prop] = val; });
-                if (type === 'card') { comp.props.Title = node.getAttribute('Title') || '卡片'; comp.props.CanSwap = node.getAttribute('CanSwap') ?? 'True'; comp.props.IsSwapped = node.getAttribute('IsSwapped') ?? 'True'; for (let child of node.children) { const childComp = parseNode(child, comp.id); if (childComp) comp.children.push(childComp); } }
-                else if (type === 'grid') { let colsDef = '', rowsDef = ''; for (let child of node.children) { const childName = child.tagName?.toLowerCase(); if (childName === 'grid.columndefinitions') { const colDefs = Array.from(child.children).map(cd => cd.getAttribute('Width') || '').join(';'); if (colDefs) colsDef = colDefs; } else if (childName === 'grid.rowdefinitions') { const rowDefs = Array.from(child.children).map(rd => rd.getAttribute('Height') || '').join(';'); if (rowDefs) rowsDef = rowDefs; } else { const childComp = parseNode(child, comp.id); if (childComp) comp.children.push(childComp); } } if (colsDef) comp.props.ColumnsDefinition = colsDef; if (rowsDef) comp.props.RowsDefinition = rowsDef; }
-                else if (type === 'stackpanel' || type === 'horizontalstack') { if (type === 'horizontalstack') comp.props.Orientation = 'Horizontal'; for (let child of node.children) { const childComp = parseNode(child, comp.id); if (childComp) comp.children.push(childComp); } }
+                if (type === 'card') {
+                    comp.props.Title = node.getAttribute('Title') || '卡片';
+                    comp.props.CanSwap = node.getAttribute('CanSwap') ?? 'True';
+                    comp.props.IsSwapped = node.getAttribute('IsSwapped') ?? 'True';
+                    for (let child of node.children) { const childComp = parseNode(child, comp.id); if (childComp) comp.children.push(childComp); }
+                }
+                else if (type === 'grid') {
+                    let colsDef = '', rowsDef = '';
+                    for (let child of node.children) {
+                        const childName = child.tagName?.toLowerCase();
+                        if (childName === 'grid.columndefinitions') { const colDefs = Array.from(child.children).map(cd => cd.getAttribute('Width') || '').join(';'); if (colDefs) colsDef = colDefs; }
+                        else if (childName === 'grid.rowdefinitions') { const rowDefs = Array.from(child.children).map(rd => rd.getAttribute('Height') || '').join(';'); if (rowDefs) rowsDef = rowDefs; }
+                        else { const childComp = parseNode(child, comp.id); if (childComp) comp.children.push(childComp); }
+                    }
+                    if (colsDef) comp.props.ColumnsDefinition = colsDef;
+                    if (rowsDef) comp.props.RowsDefinition = rowsDef;
+                }
+                else if (type === 'stackpanel' || type === 'horizontalstack') {
+                    if (type === 'horizontalstack') comp.props.Orientation = 'Horizontal';
+                    for (let child of node.children) { const childComp = parseNode(child, comp.id); if (childComp) comp.children.push(childComp); }
+                }
                 else if (type === 'text') { comp.props.Text = node.getAttribute('Text') || '文本'; comp.props.FontSize = node.getAttribute('FontSize') || '14'; comp.props.TextWrapping = node.getAttribute('TextWrapping') || 'Wrap'; comp.props.Foreground = node.getAttribute('Foreground') || '#1e293b'; }
                 else if (type === 'hint') { comp.props.Text = node.getAttribute('Text') || '提示'; comp.props.Theme = node.getAttribute('Theme') || 'Blue'; }
                 else if (type === 'image') { comp.props.Source = node.getAttribute('Source') || ''; comp.props.Height = node.getAttribute('Height') || '60'; comp.props.HorizontalAlignment = node.getAttribute('HorizontalAlignment') || 'Center'; }
@@ -377,16 +439,31 @@
             };
             let newComponents = [];
             for (let node of xml.documentElement.children) { const comp = parseNode(node); if (comp) newComponents.push(comp); }
-            if (newComponents.length) { state.components = newComponents; state.nextId = Math.max(getMaxId(state.components) + 1, 200); state.selectedId = null; renderCanvas(); showToast(`成功导入 ${newComponents.length} 个组件`); } else showToast('未找到有效组件', true);
+            if (newComponents.length) {
+                state.components = newComponents;
+                state.nextId = Math.max(getMaxId(state.components) + 1, 200);
+                state.selectedId = null;
+                renderCanvas();
+                showToast(`成功导入 ${newComponents.length} 个组件`);
+            } else showToast('未找到有效组件', true);
         } catch (e) { console.error(e); showToast('解析失败: ' + e.message, true); }
     }
+
     function generateXAML(comps, indent = 0) {
         let xaml = ''; const spaces = '  '.repeat(indent);
         for (let comp of comps) {
             const attrs = []; const commonAttrs = ['Margin', 'ToolTip', 'HorizontalAlignment', 'VerticalAlignment'];
             commonAttrs.forEach(attr => { if (comp.props[attr] && comp.props[attr] !== '') attrs.push(`${attr}="${escapeXml(comp.props[attr])}"`); });
-            if (comp.type === 'card') { attrs.push(`Title="${escapeXml(comp.props.Title)}"`); attrs.push(`CanSwap="${comp.props.CanSwap || 'True'}"`); attrs.push(`IsSwapped="${comp.props.IsSwapped || 'True'}"`); xaml += `${spaces}<local:MyCard ${attrs.join(' ')}>\n`; for (let child of comp.children) xaml += generateXAML([child], indent + 1); xaml += `${spaces}</local:MyCard>\n\n`; }
-            else if (comp.type === 'grid') { xaml += `${spaces}<Grid ${attrs.join(' ')}>\n`; if (comp.props.ColumnsDefinition) { const cols = comp.props.ColumnsDefinition.split(';'); if (cols.length && !(cols.length === 1 && cols[0] === '')) { xaml += `${spaces}  <Grid.ColumnDefinitions>\n`; cols.forEach(w => { xaml += `${spaces}    <ColumnDefinition Width="${escapeXml(w.trim())}"/>\n`; }); xaml += `${spaces}  </Grid.ColumnDefinitions>\n`; } } if (comp.props.RowsDefinition) { const rows = comp.props.RowsDefinition.split(';'); if (rows.length && !(rows.length === 1 && rows[0] === '')) { xaml += `${spaces}  <Grid.RowDefinitions>\n`; rows.forEach(h => { xaml += `${spaces}    <RowDefinition Height="${escapeXml(h.trim())}"/>\n`; }); xaml += `${spaces}  </Grid.RowDefinitions>\n`; } } for (let child of comp.children) xaml += generateXAML([child], indent + 1); xaml += `${spaces}</Grid>\n\n`; }
+            if (comp.type === 'card') {
+                attrs.push(`Title="${escapeXml(comp.props.Title)}"`); attrs.push(`CanSwap="${comp.props.CanSwap || 'True'}"`); attrs.push(`IsSwapped="${comp.props.IsSwapped || 'True'}"`);
+                xaml += `${spaces}<local:MyCard ${attrs.join(' ')}>\n`; for (let child of comp.children) xaml += generateXAML([child], indent + 1); xaml += `${spaces}</local:MyCard>\n\n`;
+            }
+            else if (comp.type === 'grid') {
+                xaml += `${spaces}<Grid ${attrs.join(' ')}>\n`;
+                if (comp.props.ColumnsDefinition) { const cols = comp.props.ColumnsDefinition.split(';'); if (cols.length && !(cols.length === 1 && cols[0] === '')) { xaml += `${spaces}  <Grid.ColumnDefinitions>\n`; cols.forEach(w => { xaml += `${spaces}    <ColumnDefinition Width="${escapeXml(w.trim())}"/>\n`; }); xaml += `${spaces}  </Grid.ColumnDefinitions>\n`; } }
+                if (comp.props.RowsDefinition) { const rows = comp.props.RowsDefinition.split(';'); if (rows.length && !(rows.length === 1 && rows[0] === '')) { xaml += `${spaces}  <Grid.RowDefinitions>\n`; rows.forEach(h => { xaml += `${spaces}    <RowDefinition Height="${escapeXml(h.trim())}"/>\n`; }); xaml += `${spaces}  </Grid.RowDefinitions>\n`; } }
+                for (let child of comp.children) xaml += generateXAML([child], indent + 1); xaml += `${spaces}</Grid>\n\n`;
+            }
             else if (comp.type === 'stackpanel') { xaml += `${spaces}<StackPanel ${attrs.join(' ')}>\n`; for (let child of comp.children) xaml += generateXAML([child], indent + 1); xaml += `${spaces}</StackPanel>\n\n`; }
             else if (comp.type === 'horizontalstack') { attrs.push('Orientation="Horizontal"'); xaml += `${spaces}<StackPanel ${attrs.join(' ')}>\n`; for (let child of comp.children) xaml += generateXAML([child], indent + 1); xaml += `${spaces}</StackPanel>\n\n`; }
             else if (comp.type === 'text') { attrs.push(`Text="${escapeXml(comp.props.Text)}"`); if (comp.props.FontSize) attrs.push(`FontSize="${comp.props.FontSize}"`); if (comp.props.TextWrapping) attrs.push(`TextWrapping="${comp.props.TextWrapping}"`); if (comp.props.Foreground) attrs.push(`Foreground="${comp.props.Foreground}"`); xaml += `${spaces}<TextBlock ${attrs.join(' ')} />\n`; }
@@ -398,6 +475,7 @@
         }
         return xaml;
     }
+
     function bindUIEvents() {
         document.getElementById('clearCanvasBtn').onclick = () => { if (confirm('清空所有组件？')) { state.components = []; state.selectedId = null; renderCanvas(); } };
         document.getElementById('applyPropsBtn').onclick = applyCurrentProps;
@@ -405,12 +483,29 @@
         document.getElementById('duplicateCompBtn').onclick = () => { if (state.selectedId) duplicateComponent(findComponentById(state.selectedId)); };
         document.getElementById('xamlExportBtn').onclick = () => { document.getElementById('xamlModal').style.display = 'flex'; document.getElementById('xamlViewArea').style.display = 'block'; document.getElementById('importArea').style.display = 'none'; document.getElementById('xamlCodeArea').value = generateXAML(state.components); };
         document.getElementById('viewXamlBtn').onclick = () => { document.getElementById('xamlViewArea').style.display = 'block'; document.getElementById('importArea').style.display = 'none'; document.getElementById('xamlCodeArea').value = generateXAML(state.components); };
-        document.getElementById('importXamlBtn').onclick = () => { document.getElementById('xamlViewArea').style.display = 'none'; document.getElementById('importArea').style.display = 'block'; document.getElementById('importXamlText').value = ''; };
-        document.getElementById('doImportBtn').onclick = () => { let code = document.getElementById('importXamlText').value; if (code.trim()) importFromXAML(code); document.getElementById('xamlModal').style.display = 'none'; };
+        document.getElementById('importXamlBtn').onclick = () => { 
+            document.getElementById('xamlViewArea').style.display = 'none'; 
+            document.getElementById('importArea').style.display = 'block'; 
+            // 每次打开导入区清空文件选择
+            const fileInput = document.getElementById('xamlFileInput');
+            if (fileInput) fileInput.value = '';
+        };
+        // 文件导入按钮逻辑（替换原来的doImportBtn）
+        const doImportFileBtn = document.getElementById('doImportFileBtn');
+        if (doImportFileBtn) {
+            doImportFileBtn.onclick = () => {
+                const fileInput = document.getElementById('xamlFileInput');
+                if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                    importFromXAMLFile(fileInput.files[0]);
+                } else {
+                    showToast('请先选择一个 XAML/XML 文件', true);
+                }
+            };
+        }
+        document.getElementById('cancelImportBtn').onclick = () => { document.getElementById('xamlModal').style.display = 'none'; };
         document.getElementById('copyXamlBtn').onclick = async () => { try { await navigator.clipboard.writeText(document.getElementById('xamlCodeArea').value); showToast('已复制XAML'); } catch (err) { showToast('复制失败', true); } };
         document.getElementById('downloadXamlBtn').onclick = () => { const xaml = document.getElementById('xamlCodeArea').value; if (xaml.trim()) downloadXaml(xaml, `pcl_export_${new Date().toISOString().slice(0,19)}.xaml`); else showToast('无XAML内容', true); };
         document.getElementById('closeModalBtn').onclick = () => document.getElementById('xamlModal').style.display = 'none';
-        document.getElementById('cancelImportBtn').onclick = () => document.getElementById('xamlModal').style.display = 'none';
         document.getElementById('toggleSidebarBtn').onclick = () => document.getElementById('sidebar').classList.toggle('open');
         document.getElementById('togglePropsPanelBtn').onclick = () => document.getElementById('propsPanel').classList.toggle('open');
         document.getElementById('themeToggle').onclick = () => { document.body.classList.toggle('dark'); localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light'); };
@@ -421,6 +516,7 @@
         document.getElementById('eventTypeSelect')?.addEventListener('change', applyCurrentProps);
         document.getElementById('eventDataInput')?.addEventListener('blur', applyCurrentProps);
     }
+
     function init() { buildComponentLibrary(); initDragAndDrop(); initGlobalFileDragAndDrop(); bindUIEvents(); renderCanvas(); }
     init();
 })();
