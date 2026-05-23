@@ -587,7 +587,7 @@ class XamlProcessor {
                     200
                 );
                 App.state.selectedId = null;
-                this.renderCanvas();
+                App.renderManager.renderCanvas();
                 Utils.showToast(`成功导入 ${newComponents.length} 个组件`);
             } else {
                 Utils.showToast('未找到有效组件', true);
@@ -1119,7 +1119,7 @@ class UIManager {
             }
         };
 
-        document.getElementById('applyPropsBtn').onclick = () => App.renderManager.applyCurrentProps;
+        document.getElementById('applyPropsBtn').onclick = () => App.renderManager.applyCurrentProps();
         document.getElementById('deleteCompBtn').onclick = () => {
             if (App.state.selectedId && confirm('删除组件？')) {
                 ComponentManager.removeComponentById(App.state.selectedId);
@@ -1184,9 +1184,9 @@ class UIManager {
             if (e.target === document.getElementById('serverModal')) document.getElementById('serverModal').style.display = 'none';
         };
 
-        document.getElementById('dynamicProps')?.addEventListener('change', () => App.renderManager.applyCurrentProps);
-        document.getElementById('eventTypeSelect')?.addEventListener('change', () => App.renderManager.applyCurrentProps);
-        document.getElementById('eventDataInput')?.addEventListener('blur', () => App.renderManager.applyCurrentProps);
+        document.getElementById('dynamicProps')?.addEventListener('change', () => App.renderManager.applyCurrentProps());
+        document.getElementById('eventTypeSelect')?.addEventListener('change', () => App.renderManager.applyCurrentProps());
+        document.getElementById('eventDataInput')?.addEventListener('blur', () => App.renderManager.applyCurrentProps());
 
         // 服务器管理相关事件
         const serverModal = document.getElementById('serverModal');
@@ -1200,7 +1200,7 @@ class UIManager {
             serverModal.style.display = 'none';
         };
 
-        document.getElementById('refreshFileListBtn').onclick = () => App.serverApi.loadServerFileList;
+        document.getElementById('refreshFileListBtn').onclick = () => App.serverApi.loadServerFileList();
 
         document.getElementById('loadServerFileBtn').onclick = async () => {
             const filename = document.getElementById('serverFileSelect').value;
@@ -1270,9 +1270,9 @@ class UIManager {
             });
         });
 
-        document.getElementById('openLocalFilePickerBtn').onclick = () => App.fileManager.openLocalFileWithPicker;
-        document.getElementById('saveToLocalFileBtn').onclick = () => App.fileManager.saveToLinkedFile;
-        document.getElementById('saveAsLocalFileBtn').onclick = () => App.fileManager.saveAsLocalFile;
+        document.getElementById('openLocalFilePickerBtn').onclick = () => App.fileManager.openLocalFileWithPicker();
+        document.getElementById('saveToLocalFileBtn').onclick = () => App.fileManager.saveToLinkedFile();
+        document.getElementById('saveAsLocalFileBtn').onclick = () => App.fileManager.saveAsLocalFile();
         document.getElementById('openLocalFileBtn').onclick = () => {
             App.fileManager.openLocalFileWithPicker();
         };
