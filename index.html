@@ -6,65 +6,6 @@
     <title>PCL 主页编辑器 - 云端同步版</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/style.css">
-    <style>
-        /* 新增选项卡样式 */
-        .modal-tabs {
-            display: flex;
-            border-bottom: 1px solid var(--border-light);
-            margin-bottom: 20px;
-        }
-        .tab-btn {
-            background: none;
-            border: none;
-            padding: 8px 16px;
-            font-size: 0.9rem;
-            font-weight: 500;
-            cursor: pointer;
-            color: var(--text-secondary);
-            border-bottom: 2px solid transparent;
-            transition: all 0.2s;
-        }
-        .tab-btn.active {
-            color: var(--primary);
-            border-bottom-color: var(--primary);
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        .local-file-info {
-            background: var(--bg-subtle);
-            border-radius: var(--radius-md);
-            padding: 10px;
-            margin: 12px 0;
-            font-size: 0.8rem;
-            word-break: break-all;
-        }
-        .local-file-info i {
-            margin-right: 6px;
-            color: var(--primary);
-        }
-        .unsupported-warning {
-            background: #fef3c7;
-            color: #92400e;
-            padding: 8px 12px;
-            border-radius: var(--radius-md);
-            font-size: 0.75rem;
-            margin-top: 12px;
-        }
-        body.dark .unsupported-warning {
-            background: #422006;
-            color: #fde047;
-        }
-        .file-action-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-top: 12px;
-        }
-    </style>
 </head>
 <body>
 <div class="app">
@@ -140,39 +81,25 @@
     </div>
 </div>
 
-<!-- XAML工具弹窗 -->
+<!-- XAML工具弹窗（仅代码预览，无导入功能） -->
 <div class="modal" id="xamlModal">
     <div class="modal-content">
-        <h3><i class="fas fa-code"></i> XAML 工具</h3>
-        <div style="margin: 12px 0;">
-            <button class="btn" id="viewXamlBtn"><i class="fas fa-eye"></i> 查看XAML</button>
-            <button class="btn" id="importXamlBtn"><i class="fas fa-upload"></i> 导入XAML</button>
-        </div>
-        <div id="xamlViewArea" style="display:none;">
+        <h3><i class="fas fa-code"></i> XAML 代码预览</h3>
+        <div style="margin-bottom: 12px;">
             <textarea id="xamlCodeArea" class="code-editor" readonly></textarea>
-            <div class="modal-actions">
-                <button class="btn" id="copyXamlBtn"><i class="fas fa-copy"></i> 复制代码</button>
-                <button class="btn btn-primary" id="downloadXamlBtn"><i class="fas fa-download"></i> 下载为XAML文件</button>
-                <button class="btn" id="closeModalBtn"><i class="fas fa-times"></i> 关闭</button>
-            </div>
         </div>
-        <div id="importArea" style="display:none;">
-            <div style="margin-bottom: 16px;">
-                <label style="display: block; margin-bottom: 8px; font-size: 0.85rem; font-weight: 500;">选择 XAML/XML 文件：</label>
-                <input type="file" id="xamlFileInput" accept=".xaml,.xml" style="margin-bottom: 12px; width: 100%;" />
-                <div style="font-size: 0.75rem; color: var(--text-tertiary); background: var(--bg-subtle); padding: 8px; border-radius: var(--radius-md);">
-                    <i class="fas fa-info-circle"></i> 支持 .xaml 或 .xml 文件，导入后将替换当前所有组件。
-                </div>
-            </div>
-            <div style="margin-top:12px; display: flex; gap: 12px;">
-                <button class="btn btn-primary" id="doImportFileBtn"><i class="fas fa-file-import"></i> 导入所选文件</button>
-                <button class="btn" id="cancelImportBtn"><i class="fas fa-times"></i> 取消</button>
-            </div>
+        <div class="modal-actions">
+            <button class="btn" id="copyXamlBtn"><i class="fas fa-copy"></i> 复制代码</button>
+            <button class="btn btn-primary" id="downloadXamlBtn"><i class="fas fa-download"></i> 下载为XAML文件</button>
+            <button class="btn" id="closeModalBtn"><i class="fas fa-times"></i> 关闭</button>
+        </div>
+        <div style="margin-top: 12px; font-size: 0.75rem; color: var(--text-tertiary); background: var(--bg-subtle); padding: 8px; border-radius: var(--radius-md);">
+            <i class="fas fa-info-circle"></i> 提示：您也可以通过拖拽 .xaml 或 .xml 文件到页面直接导入设计。
         </div>
     </div>
 </div>
 
-<!-- 服务器文件管理弹窗（合并本地文件功能） -->
+<!-- 服务器文件管理弹窗 -->
 <div class="modal" id="serverModal">
     <div class="modal-content" style="max-width: 650px;">
         <h3><i class="fas fa-cloud-upload-alt"></i> 文件管理</h3>
