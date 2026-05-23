@@ -1176,8 +1176,6 @@
             };
 
             document.getElementById('closeModalBtn').onclick = () => document.getElementById('xamlModal').style.display = 'none';
-
-            document.getElementById('toggleSidebarBtn').onclick = () => document.getElementById('sidebar').classList.toggle('open');
             document.getElementById('themeToggle').onclick = () => {
                 document.body.classList.toggle('dark');
                 localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
