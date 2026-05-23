@@ -1,5 +1,4 @@
-﻿<!-- index.html (修改版，新增“服务器文件”管理模态框) -->
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -7,13 +6,72 @@
     <title>PCL 主页编辑器 - 云端同步版</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/style.css">
+    <style>
+        /* 新增选项卡样式 */
+        .modal-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 20px;
+        }
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            color: var(--text-secondary);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .local-file-info {
+            background: var(--bg-subtle);
+            border-radius: var(--radius-md);
+            padding: 10px;
+            margin: 12px 0;
+            font-size: 0.8rem;
+            word-break: break-all;
+        }
+        .local-file-info i {
+            margin-right: 6px;
+            color: var(--primary);
+        }
+        .unsupported-warning {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 8px 12px;
+            border-radius: var(--radius-md);
+            font-size: 0.75rem;
+            margin-top: 12px;
+        }
+        body.dark .unsupported-warning {
+            background: #422006;
+            color: #fde047;
+        }
+        .file-action-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+    </style>
 </head>
 <body>
 <div class="app">
     <div class="header">
         <div class="logo"><i class="fas fa-cube"></i> PCL 主页编辑器</div>
         <div style="display: flex; gap: 12px;">
-            <button class="btn" id="localFileBtn"><i class="fas fa-hdd"></i> 本地文件</button>
+            <button class="btn" id="openLocalFileBtn"><i class="fas fa-folder-open"></i> 打开本地文件</button>
             <button class="theme-btn" id="serverManageBtn" title="服务器文件管理"><i class="fas fa-cloud-upload-alt"></i></button>
             <button class="theme-btn" id="themeToggle"><i class="fas fa-moon"></i></button>
         </div>
@@ -29,7 +87,6 @@
                 <button class="btn" id="clearCanvasBtn"><i class="fas fa-trash"></i> 清空</button>
                 <button class="btn btn-primary" id="xamlExportBtn"><i class="fas fa-code"></i> XAML工具</button>
                 <button class="btn" id="toggleSidebarBtn"><i class="fas fa-bars"></i> 组件库</button>
-                <button class="btn" id="togglePropsPanelBtn" style="display: none;"><i class="fas fa-sliders-h"></i> 属性</button>
             </div>
             <div class="hierarchy-bar" id="hierarchyBar"></div>
             <div class="preview-container" id="previewContainer">
@@ -40,7 +97,7 @@
         <!-- 属性面板 -->
         <div class="props-panel" id="propsPanel">
             <div class="props-info-header" id="propsInfoHeader">
-                <div class="comp-type-badge" id="compTypeBadge">
+                <div class="comp-type-badge">
                     <i class="fas fa-puzzle-piece"></i> <span id="compTypeName">未选中</span>
                 </div>
                 <div class="comp-id-row">
@@ -51,9 +108,7 @@
             </div>
             <div id="dynamicProps" class="props-groups-container"></div>
             <div class="prop-section">
-                <div class="prop-section-title">
-                    <i class="fas fa-bolt"></i> 事件绑定
-                </div>
+                <div class="prop-section-title"><i class="fas fa-bolt"></i> 事件绑定</div>
                 <div class="prop-field">
                     <label>EventType</label>
                     <select id="eventTypeSelect">
@@ -117,13 +172,21 @@
     </div>
 </div>
 
-<!-- 服务器文件管理弹窗 -->
+<!-- 服务器文件管理弹窗（合并本地文件功能） -->
 <div class="modal" id="serverModal">
-    <div class="modal-content" style="max-width: 550px;">
-        <h3><i class="fas fa-cloud-upload-alt"></i> 服务器文件管理</h3>
-        <div style="margin: 16px 0;">
+    <div class="modal-content" style="max-width: 650px;">
+        <h3><i class="fas fa-cloud-upload-alt"></i> 文件管理</h3>
+        
+        <!-- 选项卡 -->
+        <div class="modal-tabs">
+            <button class="tab-btn active" data-tab="server-tab">☁️ 服务器文件</button>
+            <button class="tab-btn" data-tab="local-tab">💻 本地文件</button>
+        </div>
+
+        <!-- 服务器文件选项卡 -->
+        <div id="server-tab" class="tab-content active">
             <div style="margin-bottom: 16px;">
-                <label style="display: block; margin-bottom: 6px; font-weight: 500;">📁 当前服务器上的XML文件</label>
+                <label style="display: block; margin-bottom: 6px; font-weight: 500;">📁 服务器上的XML文件</label>
                 <select id="serverFileSelect" style="width: 100%; padding: 10px; border-radius: var(--radius-md); background: var(--bg-subtle); border: 1px solid var(--border-light);">
                     <option value="">-- 选择文件 --</option>
                 </select>
@@ -141,40 +204,30 @@
                     <button class="btn btn-primary" id="saveAsNewBtn"><i class="fas fa-save"></i> 另存为新文件</button>
                     <button class="btn" id="overwriteCurrentBtn" disabled><i class="fas fa-file-export"></i> 覆盖当前选中</button>
                 </div>
-                <div class="hint-blue" style="margin-top: 12px; font-size: 0.7rem;">
-                    <i class="fas fa-info-circle"></i> 保存的文件将存放在服务器 designs/ 目录下，方便后续加载。
-                </div>
             </div>
         </div>
-        <div class="modal-actions">
-            <button class="btn" id="closeServerModalBtn"><i class="fas fa-times"></i> 关闭</button>
-        </div>
-    </div>
-</div>
 
-<!-- 本地文件操作弹窗 -->
-<div class="modal" id="localFileModal">
-    <div class="modal-content" style="max-width: 550px;">
-        <h3><i class="fas fa-folder-open"></i> 本地文件操作（直接读写磁盘）</h3>
-        <div style="margin: 16px 0;">
-            <div style="margin-bottom: 16px;">
-                <label style="display: block; margin-bottom: 6px; font-weight: 500;">📂 文件路径</label>
-                <input type="text" id="localFilePath" placeholder="例如：D:\Minecraft\PCL\Custom.xaml" style="width: 100%; padding: 10px; border-radius: var(--radius-md); background: var(--bg-subtle); border: 1px solid var(--border-light); font-family: monospace;">
-                <div class="hint-blue" style="margin-top: 6px; font-size: 0.7rem;">
-                    <i class="fas fa-info-circle"></i> 支持绝对路径（Windows 建议使用正斜杠 / 或双反斜杠 \\），仅限 .xaml/.xml 文件
+        <!-- 本地文件选项卡 -->
+        <div id="local-tab" class="tab-content">
+            <div id="localFileSupportArea">
+                <div class="local-file-info" id="linkedFileInfo">
+                    <i class="fas fa-link"></i> 未链接任何本地文件
+                </div>
+                <div class="file-action-group">
+                    <button class="btn btn-primary" id="openLocalFilePickerBtn"><i class="fas fa-folder-open"></i> 打开本地文件</button>
+                    <button class="btn" id="saveToLocalFileBtn" disabled><i class="fas fa-save"></i> 保存到当前链接文件</button>
+                    <button class="btn" id="saveAsLocalFileBtn"><i class="fas fa-copy"></i> 另存为...</button>
+                </div>
+                <div id="fsaCompatWarning" style="margin-top: 12px;"></div>
+                <div class="hint-blue" style="margin-top: 16px; font-size: 0.7rem;">
+                    <i class="fas fa-info-circle"></i> 使用现代浏览器（Chrome/Edge 86+）支持直接读写选中的本地文件。<br>
+                    打开文件后即可“链接”该文件，后续可一键保存覆盖。
                 </div>
             </div>
-            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                <button class="btn btn-primary" id="localLoadBtn"><i class="fas fa-folder-open"></i> 从该路径加载</button>
-                <button class="btn btn-primary" id="localSaveBtn"><i class="fas fa-save"></i> 保存当前设计到该路径</button>
-            </div>
-            <hr style="margin: 12px 0; border-color: var(--border-light);">
-            <div style="font-size: 0.75rem; color: var(--text-tertiary);">
-                <i class="fas fa-database"></i> 提示：服务器端的“快照备份”功能（designs/目录）仍然可用，用于版本管理。
-            </div>
         </div>
-        <div class="modal-actions">
-            <button class="btn" id="closeLocalModalBtn"><i class="fas fa-times"></i> 关闭</button>
+
+        <div class="modal-actions" style="margin-top: 20px;">
+            <button class="btn" id="closeServerModalBtn"><i class="fas fa-times"></i> 关闭</button>
         </div>
     </div>
 </div>
