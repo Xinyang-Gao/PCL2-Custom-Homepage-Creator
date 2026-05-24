@@ -38,6 +38,109 @@ function formatMargin(left, top, right, bottom) {
     return `${left},${top},${right},${bottom}`;
 }
 
+// 应用外边距、宽高、对齐等通用布局样式（直接模拟位置，无虚线框）
+function applyLayoutStyles(wrapper, comp) {
+    // 1. Margin
+    const margin = comp.props.Margin || '0';
+    const [ml, mt, mr, mb] = parseMargin(margin);
+    wrapper.style.margin = `${mt}px ${mr}px ${mb}px ${ml}px`;
+
+    // 2. 宽度/高度
+    if (comp.props.Width) {
+        wrapper.style.width = comp.props.Width;
+        if (!comp.props.HorizontalAlignment || comp.props.HorizontalAlignment === 'Stretch') {
+            wrapper.style.width = comp.props.Width;
+        }
+    } else {
+        wrapper.style.width = '';
+    }
+    if (comp.props.Height) {
+        wrapper.style.height = comp.props.Height;
+    } else {
+        wrapper.style.height = '';
+    }
+
+    // 3. 水平对齐
+    const halign = comp.props.HorizontalAlignment || 'Stretch';
+    if (halign === 'Center') {
+        wrapper.style.marginLeft = 'auto';
+        wrapper.style.marginRight = 'auto';
+        wrapper.style.width = wrapper.style.width || 'auto';
+    } else if (halign === 'Right') {
+        wrapper.style.marginLeft = 'auto';
+        wrapper.style.marginRight = '0';
+        wrapper.style.width = wrapper.style.width || 'auto';
+    } else if (halign === 'Left') {
+        wrapper.style.marginLeft = '0';
+        wrapper.style.marginRight = 'auto';
+        wrapper.style.width = wrapper.style.width || 'auto';
+    } else {
+        if (!comp.props.Width) {
+            wrapper.style.width = '100%';
+        }
+        wrapper.style.marginLeft = '';
+        wrapper.style.marginRight = '';
+    }
+
+    // 4. 垂直对齐
+    const valign = comp.props.VerticalAlignment || 'Stretch';
+    if (valign === 'Top') {
+        wrapper.style.alignSelf = 'flex-start';
+    } else if (valign === 'Center') {
+        wrapper.style.alignSelf = 'center';
+    } else if (valign === 'Bottom') {
+        wrapper.style.alignSelf = 'flex-end';
+    } else {
+        wrapper.style.alignSelf = 'stretch';
+    }
+
+    wrapper.setAttribute('data-halign', halign);
+    wrapper.setAttribute('data-valign', valign);
+}
+
+// 应用内边距到组件内部内容区
+function applyPaddingStyles(comp, contentElement) {
+    if (!contentElement) return;
+    const padding = comp.props.Padding || '';
+    if (padding) {
+        const parts = padding.split(',').map(p => parseFloat(p.trim()));
+        if (parts.length === 1) {
+            contentElement.style.padding = `${parts[0]}px`;
+        } else if (parts.length === 2) {
+            contentElement.style.padding = `${parts[0]}px ${parts[1]}px`;
+        } else if (parts.length === 3) {
+            contentElement.style.padding = `${parts[0]}px ${parts[1]}px ${parts[2]}px`;
+        } else if (parts.length >= 4) {
+            contentElement.style.padding = `${parts[0]}px ${parts[1]}px ${parts[2]}px ${parts[3]}px`;
+        }
+    } else {
+        contentElement.style.padding = '';
+    }
+}
+
+// 文本样式应用
+function applyTextStyles(textElement, comp) {
+    if (comp.props.Foreground) {
+        textElement.style.color = comp.props.Foreground;
+    } else {
+        textElement.style.color = '';
+    }
+    if (comp.props.FontSize) {
+        textElement.style.fontSize = comp.props.FontSize + 'px';
+    } else {
+        textElement.style.fontSize = '';
+    }
+    if (comp.props.FontWeight) {
+        textElement.style.fontWeight = comp.props.FontWeight;
+    }
+    if (comp.props.TextWrapping === 'Wrap') {
+        textElement.style.whiteSpace = 'normal';
+        textElement.style.wordWrap = 'break-word';
+    } else if (comp.props.TextWrapping === 'NoWrap') {
+        textElement.style.whiteSpace = 'nowrap';
+    }
+}
+
 export class RenderManager {
     renderComponentDOM(comp, container) {
         const wrapper = document.createElement('div');
@@ -48,6 +151,10 @@ export class RenderManager {
         if (comp.props.ToolTip) {
             wrapper.setAttribute('title', comp.props.ToolTip);
         }
+
+        // 直接应用布局样式（Margin 等，无虚线框）
+        applyLayoutStyles(wrapper, comp);
+        wrapper._component = comp;
 
         if (comp.type === 'card') {
             const cardDiv = document.createElement('div');
@@ -62,6 +169,7 @@ export class RenderManager {
             headerDiv.appendChild(iconSpan);
             const contentDiv = document.createElement('div');
             contentDiv.className = 'card-content';
+            applyPaddingStyles(comp, contentDiv);
             const dropzone = document.createElement('div');
             dropzone.className = 'nested-dropzone';
             dropzone.setAttribute('data-parent-id', comp.id);
@@ -75,10 +183,11 @@ export class RenderManager {
         else if (comp.type === 'stackpanel') {
             const containerDiv = document.createElement('div');
             containerDiv.className = 'card-component';
-            containerDiv.style.cssText = 'background:var(--bg-card); padding:8px; border:1px dashed var(--border);';
+            containerDiv.style.cssText = 'background:var(--bg-card); border:1px dashed var(--border);';
             const labelDiv = document.createElement('div');
             labelDiv.style.fontSize = '0.7rem';
             labelDiv.style.color = 'var(--text-light)';
+            labelDiv.style.marginBottom = '8px';
             labelDiv.innerHTML = '<i class="fas fa-layer-group"></i> 垂直布局';
             const dropzone = document.createElement('div');
             dropzone.className = 'nested-dropzone';
@@ -86,24 +195,27 @@ export class RenderManager {
             containerDiv.appendChild(labelDiv);
             containerDiv.appendChild(dropzone);
             wrapper.appendChild(containerDiv);
+            applyPaddingStyles(comp, containerDiv);
             comp.children.forEach(child => this.renderComponentDOM(child, dropzone));
         }
         else if (comp.type === 'horizontalstack') {
             const containerDiv = document.createElement('div');
             containerDiv.className = 'card-component';
-            containerDiv.style.cssText = 'background:var(--bg-card); padding:8px; border:1px dashed var(--border);';
+            containerDiv.style.cssText = 'background:var(--bg-card); border:1px dashed var(--border);';
             const labelDiv = document.createElement('div');
             labelDiv.style.fontSize = '0.7rem';
+            labelDiv.style.marginBottom = '8px';
             labelDiv.innerHTML = '<i class="fas fa-arrows-alt-h"></i> 水平布局';
             const dropzone = document.createElement('div');
             dropzone.className = 'nested-dropzone horizontal';
             dropzone.setAttribute('data-parent-id', comp.id);
             dropzone.style.display = 'flex';
-            dropzone.style.gap = '8px';
             dropzone.style.flexWrap = 'wrap';
+            dropzone.style.gap = '8px';
             containerDiv.appendChild(labelDiv);
             containerDiv.appendChild(dropzone);
             wrapper.appendChild(containerDiv);
+            applyPaddingStyles(comp, containerDiv);
             comp.children.forEach(child => this.renderComponentDOM(child, dropzone));
         }
         else if (comp.type === 'grid') {
@@ -111,6 +223,7 @@ export class RenderManager {
             containerDiv.className = 'card-component grid-mock';
             const labelDiv = document.createElement('div');
             labelDiv.style.fontSize = '0.7rem';
+            labelDiv.style.marginBottom = '8px';
             labelDiv.innerHTML = `<i class="fas fa-th"></i> 网格布局 (${Utils.escapeHtml(comp.props.ColumnsDefinition || '未定义列')})`;
             const dropzone = document.createElement('div');
             dropzone.className = 'nested-dropzone';
@@ -118,24 +231,26 @@ export class RenderManager {
             containerDiv.appendChild(labelDiv);
             containerDiv.appendChild(dropzone);
             wrapper.appendChild(containerDiv);
+            applyPaddingStyles(comp, containerDiv);
             comp.children.forEach(child => this.renderComponentDOM(child, dropzone));
         }
         else {
+            const innerContainer = document.createElement('div');
+            innerContainer.className = 'component-inner';
+            
             if (comp.type === 'text') {
                 const textDiv = document.createElement('div');
-                textDiv.style.margin = '4px 0';
-                if (comp.props.Foreground) textDiv.style.color = comp.props.Foreground;
                 textDiv.textContent = comp.props.Text || '文本';
-                wrapper.appendChild(textDiv);
+                textDiv.style.margin = '0';
+                applyTextStyles(textDiv, comp);
+                innerContainer.appendChild(textDiv);
             }
             else if (comp.type === 'hint') {
                 const hintDiv = document.createElement('div');
                 const theme = (comp.props.Theme || 'blue').toLowerCase();
                 hintDiv.className = `hint-${theme}`;
-                hintDiv.style.padding = '8px';
-                hintDiv.style.borderRadius = '8px';
                 hintDiv.textContent = comp.props.Text || '';
-                wrapper.appendChild(hintDiv);
+                innerContainer.appendChild(hintDiv);
             }
             else if (comp.type === 'image') {
                 const img = document.createElement('img');
@@ -148,7 +263,7 @@ export class RenderManager {
                     img.src = '#';
                     img.alt = '非法图片地址';
                 }
-                wrapper.appendChild(img);
+                innerContainer.appendChild(img);
             }
             else if (comp.type === 'button') {
                 const btn = document.createElement('button');
@@ -162,14 +277,16 @@ export class RenderManager {
                 else if (colorType === 'Danger') btnClass += ' btn-danger';
                 btn.className = btnClass;
                 if (comp.props.Height) btn.style.height = comp.props.Height + 'px';
-                if (comp.props.Padding) btn.style.padding = comp.props.Padding.replace(/,/g, ' ');
-                wrapper.appendChild(btn);
+                if (comp.props.Padding) {
+                    btn.style.padding = comp.props.Padding.replace(/,/g, ' ');
+                }
+                innerContainer.appendChild(btn);
             }
             else if (comp.type === 'textbutton') {
                 const btn = document.createElement('button');
                 btn.className = 'btn-text';
                 btn.textContent = comp.props.Text || '文本按钮';
-                wrapper.appendChild(btn);
+                innerContainer.appendChild(btn);
             }
             else if (comp.type === 'listitem') {
                 const itemDiv = document.createElement('div');
@@ -186,8 +303,11 @@ export class RenderManager {
                 contentDiv.appendChild(infoSpan);
                 itemDiv.appendChild(icon);
                 itemDiv.appendChild(contentDiv);
-                wrapper.appendChild(itemDiv);
+                innerContainer.appendChild(itemDiv);
             }
+            
+            wrapper.appendChild(innerContainer);
+            applyPaddingStyles(comp, innerContainer);
         }
 
         container.appendChild(wrapper);
@@ -233,7 +353,8 @@ export class RenderManager {
         App.state.components.forEach(comp => this.renderComponentDOM(comp, fragment));
         canvas.appendChild(fragment);
         if (App.state.selectedId) {
-            document.querySelectorAll(`[data-id="${App.state.selectedId}"]`).forEach(el => el.classList.add('selected'));
+            const selEl = document.querySelector(`[data-id="${App.state.selectedId}"]`);
+            if (selEl) selEl.classList.add('selected');
         }
         this.updateHierarchyBar();
         this.updatePropsPanel();
@@ -552,7 +673,7 @@ export class RenderManager {
         };
 
         const specificContentKeys = ["Text", "Title", "Info", "Source", "Logo"];
-        const appearanceKeys = ["Foreground", "FontSize", "TextWrapping", "Theme", "ColorType", "LogoScale", "Type"];
+        const appearanceKeys = ["Foreground", "FontSize", "TextWrapping", "Theme", "ColorType", "LogoScale", "Type", "FontWeight"];
         const layoutKeys = ["Margin", "Padding", "Width", "Height", "HorizontalAlignment", "VerticalAlignment", "ColumnsDefinition", "RowsDefinition", "Orientation"];
         const gridAttachKeys = ["Grid.Row", "Grid.Column", "Grid.RowSpan", "Grid.ColumnSpan"];
         const behaviorKeys = ["CanSwap", "IsSwapped", "ToolTip", "EnableCache", "UseAnimation", "SwapLogoRight", "HasMouseAnimation", "IsHitTestVisible"];

@@ -7,7 +7,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
 
 :root {
-    --primary: #4c7af9;        /* 调整为 PCL 主题蓝 */
+    --primary: #4c7af9;
     --primary-hover: #3a66e6;
     --primary-light: #eef3ff;
     --primary-dark: #2a54c9;
@@ -34,7 +34,7 @@
     --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
     --radius-xs: 4px;
     --radius-sm: 6px;
-    --radius-md: 6px;           /* 减小圆角，更接近 WPF */
+    --radius-md: 6px;
     --radius-lg: 8px;
     --radius-xl: 10px;
     --radius-2xl: 20px;
@@ -75,7 +75,6 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-/* 滚动条美化 */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -102,7 +101,6 @@ body {
     height: 100%;
 }
 
-/* 头部导航 */
 .header {
     background: var(--bg-surface);
     border-bottom: 1px solid var(--border-light);
@@ -158,14 +156,12 @@ body {
     transform: translateY(-1px);
 }
 
-/* 主布局 */
 .main {
     display: flex;
     flex: 1;
     overflow: hidden;
 }
 
-/* 侧边栏组件库 */
 .sidebar {
     width: 300px;
     background: var(--bg-surface);
@@ -248,7 +244,6 @@ body {
     display: none;
 }
 
-/* 设计区域 */
 .design-area {
     flex: 1;
     display: flex;
@@ -267,7 +262,6 @@ body {
     align-items: center;
 }
 
-/* ========== 按钮统一风格 ========== */
 .btn,
 .component-item-wrapper button.btn,
 .component-item-wrapper .btn {
@@ -345,7 +339,6 @@ body {
     transform: none;
 }
 
-/* 层级导航栏 */
 .hierarchy-bar {
     background: var(--bg-subtle);
     padding: 10px 24px;
@@ -373,7 +366,6 @@ body {
     color: var(--primary);
 }
 
-/* 画布容器 */
 .preview-container {
     flex: 1;
     overflow-y: auto;
@@ -400,7 +392,6 @@ body {
     background: var(--bg-surface);
 }
 
-/* ========== 卡片样式 ========== */
 .card-component {
     background: var(--bg-surface);
     border-radius: var(--radius-lg);
@@ -436,7 +427,6 @@ body {
     padding: 16px;
 }
 
-/* ========== 布局容器统一美化 ========== */
 .layout-stack,
 .layout-horizontal,
 .layout-grid {
@@ -471,7 +461,6 @@ body {
     letter-spacing: 0.3px;
 }
 
-/* ========== 提示条样式 ========== */
 .hint-blue,
 .hint-yellow,
 .hint-red {
@@ -496,7 +485,6 @@ body {
     background: rgba(239, 68, 68, 0.08);
 }
 
-/* ========== 列表项 ========== */
 .list-item-mock {
     display: flex;
     align-items: center;
@@ -519,19 +507,19 @@ body {
     font-size: 1.2rem;
 }
 
-/* 组件公共样式 */
 .component-item-wrapper {
     position: relative;
     transition: all var(--transition-base);
+    box-sizing: border-box;
 }
 
-.selected {
-    outline: none;
-    border-radius: var(--radius-lg);
-    box-shadow: 0 0 0 3px var(--primary), 0 0 0 6px var(--primary-soft);
+/* 选中样式：仅高亮边框，无虚线外边距 */
+.component-item-wrapper.selected {
+    outline: 2px solid var(--primary);
+    outline-offset: 0px;
+    border-radius: var(--radius-md);
 }
 
-/* 嵌套拖放区 */
 .nested-dropzone {
     min-height: 50px;
     border: 1px dashed transparent;
@@ -557,7 +545,6 @@ body {
     font-style: italic;
 }
 
-/* 属性面板 */
 .props-panel {
     width: 360px;
     background: var(--bg-surface);
@@ -681,7 +668,6 @@ body {
     justify-content: center;
 }
 
-/* 模态框 */
 .modal {
     display: none;
     position: fixed;
@@ -741,7 +727,6 @@ body.dark .toast {
     color: var(--text-primary);
 }
 
-/* 文件管理选项卡 */
 .modal-tabs {
     display: flex;
     border-bottom: 1px solid var(--border-light);
@@ -789,7 +774,6 @@ body.dark .toast {
     margin-top: 12px;
 }
 
-/* 全局拖拽覆盖层 */
 .global-drag-overlay {
     position: fixed;
     top: 0;
@@ -813,9 +797,7 @@ body.drag-file-active .global-drag-overlay {
     display: flex;
 }
 
-/* 响应式 */
 @media (max-width: 900px) {
-
     .sidebar,
     .props-panel {
         position: absolute;
@@ -840,7 +822,6 @@ body.drag-file-active .global-drag-overlay {
     }
 }
 
-/* 辅助样式 */
 .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -858,7 +839,6 @@ hr {
     margin: 16px 0;
 }
 
-/* 备份列表样式 */
 .backup-item {
     background: var(--bg-subtle);
     border: 1px solid var(--border-light);
@@ -912,7 +892,6 @@ hr {
     font-size: 0.75rem;
 }
 
-/* 网格编辑器样式 */
 .grid-def-item {
     display: flex;
     gap: 8px;
@@ -944,7 +923,6 @@ hr {
     color: var(--danger);
 }
 
-/* 自定义属性行样式 */
 .custom-property-row {
     background: var(--bg-subtle);
     padding: 6px;
@@ -957,4 +935,38 @@ hr {
     border: 1px solid var(--border-light);
     border-radius: var(--radius-sm);
     padding: 6px;
+}
+
+/* 水平布局内部组件支持边距 */
+.nested-dropzone.horizontal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0px;
+}
+
+.nested-dropzone {
+    display: flex;
+    flex-direction: column;
+}
+
+.nested-dropzone.horizontal {
+    flex-direction: row;
+}
+
+.canvas {
+    display: flex;
+    flex-direction: column;
+}
+
+.component-item-wrapper[data-halign="center"] {
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+.component-item-wrapper[data-halign="right"] {
+    margin-left: auto !important;
+}
+
+.grid-mock {
+    display: block;
 }
