@@ -1522,39 +1522,36 @@ class DragDropManager {
 
 // modules/UIManager.js
 class UIManager {
-    updateOpenFileButton() {
-        const btn = document.getElementById('openLocalFileBtn');
-        if (!btn) return;
-        
-        const hasLinkedFile = !!App.fileManager.currentFileName;
-        const isDirty = App.state.dirty;
-        
-        if (hasLinkedFile) {
-            if (isDirty) {
-                btn.innerHTML = '<i class="fas fa-save"></i> 保存到文件';
-                btn.classList.add('btn-primary');
-                btn.onclick = () => App.fileManager.saveToLinkedFile();
-            } else {
-                btn.innerHTML = '<i class="fas fa-check"></i> 已是最新';
-                btn.classList.remove('btn-primary');
-                btn.onclick = null;
-                btn.style.opacity = '0.6';
-                setTimeout(() => {
-                    if (App.state.dirty === false && App.fileManager.currentFileName) {
-                        btn.innerHTML = '<i class="fas fa-folder-open"></i> 打开本地文件';
-                        btn.classList.remove('btn-primary');
-                        btn.style.opacity = '';
-                        btn.onclick = () => App.fileManager.openLocalFileWithPicker();
-                    }
-                }, 2000);
-            }
-        } else {
-            btn.innerHTML = '<i class="fas fa-folder-open"></i> 打开本地文件';
-            btn.classList.remove('btn-primary');
-            btn.style.opacity = '';
-            btn.onclick = () => App.fileManager.openLocalFileWithPicker();
-        }
+updateOpenFileButton() {
+    const btn = document.getElementById('openLocalFileBtn');
+    if (!btn) return;
+
+    const hasLinkedFile = !!App.fileManager.currentFileName;
+    const isDirty = App.state.dirty;
+
+    if (hasLinkedFile && isDirty) {
+        // 有链接文件且有未保存更改 → 保存按钮
+        btn.innerHTML = '<i class="fas fa-save"></i> 保存到文件';
+        btn.classList.add('btn-primary');
+        btn.disabled = false;
+        btn.title = '保存到当前链接的文件';
+        btn.onclick = () => App.fileManager.saveToLinkedFile();
+    } else if (hasLinkedFile && !isDirty) {
+        // 有链接文件且已同步 → 已是最新（不可点击）
+        btn.innerHTML = '<i class="fas fa-check"></i> 已是最新';
+        btn.classList.remove('btn-primary');
+        btn.disabled = true;
+        btn.title = '文件已同步，无需保存';
+        btn.onclick = null;
+    } else {
+        // 无链接文件 → 打开本地文件
+        btn.innerHTML = '<i class="fas fa-folder-open"></i> 打开本地文件';
+        btn.classList.remove('btn-primary');
+        btn.disabled = false;
+        btn.title = '打开或链接本地文件';
+        btn.onclick = () => App.fileManager.openLocalFileWithPicker();
     }
+}
 
     async renderBackupList() {
         const container = document.getElementById('backupListContainer');
