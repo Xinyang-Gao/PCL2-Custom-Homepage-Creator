@@ -4,6 +4,7 @@ import re
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import werkzeug.utils
+from datetime import datetime
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
@@ -168,6 +169,113 @@ def local_save():
         with open(safe_path, 'w', encoding='utf-8') as f:
             f.write(content)
         return jsonify({'success': True, 'message': f'已保存到 {user_path}', 'path': user_path})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ================== 自动备份模块 ==================
+BACKUP_DIR = os.path.join(BASE_DIR, 'backups')
+os.makedirs(BACKUP_DIR, exist_ok=True)
+
+MAX_BACKUPS = 30  # 最多保留30个备份
+
+def get_backup_list():
+    """获取备份文件列表，按修改时间倒序"""
+    files = []
+    for f in os.listdir(BACKUP_DIR):
+        if f.lower().endswith('.xml') and os.path.isfile(os.path.join(BACKUP_DIR, f)):
+            path = os.path.join(BACKUP_DIR, f)
+            stat = os.stat(path)
+            files.append({
+                'name': f,
+                'size': stat.st_size,
+                'modified': stat.st_mtime,
+                'modified_str': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+            })
+    files.sort(key=lambda x: x['modified'], reverse=True)
+    return files
+
+def cleanup_old_backups():
+    """清理超出数量的旧备份"""
+    backups = get_backup_list()
+    if len(backups) > MAX_BACKUPS:
+        for backup in backups[MAX_BACKUPS:]:
+            try:
+                os.remove(os.path.join(BACKUP_DIR, backup['name']))
+            except:
+                pass
+
+@app.route('/api/backups', methods=['GET'])
+def list_backups():
+    """获取所有备份列表"""
+    try:
+        return jsonify({'success': True, 'backups': get_backup_list()})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/backup', methods=['POST'])
+def create_backup():
+    """创建新备份（自动保存当前设计）"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': '无效请求'}), 400
+    content = data.get('content', '')
+    if not content.strip():
+        return jsonify({'success': False, 'error': '无内容可备份'}), 400
+    
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"backup_{timestamp}.xml"
+    filepath = os.path.join(BACKUP_DIR, filename)
+    
+    try:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+        cleanup_old_backups()
+        return jsonify({'success': True, 'filename': filename, 'message': '备份已创建'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/backup/load', methods=['GET'])
+def load_backup():
+    """加载指定备份文件"""
+    filename = request.args.get('filename', '').strip()
+    if not filename:
+        return jsonify({'success': False, 'error': '缺少文件名参数'}), 400
+    # 安全检查
+    if '..' in filename or '/' in filename or '\\' in filename:
+        return jsonify({'success': False, 'error': '非法文件名'}), 400
+    if not filename.lower().endswith('.xml'):
+        return jsonify({'success': False, 'error': '只支持.xml文件'}), 400
+    
+    filepath = os.path.join(BACKUP_DIR, filename)
+    if not os.path.exists(filepath):
+        return jsonify({'success': False, 'error': '备份文件不存在'}), 404
+    
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return jsonify({'success': True, 'content': content, 'filename': filename})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/backup/delete', methods=['POST'])
+def delete_backup():
+    """删除指定备份"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': '无效请求'}), 400
+    filename = data.get('filename', '').strip()
+    if not filename:
+        return jsonify({'success': False, 'error': '缺少文件名'}), 400
+    if '..' in filename or '/' in filename or '\\' in filename:
+        return jsonify({'success': False, 'error': '非法文件名'}), 400
+    
+    filepath = os.path.join(BACKUP_DIR, filename)
+    if not os.path.exists(filepath):
+        return jsonify({'success': False, 'error': '文件不存在'}), 404
+    
+    try:
+        os.remove(filepath)
+        return jsonify({'success': True, 'message': f'已删除 {filename}'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

@@ -217,7 +217,6 @@ class Utils {
         }).replace(/"/g, '&quot;').replace(/'/g, '&apos;');
     }
 
-    // 用于属性值的严格转义（HTML属性）
     static escapeHtmlAttr(str) {
         if (!str) return '';
         return str.replace(/[&<>"]/g, function (m) {
@@ -229,7 +228,6 @@ class Utils {
         }).replace(/'/g, '&apos;');
     }
 
-    // 校验 URL 是否安全（防止 javascript: 等协议）
     static isSafeUrl(url) {
         if (!url) return false;
         const lowerUrl = url.toLowerCase().trim();
@@ -269,12 +267,14 @@ class ComponentManager {
     static addComponent(comp, targetParentId = null) {
         if (targetParentId === null) {
             App.state.components.push(comp);
+            App.markDirty();
             return true;
         }
         const parent = ComponentFinder.findComponentById(targetParentId);
         if (parent && ComponentTypes[parent.type]?.canNest) {
             parent.children.push(comp);
             comp.parentId = targetParentId;
+            App.markDirty();
             return true;
         }
         return false;
@@ -293,6 +293,7 @@ class ComponentManager {
         };
         if (removeFromList(App.state.components)) {
             if (App.state.selectedId === id) App.state.selectedId = null;
+            App.markDirty();
             App.renderManager.renderCanvas();
             return true;
         }
@@ -328,11 +329,12 @@ class ComponentManager {
         App.renderManager.renderCanvas();
         App.renderManager.selectComponent(clone.id);
         Utils.showToast(`已复制组件: ${clone.name}`);
+        App.markDirty();
         return true;
     }
 }
 
-// modules/RenderManager.js (完全重写，使用 DOM API 防 XSS)
+// modules/RenderManager.js
 class RenderManager {
     renderComponentDOM(comp, container) {
         const wrapper = document.createElement('div');
@@ -343,13 +345,11 @@ class RenderManager {
             wrapper.setAttribute('title', comp.props.ToolTip);
         }
 
-        // 点击选中
         wrapper.addEventListener('click', (e) => {
             e.stopPropagation();
             this.selectComponent(comp.id);
         });
 
-        // 根据组件类型构建内部 DOM
         if (comp.type === 'card') {
             const cardDiv = document.createElement('div');
             cardDiv.className = 'card-component';
@@ -371,7 +371,6 @@ class RenderManager {
             cardDiv.appendChild(headerDiv);
             cardDiv.appendChild(contentDiv);
             wrapper.appendChild(cardDiv);
-            // 渲染子组件
             comp.children.forEach(child => this.renderComponentDOM(child, dropzone));
         }
         else if (comp.type === 'stackpanel') {
@@ -423,7 +422,6 @@ class RenderManager {
             comp.children.forEach(child => this.renderComponentDOM(child, dropzone));
         }
         else {
-            // 叶子组件：完全使用安全 DOM 方法
             if (comp.type === 'text') {
                 const textDiv = document.createElement('div');
                 textDiv.style.margin = '4px 0';
@@ -680,6 +678,7 @@ class RenderManager {
 
         this.refreshComponent(comp.id);
         Utils.showToast('属性已更新');
+        App.markDirty();
     }
 
     updateHierarchyBar() {
@@ -703,7 +702,7 @@ class RenderManager {
     }
 }
 
-// modules/XamlProcessor.js (保持不变，已使用 Utils.escapeXml)
+// modules/XamlProcessor.js
 class XamlProcessor {
     importFromXAML(xmlStr) {
         try {
@@ -852,6 +851,7 @@ class XamlProcessor {
                 App.state.selectedId = null;
                 App.renderManager.renderCanvas();
                 Utils.showToast(`成功导入 ${newComponents.length} 个组件`);
+                App.resetDirty();
             } else {
                 Utils.showToast('未找到有效组件', true);
             }
@@ -970,7 +970,7 @@ class XamlProcessor {
     }
 }
 
-// modules/FileManager.js (保持不变)
+// modules/FileManager.js
 class FileManager {
     constructor() {
         this.currentFileHandle = null;
@@ -996,6 +996,7 @@ class FileManager {
                     this.currentFileHandle = null;
                     this.currentFileName = file.name;
                     this.updateLocalFileUI();
+                    App.resetDirty();
                 }
             };
             input.click();
@@ -1015,6 +1016,7 @@ class FileManager {
                 this.currentFileName = file.name;
                 this.updateLocalFileUI();
                 Utils.showToast(`已链接本地文件: ${file.name}`);
+                App.resetDirty();
             }
         } catch (err) {
             if (err.name !== 'AbortError') Utils.showToast('打开文件失败: ' + err.message, true);
@@ -1042,6 +1044,7 @@ class FileManager {
             await writable.write(xamlContent);
             await writable.close();
             Utils.showToast(`已保存到 ${this.currentFileName}`);
+            App.resetDirty();
         } catch (err) {
             Utils.showToast('保存失败: ' + err.message, true);
         }
@@ -1067,6 +1070,7 @@ class FileManager {
                 this.currentFileName = handle.name;
                 this.updateLocalFileUI();
                 Utils.showToast(`已另存为: ${handle.name}，并已链接此文件`);
+                App.resetDirty();
             } catch (err) {
                 if (err.name !== 'AbortError') Utils.showToast('保存失败: ' + err.message, true);
             }
@@ -1078,6 +1082,7 @@ class FileManager {
             link.click();
             URL.revokeObjectURL(link.href);
             Utils.showToast('已下载文件，如需再次编辑请使用"打开本地文件"');
+            App.resetDirty();
             setTimeout(() => {
                 Utils.showToast('提示：当前浏览器不支持直接读写文件，保存采用下载方式。', false);
             }, 1500);
@@ -1105,76 +1110,59 @@ class FileManager {
     }
 }
 
-// modules/ServerApi.js (保持不变)
+// modules/ServerApi.js - 重写为自动备份API
 class ServerApi {
     constructor() {
-        this.currentSelectedServerFile = '';
+        this.backups = [];
     }
 
-    async loadServerFileList() {
+    async getBackupList() {
         try {
-            const res = await fetch('/api/files');
+            const res = await fetch('/api/backups');
             const data = await res.json();
-            if (data.success && data.files) {
-                const select = document.getElementById('serverFileSelect');
-                select.innerHTML = '<option value="">-- 选择文件 --</option>';
-                data.files.forEach(file => {
-                    const option = document.createElement('option');
-                    option.value = file;
-                    option.textContent = file;
-                    select.appendChild(option);
-                });
-                if (this.currentSelectedServerFile && data.files.includes(this.currentSelectedServerFile)) {
-                    select.value = this.currentSelectedServerFile;
-                } else {
-                    this.currentSelectedServerFile = '';
-                    document.getElementById('overwriteCurrentBtn').disabled = true;
-                }
-                return data.files;
-            } else {
-                Utils.showToast('获取文件列表失败', true);
-                return [];
+            if (data.success) {
+                this.backups = data.backups || [];
+                return this.backups;
             }
+            return [];
         } catch (err) {
-            Utils.showToast('网络错误: ' + err.message, true);
+            console.error('获取备份列表失败', err);
             return [];
         }
     }
 
-    async saveToServer(filename, content) {
+    async createBackup(content) {
+        if (!content || !content.trim()) return false;
         try {
-            const res = await fetch('/api/save', {
+            const res = await fetch('/api/backup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filename, content })
+                body: JSON.stringify({ content })
             });
             const data = await res.json();
             if (data.success) {
-                Utils.showToast(data.message);
-                await this.loadServerFileList();
+                Utils.showToast('自动备份已保存');
                 return true;
-            } else {
-                Utils.showToast('保存失败: ' + (data.error || '未知错误'), true);
-                return false;
             }
+            return false;
         } catch (err) {
-            Utils.showToast('请求失败: ' + err.message, true);
+            console.error('备份失败', err);
             return false;
         }
     }
 
-    async loadFromServer(filename) {
+    async loadBackup(filename) {
         try {
-            const res = await fetch(`/api/load?filename=${encodeURIComponent(filename)}`);
+            const res = await fetch(`/api/backup/load?filename=${encodeURIComponent(filename)}`);
             const data = await res.json();
             if (data.success && data.content) {
-                if (confirm(`加载 "${filename}" 将替换当前所有组件，是否继续？`)) {
+                if (confirm(`加载备份 "${filename}" 将替换当前所有组件，是否继续？`)) {
                     App.xamlProcessor.importFromXAML(data.content);
-                    Utils.showToast(`已加载 ${filename}`);
+                    Utils.showToast(`已加载备份: ${filename}`);
                     return true;
                 }
             } else {
-                Utils.showToast('加载失败: ' + (data.error || '文件内容为空'), true);
+                Utils.showToast('加载失败: ' + (data.error || '未知错误'), true);
             }
             return false;
         } catch (err) {
@@ -1183,10 +1171,10 @@ class ServerApi {
         }
     }
 
-    async deleteServerFile(filename) {
-        if (!confirm(`确定删除文件 "${filename}" 吗？此操作不可恢复。`)) return false;
+    async deleteBackup(filename) {
+        if (!confirm(`确定删除备份 "${filename}" 吗？`)) return false;
         try {
-            const res = await fetch('/api/delete', {
+            const res = await fetch('/api/backup/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filename })
@@ -1194,11 +1182,6 @@ class ServerApi {
             const data = await res.json();
             if (data.success) {
                 Utils.showToast(`已删除 ${filename}`);
-                if (this.currentSelectedServerFile === filename) {
-                    this.currentSelectedServerFile = '';
-                    document.getElementById('overwriteCurrentBtn').disabled = true;
-                }
-                await this.loadServerFileList();
                 return true;
             } else {
                 Utils.showToast('删除失败: ' + (data.error || '未知错误'), true);
@@ -1209,9 +1192,18 @@ class ServerApi {
             return false;
         }
     }
+
+    async manualBackup() {
+        const content = App.xamlProcessor.generateXAML(App.state.components);
+        if (!content.trim()) {
+            Utils.showToast('没有可备份的内容', true);
+            return false;
+        }
+        return await this.createBackup(content);
+    }
 }
 
-// modules/DragDropManager.js (保持不变)
+// modules/DragDropManager.js
 class DragDropManager {
     handleFileImport(file) {
         if (!file) return;
@@ -1350,8 +1342,101 @@ class DragDropManager {
     }
 }
 
-// modules/UIManager.js (保持不变，但注意已经使用了 Utils.escapeHtml)
+// modules/UIManager.js
 class UIManager {
+    updateOpenFileButton() {
+        const btn = document.getElementById('openLocalFileBtn');
+        if (!btn) return;
+        
+        const hasLinkedFile = !!App.fileManager.currentFileName;
+        const isDirty = App.state.dirty;
+        
+        if (hasLinkedFile) {
+            if (isDirty) {
+                btn.innerHTML = '<i class="fas fa-save"></i> 保存到文件';
+                btn.classList.add('btn-primary');
+                btn.onclick = () => App.fileManager.saveToLinkedFile();
+            } else {
+                btn.innerHTML = '<i class="fas fa-check"></i> 已是最新';
+                btn.classList.remove('btn-primary');
+                btn.onclick = null;
+                btn.style.opacity = '0.6';
+                setTimeout(() => {
+                    if (App.state.dirty === false && App.fileManager.currentFileName) {
+                        btn.innerHTML = '<i class="fas fa-folder-open"></i> 打开本地文件';
+                        btn.classList.remove('btn-primary');
+                        btn.style.opacity = '';
+                        btn.onclick = () => App.fileManager.openLocalFileWithPicker();
+                    }
+                }, 2000);
+            }
+        } else {
+            btn.innerHTML = '<i class="fas fa-folder-open"></i> 打开本地文件';
+            btn.classList.remove('btn-primary');
+            btn.style.opacity = '';
+            btn.onclick = () => App.fileManager.openLocalFileWithPicker();
+        }
+    }
+
+    async renderBackupList() {
+        const container = document.getElementById('backupListContainer');
+        if (!container) return;
+        
+        const backups = await App.serverApi.getBackupList();
+        if (!backups.length) {
+            container.innerHTML = '<div class="empty-placeholder" style="padding:20px"><i class="fas fa-cloud-upload-alt"></i><p>暂无自动备份，编辑组件后将自动创建</p></div>';
+            return;
+        }
+        
+        container.innerHTML = `
+            <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+                <span><i class="fas fa-history"></i> 自动备份列表（最多保留30个）</span>
+                <button class="btn" id="manualBackupBtn"><i class="fas fa-camera"></i> 手动备份</button>
+            </div>
+            <div class="backup-items">
+                ${backups.map(b => `
+                    <div class="backup-item" data-name="${Utils.escapeHtmlAttr(b.name)}">
+                        <div class="backup-info">
+                            <i class="fas fa-file-archive"></i>
+                            <strong>${Utils.escapeHtml(b.name)}</strong>
+                            <span class="backup-time">${Utils.escapeHtml(b.modified_str)}</span>
+                            <span class="backup-size">${(b.size/1024).toFixed(1)} KB</span>
+                        </div>
+                        <div class="backup-actions">
+                            <button class="btn load-backup" data-name="${Utils.escapeHtmlAttr(b.name)}"><i class="fas fa-undo"></i> 恢复</button>
+                            <button class="btn btn-danger delete-backup" data-name="${Utils.escapeHtmlAttr(b.name)}"><i class="fas fa-trash"></i> 删除</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        container.querySelectorAll('.load-backup').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const name = btn.getAttribute('data-name');
+                await App.serverApi.loadBackup(name);
+                App.resetDirty();
+                document.getElementById('serverModal').style.display = 'none';
+            });
+        });
+        
+        container.querySelectorAll('.delete-backup').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const name = btn.getAttribute('data-name');
+                await App.serverApi.deleteBackup(name);
+                this.renderBackupList();
+            });
+        });
+        
+        const manualBtn = document.getElementById('manualBackupBtn');
+        if (manualBtn) {
+            manualBtn.onclick = async () => {
+                await App.serverApi.manualBackup();
+                await this.renderBackupList();
+            };
+        }
+    }
+
     buildComponentLibrary() {
         const container = document.getElementById('componentsList');
         container.innerHTML = '';
@@ -1381,6 +1466,7 @@ class UIManager {
                 App.state.components = [];
                 App.state.selectedId = null;
                 App.renderManager.renderCanvas();
+                App.markDirty();
             }
         };
 
@@ -1453,9 +1539,9 @@ class UIManager {
         document.getElementById('eventDataInput')?.addEventListener('blur', () => App.renderManager.applyCurrentProps());
 
         const serverModal = document.getElementById('serverModal');
-        document.getElementById('serverManageBtn').onclick = () => {
+        document.getElementById('serverManageBtn').onclick = async () => {
             serverModal.style.display = 'flex';
-            App.serverApi.loadServerFileList();
+            await this.renderBackupList();
             App.fileManager.updateLocalFileUI();
         };
 
@@ -1463,64 +1549,10 @@ class UIManager {
             serverModal.style.display = 'none';
         };
 
-        document.getElementById('refreshFileListBtn').onclick = () => App.serverApi.loadServerFileList();
-
-        document.getElementById('loadServerFileBtn').onclick = async () => {
-            const filename = document.getElementById('serverFileSelect').value;
-            if (!filename) {
-                Utils.showToast('请选择一个文件', true);
-                return;
-            }
-            await App.serverApi.loadFromServer(filename);
-            serverModal.style.display = 'none';
-        };
-
-        document.getElementById('deleteServerFileBtn').onclick = async () => {
-            const filename = document.getElementById('serverFileSelect').value;
-            if (!filename) {
-                Utils.showToast('请选择一个文件', true);
-                return;
-            }
-            await App.serverApi.deleteServerFile(filename);
-        };
-
-        document.getElementById('saveAsNewBtn').onclick = async () => {
-            const newName = document.getElementById('newFileNameInput').value.trim();
-            if (!newName) {
-                Utils.showToast('请输入文件名（例如 mypage.xml）', true);
-                return;
-            }
-            if (!newName.endsWith('.xml')) {
-                Utils.showToast('文件名必须以 .xml 结尾', true);
-                return;
-            }
-            const xamlContent = App.xamlProcessor.generateXAML(App.state.components);
-            if (!xamlContent.trim()) {
-                Utils.showToast('没有可保存的内容', true);
-                return;
-            }
-            await App.serverApi.saveToServer(newName, xamlContent);
-            document.getElementById('newFileNameInput').value = '';
-        };
-
-        const fileSelect = document.getElementById('serverFileSelect');
-        fileSelect.addEventListener('change', (e) => {
-            App.serverApi.currentSelectedServerFile = e.target.value;
-            document.getElementById('overwriteCurrentBtn').disabled = !App.serverApi.currentSelectedServerFile;
-        });
-
-        document.getElementById('overwriteCurrentBtn').onclick = async () => {
-            if (!App.serverApi.currentSelectedServerFile) {
-                Utils.showToast('没有选中的文件', true);
-                return;
-            }
-            const xamlContent = App.xamlProcessor.generateXAML(App.state.components);
-            if (!xamlContent.trim()) {
-                Utils.showToast('没有可保存的内容', true);
-                return;
-            }
-            await App.serverApi.saveToServer(App.serverApi.currentSelectedServerFile, xamlContent);
-        };
+        const refreshBackupBtn = document.getElementById('refreshBackupListBtn');
+        if (refreshBackupBtn) {
+            refreshBackupBtn.onclick = () => this.renderBackupList();
+        }
 
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1547,8 +1579,35 @@ class App {
     static state = {
         components: [],
         nextId: 100,
-        selectedId: null
+        selectedId: null,
+        dirty: false
     };
+
+    static autoBackupTimer = null;
+    static AUTO_BACKUP_DELAY = 1000;
+
+    static markDirty() {
+        if (!App.state.dirty) {
+            App.state.dirty = true;
+            App.uiManager?.updateOpenFileButton();
+        }
+        App.scheduleAutoBackup();
+    }
+
+    static resetDirty() {
+        App.state.dirty = false;
+        App.uiManager?.updateOpenFileButton();
+    }
+
+    static scheduleAutoBackup() {
+        if (App.autoBackupTimer) clearTimeout(App.autoBackupTimer);
+        App.autoBackupTimer = setTimeout(() => {
+            const content = App.xamlProcessor?.generateXAML(App.state.components);
+            if (content && content.trim()) {
+                App.serverApi?.createBackup(content).catch(console.error);
+            }
+        }, App.AUTO_BACKUP_DELAY);
+    }
 
     static init() {
         if (localStorage.getItem('theme') === 'dark') {
@@ -1567,6 +1626,7 @@ class App {
         this.uiManager.bindUIEvents();
         this.renderManager.renderCanvas();
         this.fileManager.updateLocalFileUI();
+        this.uiManager.updateOpenFileButton();
     }
 }
 

@@ -1,5 +1,6 @@
 ﻿<!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -7,162 +8,164 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/style.css">
 </head>
+
 <body>
-<div class="app">
-    <div class="header">
-        <div class="logo"><i class="fas fa-cube"></i> PCL 主页编辑器</div>
-        <div style="display: flex; gap: 12px;">
-            <button class="btn" id="openLocalFileBtn"><i class="fas fa-folder-open"></i> 打开本地文件</button>
-            <button class="theme-btn" id="serverManageBtn" title="服务器文件管理"><i class="fas fa-cloud-upload-alt"></i></button>
-            <button class="theme-btn" id="themeToggle"><i class="fas fa-moon"></i></button>
+    <div class="app">
+        <div class="header">
+            <div class="logo"><i class="fas fa-cube"></i> PCL 主页编辑器</div>
+            <div style="display: flex; gap: 12px;">
+                <button class="btn" id="openLocalFileBtn"><i class="fas fa-folder-open"></i> 打开本地文件</button>
+                <button class="theme-btn" id="serverManageBtn" title="服务器文件管理"><i
+                        class="fas fa-cloud-upload-alt"></i></button>
+                <button class="theme-btn" id="themeToggle"><i class="fas fa-moon"></i></button>
+            </div>
+        </div>
+        <div class="main">
+            <div class="sidebar" id="sidebar">
+                <div class="sidebar-header">组件库 <i class="fas fa-grip-vertical"></i></div>
+                <div class="search-box"><input type="text" id="compSearch" placeholder="搜索组件..."></div>
+                <div class="components-list" id="componentsList"></div>
+            </div>
+            <div class="design-area">
+                <div class="toolbar">
+                    <button class="btn" id="clearCanvasBtn"><i class="fas fa-trash"></i> 清空</button>
+                    <button class="btn btn-primary" id="xamlExportBtn"><i class="fas fa-code"></i> XAML工具</button>
+                </div>
+                <div class="hierarchy-bar" id="hierarchyBar"></div>
+                <div class="preview-container" id="previewContainer">
+                    <div class="canvas" id="canvas"></div>
+                </div>
+            </div>
+
+            <!-- 属性面板 -->
+            <div class="props-panel" id="propsPanel">
+                <div class="props-info-header" id="propsInfoHeader">
+                    <div class="comp-type-badge">
+                        <i class="fas fa-puzzle-piece"></i> <span id="compTypeName">未选中</span>
+                    </div>
+                    <div class="comp-id-row">
+                        <span class="id-label">ID</span>
+                        <code id="compIdDisplay">-</code>
+                        <button class="id-copy-btn" id="copyIdBtn" title="复制ID"><i class="far fa-copy"></i></button>
+                    </div>
+                </div>
+                <div id="dynamicProps" class="props-groups-container"></div>
+                <div class="prop-section">
+                    <div class="prop-section-title"><i class="fas fa-bolt"></i> 事件绑定</div>
+                    <div class="prop-field">
+                        <label>EventType</label>
+                        <select id="eventTypeSelect">
+                            <option value="">无</option>
+                            <option value="打开网页">打开网页</option>
+                            <option value="启动游戏">启动游戏</option>
+                            <option value="弹出窗口">弹出窗口</option>
+                            <option value="复制文本">复制文本</option>
+                            <option value="打开文件">打开文件</option>
+                            <option value="内存优化">内存优化</option>
+                            <option value="下载文件">下载文件</option>
+                            <option value="清理垃圾">清理垃圾</option>
+                            <option value="打开帮助">打开帮助</option>
+                            <option value="修改变量">修改变量</option>
+                            <option value="刷新页面">刷新页面</option>
+                        </select>
+                    </div>
+                    <div class="prop-field">
+                        <label>EventData</label>
+                        <textarea id="eventDataInput" rows="2" placeholder="事件数据，例如网址、弹窗内容（标题|内容）等"></textarea>
+                    </div>
+                </div>
+                <div class="prop-actions">
+                    <button class="btn btn-primary" id="applyPropsBtn"><i class="fas fa-check"></i> 应用更改</button>
+                    <button class="btn btn-danger" id="deleteCompBtn"><i class="fas fa-trash-alt"></i> 删除组件</button>
+                    <button class="btn" id="duplicateCompBtn"><i class="fas fa-copy"></i> 复制组件</button>
+                </div>
+            </div>
         </div>
     </div>
-    <div class="main">
-        <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">组件库 <i class="fas fa-grip-vertical"></i></div>
-            <div class="search-box"><input type="text" id="compSearch" placeholder="搜索组件..."></div>
-            <div class="components-list" id="componentsList"></div>
-        </div>
-        <div class="design-area">
-            <div class="toolbar">
-                <button class="btn" id="clearCanvasBtn"><i class="fas fa-trash"></i> 清空</button>
-                <button class="btn btn-primary" id="xamlExportBtn"><i class="fas fa-code"></i> XAML工具</button>
-            </div>
-            <div class="hierarchy-bar" id="hierarchyBar"></div>
-            <div class="preview-container" id="previewContainer">
-                <div class="canvas" id="canvas"></div>
-            </div>
-        </div>
 
-        <!-- 属性面板 -->
-        <div class="props-panel" id="propsPanel">
-            <div class="props-info-header" id="propsInfoHeader">
-                <div class="comp-type-badge">
-                    <i class="fas fa-puzzle-piece"></i> <span id="compTypeName">未选中</span>
-                </div>
-                <div class="comp-id-row">
-                    <span class="id-label">ID</span>
-                    <code id="compIdDisplay">-</code>
-                    <button class="id-copy-btn" id="copyIdBtn" title="复制ID"><i class="far fa-copy"></i></button>
-                </div>
+    <!-- XAML工具弹窗（仅代码预览，无导入功能） -->
+    <div class="modal" id="xamlModal">
+        <div class="modal-content">
+            <h3><i class="fas fa-code"></i> XAML 代码预览</h3>
+            <div style="margin-bottom: 12px;">
+                <textarea id="xamlCodeArea" class="code-editor" readonly></textarea>
             </div>
-            <div id="dynamicProps" class="props-groups-container"></div>
-            <div class="prop-section">
-                <div class="prop-section-title"><i class="fas fa-bolt"></i> 事件绑定</div>
-                <div class="prop-field">
-                    <label>EventType</label>
-                    <select id="eventTypeSelect">
-                        <option value="">无</option>
-                        <option value="打开网页">打开网页</option>
-                        <option value="启动游戏">启动游戏</option>
-                        <option value="弹出窗口">弹出窗口</option>
-                        <option value="复制文本">复制文本</option>
-                        <option value="打开文件">打开文件</option>
-                        <option value="内存优化">内存优化</option>
-                        <option value="下载文件">下载文件</option>
-                        <option value="清理垃圾">清理垃圾</option>
-                        <option value="打开帮助">打开帮助</option>
-                        <option value="修改变量">修改变量</option>
-                        <option value="刷新页面">刷新页面</option>
-                    </select>
-                </div>
-                <div class="prop-field">
-                    <label>EventData</label>
-                    <textarea id="eventDataInput" rows="2" placeholder="事件数据，例如网址、弹窗内容（标题|内容）等"></textarea>
-                </div>
+            <div class="modal-actions">
+                <button class="btn" id="copyXamlBtn"><i class="fas fa-copy"></i> 复制代码</button>
+                <button class="btn btn-primary" id="downloadXamlBtn"><i class="fas fa-download"></i> 下载为XAML文件</button>
+                <button class="btn" id="closeModalBtn"><i class="fas fa-times"></i> 关闭</button>
             </div>
-            <div class="prop-actions">
-                <button class="btn btn-primary" id="applyPropsBtn"><i class="fas fa-check"></i> 应用更改</button>
-                <button class="btn btn-danger" id="deleteCompBtn"><i class="fas fa-trash-alt"></i> 删除组件</button>
-                <button class="btn" id="duplicateCompBtn"><i class="fas fa-copy"></i> 复制组件</button>
+            <div
+                style="margin-top: 12px; font-size: 0.75rem; color: var(--text-tertiary); background: var(--bg-subtle); padding: 8px; border-radius: var(--radius-md);">
+                <i class="fas fa-info-circle"></i> 提示：您也可以通过拖拽 .xaml 或 .xml 文件到页面直接导入设计。
             </div>
         </div>
     </div>
-</div>
 
-<!-- XAML工具弹窗（仅代码预览，无导入功能） -->
-<div class="modal" id="xamlModal">
-    <div class="modal-content">
-        <h3><i class="fas fa-code"></i> XAML 代码预览</h3>
-        <div style="margin-bottom: 12px;">
-            <textarea id="xamlCodeArea" class="code-editor" readonly></textarea>
-        </div>
-        <div class="modal-actions">
-            <button class="btn" id="copyXamlBtn"><i class="fas fa-copy"></i> 复制代码</button>
-            <button class="btn btn-primary" id="downloadXamlBtn"><i class="fas fa-download"></i> 下载为XAML文件</button>
-            <button class="btn" id="closeModalBtn"><i class="fas fa-times"></i> 关闭</button>
-        </div>
-        <div style="margin-top: 12px; font-size: 0.75rem; color: var(--text-tertiary); background: var(--bg-subtle); padding: 8px; border-radius: var(--radius-md);">
-            <i class="fas fa-info-circle"></i> 提示：您也可以通过拖拽 .xaml 或 .xml 文件到页面直接导入设计。
+    <!-- 服务器文件管理弹窗 -->
+    <div class="modal" id="serverModal">
+        <div class="modal-content" style="max-width: 650px;">
+            <h3><i class="fas fa-cloud-upload-alt"></i> 文件管理</h3>
+
+            <!-- 选项卡 -->
+            <div class="modal-tabs">
+                <button class="tab-btn active" data-tab="server-tab">☁️ 服务器文件</button>
+                <button class="tab-btn" data-tab="local-tab">💻 本地文件</button>
+            </div>
+
+            <!-- 服务器文件选项卡 -->
+            <div id="server-tab" class="tab-content active">
+                <div style="margin-bottom: 16px;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin:0"><i class="fas fa-cloud-upload-alt"></i> 自动备份</h4>
+                        <button class="btn" id="refreshBackupListBtn"><i class="fas fa-sync-alt"></i> 刷新列表</button>
+                    </div>
+                    <div class="hint-blue" style="margin-bottom: 16px; font-size: 0.75rem;">
+                        <i class="fas fa-info-circle"></i> 编辑器会自动保存您的每次修改（1秒防抖），最多保留30个历史版本。
+                    </div>
+                    <div id="backupListContainer" style="max-height: 300px; overflow-y: auto;">
+                        <!-- 备份列表动态加载 -->
+                        <div style="text-align: center; padding: 30px;">
+                            <i class="fas fa-spinner fa-pulse"></i> 加载中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 本地文件选项卡 -->
+            <div id="local-tab" class="tab-content">
+                <div id="localFileSupportArea">
+                    <div class="local-file-info" id="linkedFileInfo">
+                        <i class="fas fa-link"></i> 未链接任何本地文件
+                    </div>
+                    <div class="file-action-group">
+                        <button class="btn btn-primary" id="openLocalFilePickerBtn"><i class="fas fa-folder-open"></i>
+                            打开本地文件</button>
+                        <button class="btn" id="saveToLocalFileBtn" disabled><i class="fas fa-save"></i>
+                            保存到当前链接文件</button>
+                        <button class="btn" id="saveAsLocalFileBtn"><i class="fas fa-copy"></i> 另存为...</button>
+                    </div>
+                    <div id="fsaCompatWarning" style="margin-top: 12px;"></div>
+                    <div class="hint-blue" style="margin-top: 16px; font-size: 0.7rem;">
+                        <i class="fas fa-info-circle"></i> 使用现代浏览器（Chrome/Edge 86+）支持直接读写选中的本地文件。<br>
+                        打开文件后即可“链接”该文件，后续可一键保存覆盖。
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="btn" id="closeServerModalBtn"><i class="fas fa-times"></i> 关闭</button>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- 服务器文件管理弹窗 -->
-<div class="modal" id="serverModal">
-    <div class="modal-content" style="max-width: 650px;">
-        <h3><i class="fas fa-cloud-upload-alt"></i> 文件管理</h3>
-        
-        <!-- 选项卡 -->
-        <div class="modal-tabs">
-            <button class="tab-btn active" data-tab="server-tab">☁️ 服务器文件</button>
-            <button class="tab-btn" data-tab="local-tab">💻 本地文件</button>
-        </div>
-
-        <!-- 服务器文件选项卡 -->
-        <div id="server-tab" class="tab-content active">
-            <div style="margin-bottom: 16px;">
-                <label style="display: block; margin-bottom: 6px; font-weight: 500;">📁 服务器上的XML文件</label>
-                <select id="serverFileSelect" style="width: 100%; padding: 10px; border-radius: var(--radius-md); background: var(--bg-subtle); border: 1px solid var(--border-light);">
-                    <option value="">-- 选择文件 --</option>
-                </select>
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button class="btn" id="refreshFileListBtn"><i class="fas fa-sync-alt"></i> 刷新列表</button>
-                    <button class="btn btn-primary" id="loadServerFileBtn"><i class="fas fa-folder-open"></i> 加载选中文件</button>
-                    <button class="btn btn-danger" id="deleteServerFileBtn"><i class="fas fa-trash"></i> 删除文件</button>
-                </div>
-            </div>
-            <hr style="margin: 16px 0; border-color: var(--border-light);">
-            <div>
-                <label style="display: block; margin-bottom: 6px; font-weight: 500;">💾 保存当前设计到服务器</label>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <input type="text" id="newFileNameInput" placeholder="新文件名.xml" style="flex: 1; padding: 10px; border-radius: var(--radius-md); background: var(--bg-subtle); border: 1px solid var(--border-light);">
-                    <button class="btn btn-primary" id="saveAsNewBtn"><i class="fas fa-save"></i> 另存为新文件</button>
-                    <button class="btn" id="overwriteCurrentBtn" disabled><i class="fas fa-file-export"></i> 覆盖当前选中</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 本地文件选项卡 -->
-        <div id="local-tab" class="tab-content">
-            <div id="localFileSupportArea">
-                <div class="local-file-info" id="linkedFileInfo">
-                    <i class="fas fa-link"></i> 未链接任何本地文件
-                </div>
-                <div class="file-action-group">
-                    <button class="btn btn-primary" id="openLocalFilePickerBtn"><i class="fas fa-folder-open"></i> 打开本地文件</button>
-                    <button class="btn" id="saveToLocalFileBtn" disabled><i class="fas fa-save"></i> 保存到当前链接文件</button>
-                    <button class="btn" id="saveAsLocalFileBtn"><i class="fas fa-copy"></i> 另存为...</button>
-                </div>
-                <div id="fsaCompatWarning" style="margin-top: 12px;"></div>
-                <div class="hint-blue" style="margin-top: 16px; font-size: 0.7rem;">
-                    <i class="fas fa-info-circle"></i> 使用现代浏览器（Chrome/Edge 86+）支持直接读写选中的本地文件。<br>
-                    打开文件后即可“链接”该文件，后续可一键保存覆盖。
-                </div>
-            </div>
-        </div>
-
-        <div class="modal-actions" style="margin-top: 20px;">
-            <button class="btn" id="closeServerModalBtn"><i class="fas fa-times"></i> 关闭</button>
-        </div>
+    <div id="toast" class="toast"></div>
+    <div class="global-drag-overlay" id="globalDragOverlay">
+        <i class="fas fa-file-import"></i> 释放文件以导入 XAML
     </div>
-</div>
 
-<div id="toast" class="toast"></div>
-<div class="global-drag-overlay" id="globalDragOverlay">
-    <i class="fas fa-file-import"></i> 释放文件以导入 XAML
-</div>
-
-<script src="/script.js"></script>
+    <script src="/script.js"></script>
 </body>
+
 </html>
