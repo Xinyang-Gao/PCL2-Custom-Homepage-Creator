@@ -20,7 +20,10 @@ const PROP_SELECT_OPTIONS = {
 function parseMargin(marginStr) {
     const defaults = [0, 0, 0, 0];
     if (!marginStr || marginStr.trim() === '') return defaults;
-    const parts = marginStr.split(',').map(p => parseFloat(p.trim()));
+    const parts = marginStr.split(',').map(p => {
+        const num = parseFloat(p.trim());
+        return isNaN(num) ? 0 : num;
+    });
     if (parts.length === 1) {
         const v = parts[0];
         return [v, v, v, v];
@@ -35,6 +38,10 @@ function parseMargin(marginStr) {
 }
 
 function formatMargin(left, top, right, bottom) {
+    left = isNaN(left) ? 0 : left;
+    top = isNaN(top) ? 0 : top;
+    right = isNaN(right) ? 0 : right;
+    bottom = isNaN(bottom) ? 0 : bottom;
     if (left === top && top === right && right === bottom) {
         return left.toString();
     }
@@ -57,7 +64,10 @@ const ComponentTypes = {
             IsSwapped: "True",
             ToolTip: "",
             HorizontalAlignment: "Stretch",
-            VerticalAlignment: "Stretch"
+            VerticalAlignment: "Stretch",
+            UseAnimation: "True",
+            SwapLogoRight: "False",
+            HasMouseAnimation: "True"
         }
     },
     text: {
@@ -72,7 +82,8 @@ const ComponentTypes = {
             ToolTip: "",
             Margin: "0",
             HorizontalAlignment: "Stretch",
-            VerticalAlignment: "Stretch"
+            VerticalAlignment: "Stretch",
+            IsHitTestVisible: "True"
         }
     },
     hint: {
@@ -85,7 +96,8 @@ const ComponentTypes = {
             ToolTip: "",
             Margin: "0",
             HorizontalAlignment: "Stretch",
-            VerticalAlignment: "Stretch"
+            VerticalAlignment: "Stretch",
+            IsHitTestVisible: "True"
         }
     },
     image: {
@@ -98,7 +110,8 @@ const ComponentTypes = {
             HorizontalAlignment: "Center",
             ToolTip: "",
             Margin: "0",
-            VerticalAlignment: "Stretch"
+            VerticalAlignment: "Stretch",
+            IsHitTestVisible: "True"
         }
     },
     button: {
@@ -113,7 +126,8 @@ const ComponentTypes = {
             Margin: "0,4,0,10",
             ToolTip: "",
             HorizontalAlignment: "Stretch",
-            VerticalAlignment: "Stretch"
+            VerticalAlignment: "Stretch",
+            IsHitTestVisible: "True"
         }
     },
     textbutton: {
@@ -125,7 +139,8 @@ const ComponentTypes = {
             Margin: "0,8,0,10",
             ToolTip: "",
             HorizontalAlignment: "Center",
-            VerticalAlignment: "Stretch"
+            VerticalAlignment: "Stretch",
+            IsHitTestVisible: "True"
         }
     },
     listitem: {
@@ -140,7 +155,8 @@ const ComponentTypes = {
             ToolTip: "",
             Margin: "-5,0,-5,8",
             HorizontalAlignment: "Stretch",
-            VerticalAlignment: "Stretch"
+            VerticalAlignment: "Stretch",
+            IsHitTestVisible: "True"
         }
     },
     stackpanel: {
@@ -151,7 +167,8 @@ const ComponentTypes = {
             Margin: "0,0,0,0",
             ToolTip: "",
             HorizontalAlignment: "Stretch",
-            VerticalAlignment: "Stretch"
+            VerticalAlignment: "Stretch",
+            IsHitTestVisible: "True"
         }
     },
     horizontalstack: {
@@ -163,7 +180,8 @@ const ComponentTypes = {
             HorizontalAlignment: "Center",
             Margin: "0,0,0,0",
             ToolTip: "",
-            VerticalAlignment: "Stretch"
+            VerticalAlignment: "Stretch",
+            IsHitTestVisible: "True"
         }
     },
     grid: {
@@ -171,12 +189,13 @@ const ComponentTypes = {
         icon: "fas fa-th",
         canNest: true,
         defaults: {
-            ColumnsDefinition: "1*,2*,Auto",
-            RowsDefinition: "",
+            ColumnsDefinition: "[]",
+            RowsDefinition: "[]",
             Margin: "0",
             ToolTip: "",
             HorizontalAlignment: "Stretch",
-            VerticalAlignment: "Stretch"
+            VerticalAlignment: "Stretch",
+            IsHitTestVisible: "True"
         }
     }
 };
@@ -253,61 +272,6 @@ class ComponentFinder {
 
 // modules/ComponentManager.js
 class ComponentManager {
-    static createComponent(type, parentId = null) {
-        const def = ComponentTypes[type];
-        if (!def) return null;
-        const id = App.state.nextId++;
-        return {
-            id, type, name: def.name, parentId, children: [],
-            props: JSON.parse(JSON.stringify(def.defaults)),
-            events: { type: "", data: "" },
-            customProps: {}
-        };
-    }
-
-    static addComponent(comp, targetParentId = null) {
-        if (targetParentId === null) {
-            App.state.components.push(comp);
-            App.renderManager.appendComponentToParent(comp, null); // 增量添加至画布根部
-            App.markDirty();
-            return true;
-        }
-        const parent = ComponentFinder.findComponentById(targetParentId);
-        if (parent && ComponentTypes[parent.type]?.canNest) {
-            parent.children.push(comp);
-            comp.parentId = targetParentId;
-            App.renderManager.appendComponentToParent(comp, targetParentId);
-            App.markDirty();
-            return true;
-        }
-        return false;
-    }
-
-    static removeComponentById(id) {
-        const removeFromList = (list) => {
-            for (let i = 0; i < list.length; i++) {
-                if (list[i].id === id) {
-                    const el = document.querySelector(`.component-item-wrapper[data-id="${id}"]`);
-                    if (el) el.remove();
-                    list.splice(i, 1);
-                    return true;
-                }
-                if (list[i].children && removeFromList(list[i].children)) return true;
-            }
-            return false;
-        };
-        if (removeFromList(App.state.components)) {
-            if (App.state.selectedId === id) App.state.selectedId = null;
-            App.markDirty();
-            // 增量移除后无需全量渲染，只需更新面板和层级栏
-            App.renderManager.updatePropsPanel();
-            App.renderManager.updateHierarchyBar();
-            return true;
-        }
-        return false;
-    }
-
-    // 获取当前组件树中的最大ID（用于初始化）
     static getMaxGlobalId() {
         let max = 0;
         const traverse = (list) => {
@@ -320,39 +284,189 @@ class ComponentManager {
         return max;
     }
 
-    static deepCloneComponent(comp, newParentId = null) {
-        // 优化：直接使用 App.state.nextId 自增，无需遍历整棵树
-        const clone = {
-            ...comp,
-            id: App.state.nextId++,
-            parentId: newParentId,
-            children: [],
-            props: { ...comp.props },
-            events: { ...comp.events },
-            customProps: { ...(comp.customProps || {}) }
-        };
-        for (let child of comp.children) {
-            const childClone = ComponentManager.deepCloneComponent(child, clone.id);
-            clone.children.push(childClone);
+    static getNextId() {
+        return this.getMaxGlobalId() + 1;
+    }
+
+static createComponent(type, parentId = null, customId = null) {
+    const def = ComponentTypes[type];
+    if (!def) return null;
+    const id = (customId !== null) ? customId : this.getNextId();
+    return {
+        id, type, name: def.name, parentId, children: [],
+        props: JSON.parse(JSON.stringify(def.defaults)),
+        events: { type: "", data: "" },
+        customProps: {}
+    };
+}
+
+    static addComponent(comp, targetParentId = null, insertIndex = null) {
+        if (targetParentId === null) {
+            if (insertIndex !== null && insertIndex >= 0 && insertIndex <= App.state.components.length) {
+                App.state.components.splice(insertIndex, 0, comp);
+            } else {
+                App.state.components.push(comp);
+            }
+            App.renderManager.appendComponentToParent(comp, null, insertIndex);
+            App.markDirty();
+            return true;
         }
-        return clone;
+        const parent = ComponentFinder.findComponentById(targetParentId);
+        if (parent && ComponentTypes[parent.type]?.canNest) {
+            if (insertIndex !== null && insertIndex >= 0 && insertIndex <= parent.children.length) {
+                parent.children.splice(insertIndex, 0, comp);
+            } else {
+                parent.children.push(comp);
+            }
+            comp.parentId = targetParentId;
+            App.renderManager.appendComponentToParent(comp, targetParentId, insertIndex);
+            App.markDirty();
+            return true;
+        }
+        return false;
+    }
+
+    static removeComponentById(id) {
+        let removedComp = null;
+        let parentOfRemoved = null;
+
+        const removeFromList = (list, parentComp = null) => {
+            for (let i = 0; i < list.length; i++) {
+                if (list[i].id === id) {
+                    removedComp = list[i];
+                    parentOfRemoved = parentComp;
+                    const el = document.querySelector(`.component-item-wrapper[data-id="${id}"]`);
+                    if (el) el.remove();
+                    list.splice(i, 1);
+                    return true;
+                }
+                if (list[i].children && removeFromList(list[i].children, list[i])) return true;
+            }
+            return false;
+        };
+
+        if (removeFromList(App.state.components)) {
+            if (App.state.selectedId === id) {
+                if (parentOfRemoved) {
+                    App.state.selectedId = parentOfRemoved.id;
+                } else {
+                    App.state.selectedId = null;
+                }
+            }
+            App.markDirty();
+            App.renderManager.updatePropsPanel();
+            App.renderManager.updateHierarchyBar();
+            if (App.state.selectedId) {
+                document.querySelectorAll('.component-item-wrapper').forEach(el => el.classList.remove('selected'));
+                const newSelectedEl = document.querySelector(`[data-id="${App.state.selectedId}"]`);
+                if (newSelectedEl) newSelectedEl.classList.add('selected');
+            }
+            return true;
+        }
+        return false;
+    }
+
+    static deepCloneComponent(comp, newParentId = null) {
+        let baseId = this.getMaxGlobalId();
+        const cloneComponent = (c, parentId) => {
+            baseId++;
+            const clone = {
+                ...c,
+                id: baseId,
+                parentId: parentId,
+                children: [],
+                props: { ...c.props },
+                events: { ...c.events },
+                customProps: { ...(c.customProps || {}) }
+            };
+            for (let child of c.children) {
+                const childClone = cloneComponent(child, clone.id);
+                clone.children.push(childClone);
+            }
+            return clone;
+        };
+        return cloneComponent(comp, newParentId);
     }
 
     static duplicateComponent(comp) {
         if (!comp) return false;
-        const clone = ComponentManager.deepCloneComponent(comp, comp.parentId);
-        if (comp.parentId) {
-            const parent = ComponentFinder.findComponentById(comp.parentId);
-            if (parent) parent.children.push(clone);
-            else return false;
+        const parentId = comp.parentId;
+        let parentList = null;
+        let originalIndex = -1;
+
+        if (parentId === null) {
+            parentList = App.state.components;
+            originalIndex = parentList.findIndex(c => c.id === comp.id);
         } else {
-            App.state.components.push(clone);
+            const parent = ComponentFinder.findComponentById(parentId);
+            if (parent) {
+                parentList = parent.children;
+                originalIndex = parentList.findIndex(c => c.id === comp.id);
+            }
         }
-        // 增量渲染克隆的组件（需要插入到合适位置）
-        App.renderManager.appendComponentToParent(clone, clone.parentId);
+
+        if (originalIndex === -1 || !parentList) return false;
+
+        const clone = ComponentManager.deepCloneComponent(comp, parentId);
+        parentList.splice(originalIndex + 1, 0, clone);
+
+        App.renderManager.appendComponentToParent(clone, parentId, originalIndex + 1);
         App.renderManager.selectComponent(clone.id);
         Utils.showToast(`已复制组件: ${clone.name}`);
         App.markDirty();
+        return true;
+    }
+
+    static moveComponentTo(compId, newParentId, newIndex) {
+        const comp = ComponentFinder.findComponentById(compId);
+        if (!comp) return false;
+        const oldParentId = comp.parentId;
+        // 禁止将父组件移动到自己的子组件中
+        if (newParentId !== null) {
+            let ancestor = ComponentFinder.findComponentById(newParentId);
+            while (ancestor) {
+                if (ancestor.id === compId) return false;
+                ancestor = ComponentFinder.findComponentById(ancestor.parentId);
+            }
+        }
+
+        // 1. 从旧数据中移除
+        if (oldParentId === null) {
+            const idx = App.state.components.findIndex(c => c.id === compId);
+            if (idx !== -1) App.state.components.splice(idx, 1);
+        } else {
+            const oldParent = ComponentFinder.findComponentById(oldParentId);
+            if (oldParent) {
+                const idx = oldParent.children.findIndex(c => c.id === compId);
+                if (idx !== -1) oldParent.children.splice(idx, 1);
+            }
+        }
+
+        // 2. 更新 parentId
+        comp.parentId = newParentId;
+
+        // 3. 插入新数据
+        if (newParentId === null) {
+            if (newIndex === undefined || newIndex >= App.state.components.length) {
+                App.state.components.push(comp);
+            } else {
+                App.state.components.splice(newIndex, 0, comp);
+            }
+        } else {
+            const newParent = ComponentFinder.findComponentById(newParentId);
+            if (!newParent || !ComponentTypes[newParent.type]?.canNest) return false;
+            if (newIndex === undefined || newIndex >= newParent.children.length) {
+                newParent.children.push(comp);
+            } else {
+                newParent.children.splice(newIndex, 0, comp);
+            }
+        }
+
+        // 4. 刷新画布（简化逻辑，避免 DOM 移动出错）
+        App.renderManager.renderCanvas();
+        App.renderManager.selectComponent(compId);
+        App.markDirty();
+        Utils.showToast(`已移动组件: ${comp.name}`);
         return true;
     }
 }
@@ -364,14 +478,12 @@ class RenderManager {
         wrapper.className = 'component-item-wrapper';
         wrapper.setAttribute('data-id', comp.id);
         wrapper.setAttribute('data-type', comp.type);
+        wrapper.setAttribute('draggable', 'true');
         if (comp.props.ToolTip) {
             wrapper.setAttribute('title', comp.props.ToolTip);
         }
 
-        wrapper.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.selectComponent(comp.id);
-        });
+        // 移除了 click 监听，改为全局事件委托（在 App.init 中绑定）
 
         if (comp.type === 'card') {
             const cardDiv = document.createElement('div');
@@ -522,20 +634,16 @@ class RenderManager {
         container.appendChild(wrapper);
     }
 
-    // 增量添加组件到父容器
-    appendComponentToParent(comp, parentId) {
-        // 获取父容器
+    appendComponentToParent(comp, parentId, insertIndex = null) {
         let parentWrapper = null;
         if (parentId === null) {
             parentWrapper = document.getElementById('canvas');
-            // 若画布中只有空占位符，先清空
             const emptyPlaceholder = parentWrapper.querySelector('.empty-placeholder');
             if (emptyPlaceholder) emptyPlaceholder.remove();
         } else {
             parentWrapper = document.querySelector(`.component-item-wrapper[data-id="${parentId}"] .nested-dropzone`);
         }
         if (!parentWrapper) {
-            // 回退全量渲染
             this.renderCanvas();
             return;
         }
@@ -543,10 +651,12 @@ class RenderManager {
         this.renderComponentDOM(comp, tempContainer);
         const newComponentNode = tempContainer.firstChild;
         if (newComponentNode) {
-            parentWrapper.appendChild(newComponentNode);
-            // 移除 placeholder 属性（如果容器变非空，CSS 会自动处理占位符）
-            if (parentWrapper.getAttribute('data-placeholder') && parentWrapper.children.length > 0) {
-                // 保留属性但无影响，可不处理
+            const childrenWrappers = Array.from(parentWrapper.querySelectorAll(':scope > .component-item-wrapper'));
+            const refNode = childrenWrappers[insertIndex] || null;
+            if (refNode) {
+                parentWrapper.insertBefore(newComponentNode, refNode);
+            } else {
+                parentWrapper.appendChild(newComponentNode);
             }
         }
     }
@@ -560,7 +670,9 @@ class RenderManager {
             this.updatePropsPanel();
             return;
         }
-        App.state.components.forEach(comp => this.renderComponentDOM(comp, canvas));
+        const fragment = document.createDocumentFragment();
+        App.state.components.forEach(comp => this.renderComponentDOM(comp, fragment));
+        canvas.appendChild(fragment);
         if (App.state.selectedId) {
             document.querySelectorAll(`[data-id="${App.state.selectedId}"]`).forEach(el => el.classList.add('selected'));
         }
@@ -601,32 +713,43 @@ class RenderManager {
         this.updateHierarchyBar();
     }
 
-    updatePropsPanel() {
-        const comp = ComponentFinder.findComponentById(App.state.selectedId);
-        document.getElementById('compTypeName').innerText = comp ? (ComponentTypes[comp.type]?.name || comp.type) : '未选中';
-        document.getElementById('compIdDisplay').innerText = comp ? comp.id : '-';
-        if (!comp) {
-            document.getElementById('dynamicProps').innerHTML = '';
-            document.getElementById('eventTypeSelect').value = '';
-            document.getElementById('eventDataInput').value = '';
-            return;
+updatePropsPanel() {
+    const comp = ComponentFinder.findComponentById(App.state.selectedId);
+    document.getElementById('compTypeName').innerText = comp ? (ComponentTypes[comp.type]?.name || comp.type) : '未选中';
+    document.getElementById('compIdDisplay').innerText = comp ? comp.id : '-';
+    if (!comp) {
+        document.getElementById('dynamicProps').innerHTML = '';
+        document.getElementById('eventTypeSelect').value = '';
+        document.getElementById('eventDataInput').value = '';
+        return;
+    }
+
+    const container = document.getElementById('dynamicProps');
+    container.innerHTML = '<div class="props-loading">加载属性中...</div>';
+
+    // 保存当前选中的ID，用于回调中验证
+    const currentSelectedId = App.state.selectedId;
+
+    requestIdleCallback(() => {
+        // 重新获取当前选中的组件，避免闭包问题
+        const currentComp = ComponentFinder.findComponentById(App.state.selectedId);
+        
+        // 验证组件是否还是同一个（防止快速切换）
+        if (!currentComp || currentComp.id !== currentSelectedId) {
+            return; // 组件已改变，放弃这次更新
         }
 
-        const container = document.getElementById('dynamicProps');
-        container.innerHTML = '<div class="props-loading">加载属性中...</div>';
-
-        requestIdleCallback(() => {
-            const groups = this.getPropGroups(comp);
-            const fragment = document.createDocumentFragment();
-            for (let group of groups) {
-                fragment.appendChild(this.buildPropSection(group, comp));
-            }
-            document.getElementById('eventTypeSelect').value = comp.events?.type || '';
-            document.getElementById('eventDataInput').value = comp.events?.data || '';
-            container.innerHTML = '';
-            container.appendChild(fragment);
-        }, { timeout: 50 });
-    }
+        const groups = this.getPropGroups(currentComp);
+        const fragment = document.createDocumentFragment();
+        for (let group of groups) {
+            fragment.appendChild(this.buildPropSection(group, currentComp));
+        }
+        document.getElementById('eventTypeSelect').value = currentComp.events?.type || '';
+        document.getElementById('eventDataInput').value = currentComp.events?.data || '';
+        container.innerHTML = '';
+        container.appendChild(fragment);
+    }, { timeout: 50 });
+}
 
     buildPropSection(group, comp) {
         const section = document.createElement('div');
@@ -675,33 +798,49 @@ class RenderManager {
         return section;
     }
 
-    getPropGroups(comp) {
-        if (!comp) return [];
-        const groups = {
-            content: { title: "内容", icon: "fas fa-align-left", fields: [] },
-            appearance: { title: "外观样式", icon: "fas fa-palette", fields: [] },
-            layout: { title: "布局与边距", icon: "fas fa-expand-alt", fields: [] },
-            gridLayout: { title: "Grid 布局附加属性", icon: "fas fa-th", fields: [] },   // 新增 Grid 分组
-            behavior: { title: "行为", icon: "fas fa-cog", fields: [] },
-            other: { title: "其他", icon: "fas fa-ellipsis-h", fields: [] }
-        };
+getPropGroups(comp) {
+    if (!comp) return [];
+    const groups = {
+        content: { title: "内容", icon: "fas fa-align-left", fields: [] },
+        appearance: { title: "外观样式", icon: "fas fa-palette", fields: [] },
+        layout: { title: "布局与边距", icon: "fas fa-expand-alt", fields: [] },
+        gridLayout: { title: "Grid 布局附加属性", icon: "fas fa-th", fields: [] },
+        behavior: { title: "行为", icon: "fas fa-cog", fields: [] },
+        other: { title: "其他", icon: "fas fa-ellipsis-h", fields: [] }
+    };
 
-        const specificContentKeys = ["Text", "Title", "Info", "Source", "Logo"];
-        const appearanceKeys = ["Foreground", "FontSize", "TextWrapping", "Theme", "ColorType", "LogoScale", "Type"];
-        const layoutKeys = ["Margin", "Padding", "Width", "Height", "HorizontalAlignment", "VerticalAlignment", "ColumnsDefinition", "RowsDefinition", "Orientation"];
-        const gridAttachKeys = ["Grid.Row", "Grid.Column", "Grid.RowSpan", "Grid.ColumnSpan"];
-        const behaviorKeys = ["CanSwap", "IsSwapped", "ToolTip", "EnableCache", "UseAnimation", "SwapLogoRight", "HasMouseAnimation", "IsHitTestVisible"];
+    const specificContentKeys = ["Text", "Title", "Info", "Source", "Logo"];
+    const appearanceKeys = ["Foreground", "FontSize", "TextWrapping", "Theme", "ColorType", "LogoScale", "Type"];
+    const layoutKeys = ["Margin", "Padding", "Width", "Height", "HorizontalAlignment", "VerticalAlignment", "ColumnsDefinition", "RowsDefinition", "Orientation"];
+    const gridAttachKeys = ["Grid.Row", "Grid.Column", "Grid.RowSpan", "Grid.ColumnSpan"];
+    const behaviorKeys = ["CanSwap", "IsSwapped", "ToolTip", "EnableCache", "UseAnimation", "SwapLogoRight", "HasMouseAnimation", "IsHitTestVisible"];
 
-        for (let [key, val] of Object.entries(comp.props)) {
-            if (specificContentKeys.includes(key)) groups.content.fields.push({ key, val });
-            else if (appearanceKeys.includes(key)) groups.appearance.fields.push({ key, val });
-            else if (layoutKeys.includes(key)) groups.layout.fields.push({ key, val });
-            else if (gridAttachKeys.includes(key)) groups.gridLayout.fields.push({ key, val });
-            else if (behaviorKeys.includes(key)) groups.behavior.fields.push({ key, val });
-            else groups.other.fields.push({ key, val });
-        }
-        return Object.values(groups).filter(g => g.fields.length > 0);
+    for (let [key, val] of Object.entries(comp.props)) {
+        if (specificContentKeys.includes(key)) groups.content.fields.push({ key, val });
+        else if (appearanceKeys.includes(key)) groups.appearance.fields.push({ key, val });
+        else if (layoutKeys.includes(key)) groups.layout.fields.push({ key, val });
+        else if (gridAttachKeys.includes(key)) groups.gridLayout.fields.push({ key, val });
+        else if (behaviorKeys.includes(key)) groups.behavior.fields.push({ key, val });
+        else groups.other.fields.push({ key, val });
     }
+
+    // 转换为数组，过滤空分组
+    let groupsArray = Object.values(groups).filter(g => g.fields.length > 0);
+
+    // 强制添加通用分组（ToolTip, IsHitTestVisible）到最前面
+    const commonFields = [];
+    if (comp.props.ToolTip !== undefined) {
+        commonFields.push({ key: "ToolTip", val: comp.props.ToolTip });
+    }
+    if (comp.props.IsHitTestVisible !== undefined) {
+        commonFields.push({ key: "IsHitTestVisible", val: comp.props.IsHitTestVisible });
+    }
+    if (commonFields.length) {
+        groupsArray.unshift({ title: "通用", icon: "fas fa-cogs", fields: commonFields });
+    }
+
+    return groupsArray;
+}
 
     applyCurrentProps() {
         const comp = ComponentFinder.findComponentById(App.state.selectedId);
@@ -718,15 +857,20 @@ class RenderManager {
             }
         });
 
+        // Margin 容错处理
         const marginLeft = document.querySelector('#dynamicProps .margin-part[data-margin="left"]');
         const marginTop = document.querySelector('#dynamicProps .margin-part[data-margin="top"]');
         const marginRight = document.querySelector('#dynamicProps .margin-part[data-margin="right"]');
         const marginBottom = document.querySelector('#dynamicProps .margin-part[data-margin="bottom"]');
         if (marginLeft && marginTop && marginRight && marginBottom) {
-            const left = parseFloat(marginLeft.value) || 0;
-            const top = parseFloat(marginTop.value) || 0;
-            const right = parseFloat(marginRight.value) || 0;
-            const bottom = parseFloat(marginBottom.value) || 0;
+            let left = parseFloat(marginLeft.value);
+            let top = parseFloat(marginTop.value);
+            let right = parseFloat(marginRight.value);
+            let bottom = parseFloat(marginBottom.value);
+            if (isNaN(left)) left = 0;
+            if (isNaN(top)) top = 0;
+            if (isNaN(right)) right = 0;
+            if (isNaN(bottom)) bottom = 0;
             comp.props.Margin = formatMargin(left, top, right, bottom);
         }
 
@@ -771,6 +915,7 @@ class XamlProcessor {
     }
 
     importFromXAML(xmlStr) {
+        const unknownTags = new Set();
         try {
             if (xmlStr.charCodeAt(0) === 0xFEFF) {
                 xmlStr = xmlStr.slice(1);
@@ -800,6 +945,9 @@ class XamlProcessor {
                 throw new Error(`XAML 解析失败: ${errMsg.substring(0, 200)}${location ? ` (${location})` : ''}`);
             }
 
+            let nextId = 1;
+            const getNextLocalId = () => nextId++;
+
             const parseNode = (node, parentId = null) => {
                 const tagName = XamlProcessor.getLocalTagName(node);
                 if (!tagName) return null;
@@ -818,10 +966,13 @@ class XamlProcessor {
                 }
                 else if (tagName === 'grid') type = 'grid';
 
-                if (!type || !ComponentTypes[type]) return null;
+                if (!type || !ComponentTypes[type]) {
+                    unknownTags.add(tagName);
+                    return null;
+                }
 
-                const comp = ComponentManager.createComponent(type, parentId);
-                const commonProps = ['Margin', 'ToolTip', 'HorizontalAlignment', 'VerticalAlignment'];
+                const comp = ComponentManager.createComponent(type, parentId, getNextLocalId());
+                const commonProps = ['Margin', 'ToolTip', 'HorizontalAlignment', 'VerticalAlignment', 'IsHitTestVisible'];
                 commonProps.forEach(prop => {
                     const val = node.getAttribute(prop);
                     if (val !== null) comp.props[prop] = val;
@@ -840,12 +991,13 @@ class XamlProcessor {
                     ...commonProps,
                     'Title', 'Text', 'Source', 'Height', 'ColorType', 'Padding', 'FontSize', 'TextWrapping', 'Foreground',
                     'Theme', 'Logo', 'Type', 'Info', 'ColumnsDefinition', 'RowsDefinition', 'Orientation',
-                    'CanSwap', 'IsSwapped', 'Grid.Row', 'Grid.Column', 'Grid.RowSpan', 'Grid.ColumnSpan'
+                    'CanSwap', 'IsSwapped', 'UseAnimation', 'SwapLogoRight', 'HasMouseAnimation',
+                    'Grid.Row', 'Grid.Column', 'Grid.RowSpan', 'Grid.ColumnSpan', 'EventType', 'EventData'
                 ]);
                 for (let attr of node.attributes) {
                     const name = attr.name;
                     const value = attr.value;
-                    if (!knownProps.has(name) && name !== 'EventType' && name !== 'EventData') {
+                    if (!knownProps.has(name)) {
                         comp.customProps[name] = value;
                     }
                 }
@@ -854,30 +1006,43 @@ class XamlProcessor {
                     comp.props.Title = node.getAttribute('Title') || '卡片';
                     comp.props.CanSwap = node.getAttribute('CanSwap') ?? 'True';
                     comp.props.IsSwapped = node.getAttribute('IsSwapped') ?? 'True';
+                    comp.props.UseAnimation = node.getAttribute('UseAnimation') ?? 'True';
+                    comp.props.SwapLogoRight = node.getAttribute('SwapLogoRight') ?? 'False';
+                    comp.props.HasMouseAnimation = node.getAttribute('HasMouseAnimation') ?? 'True';
                     for (let child of node.children) {
                         const childComp = parseNode(child, comp.id);
                         if (childComp) comp.children.push(childComp);
                     }
                 }
                 else if (type === 'grid') {
-                    let colsDef = '', rowsDef = '';
+                    let colsDef = [], rowsDef = [];
                     for (let child of node.children) {
                         const childName = XamlProcessor.getLocalTagName(child);
                         if (childName === 'grid.columndefinitions') {
-                            const colDefs = Array.from(child.children).map(cd => cd.getAttribute('Width') || '').join(';');
-                            if (colDefs) colsDef = colDefs;
+                            for (let cd of child.children) {
+                                const width = cd.getAttribute('Width') || '';
+                                const minWidth = cd.getAttribute('MinWidth') || '';
+                                const maxWidth = cd.getAttribute('MaxWidth') || '';
+                                colsDef.push({ width, minWidth, maxWidth });
+                            }
                         }
                         else if (childName === 'grid.rowdefinitions') {
-                            const rowDefs = Array.from(child.children).map(rd => rd.getAttribute('Height') || '').join(';');
-                            if (rowDefs) rowsDef = rowDefs;
+                            for (let rd of child.children) {
+                                const height = rd.getAttribute('Height') || '';
+                                const minHeight = rd.getAttribute('MinHeight') || '';
+                                const maxHeight = rd.getAttribute('MaxHeight') || '';
+                                rowsDef.push({ height, minHeight, maxHeight });
+                            }
                         }
                         else {
                             const childComp = parseNode(child, comp.id);
                             if (childComp) comp.children.push(childComp);
                         }
                     }
-                    if (colsDef) comp.props.ColumnsDefinition = colsDef;
-                    if (rowsDef) comp.props.RowsDefinition = rowsDef;
+                    if (colsDef.length) comp.props.ColumnsDefinition = JSON.stringify(colsDef);
+                    else comp.props.ColumnsDefinition = "[]";
+                    if (rowsDef.length) comp.props.RowsDefinition = JSON.stringify(rowsDef);
+                    else comp.props.RowsDefinition = "[]";
                 }
                 else if (type === 'stackpanel' || type === 'horizontalstack') {
                     if (type === 'horizontalstack') comp.props.Orientation = 'Horizontal';
@@ -919,8 +1084,8 @@ class XamlProcessor {
                     comp.props.Type = node.getAttribute('Type') || 'Clickable';
                 }
 
-                const evType = node.getAttribute('EventType');
-                const evData = node.getAttribute('EventData');
+                let evType = node.getAttribute('EventType') || node.getAttribute('eventtype');
+                let evData = node.getAttribute('EventData') || node.getAttribute('eventdata');
                 if (evType) comp.events = { type: evType, data: evData || '' };
 
                 return comp;
@@ -934,14 +1099,18 @@ class XamlProcessor {
 
             if (newComponents.length) {
                 App.state.components = newComponents;
-                const maxId = ComponentManager.getMaxGlobalId();
-                App.state.nextId = maxId + 1;
                 App.state.selectedId = null;
                 App.renderManager.renderCanvas();
                 Utils.showToast(`成功导入 ${newComponents.length} 个组件`);
+                if (unknownTags.size > 0) {
+                    Utils.showToast(`警告：发现未知组件类型: ${Array.from(unknownTags).join(', ')}，它们已被忽略`, true);
+                }
                 App.resetDirty();
             } else {
                 Utils.showToast('未找到有效组件', true);
+                if (unknownTags.size > 0) {
+                    Utils.showToast(`文件中仅包含未知组件: ${Array.from(unknownTags).join(', ')}`, true);
+                }
             }
         } catch (e) {
             console.error(e);
@@ -955,7 +1124,7 @@ class XamlProcessor {
 
         for (let comp of comps) {
             const attrs = [];
-            const commonAttrs = ['Margin', 'ToolTip', 'HorizontalAlignment', 'VerticalAlignment'];
+            const commonAttrs = ['Margin', 'ToolTip', 'HorizontalAlignment', 'VerticalAlignment', 'IsHitTestVisible'];
             commonAttrs.forEach(attr => {
                 if (comp.props[attr] && comp.props[attr] !== '') {
                     attrs.push(`${attr}="${Utils.escapeXml(comp.props[attr])}"`);
@@ -982,6 +1151,9 @@ class XamlProcessor {
                 attrs.push(`Title="${Utils.escapeXml(comp.props.Title)}"`);
                 attrs.push(`CanSwap="${comp.props.CanSwap || 'True'}"`);
                 attrs.push(`IsSwapped="${comp.props.IsSwapped || 'True'}"`);
+                if (comp.props.UseAnimation) attrs.push(`UseAnimation="${comp.props.UseAnimation}"`);
+                if (comp.props.SwapLogoRight) attrs.push(`SwapLogoRight="${comp.props.SwapLogoRight}"`);
+                if (comp.props.HasMouseAnimation) attrs.push(`HasMouseAnimation="${comp.props.HasMouseAnimation}"`);
                 xaml += `${spaces}<local:MyCard ${attrs.join(' ')}>\n`;
                 for (let child of comp.children) {
                     xaml += this.generateXAML([child], indent + 1);
@@ -990,25 +1162,31 @@ class XamlProcessor {
             }
             else if (comp.type === 'grid') {
                 xaml += `${spaces}<Grid ${attrs.join(' ')}>\n`;
-                if (comp.props.ColumnsDefinition) {
-                    const cols = comp.props.ColumnsDefinition.split(';');
-                    if (cols.length && !(cols.length === 1 && cols[0] === '')) {
-                        xaml += `${spaces}  <Grid.ColumnDefinitions>\n`;
-                        cols.forEach(w => {
-                            xaml += `${spaces}    <ColumnDefinition Width="${Utils.escapeXml(w.trim())}"/>\n`;
-                        });
-                        xaml += `${spaces}  </Grid.ColumnDefinitions>\n`;
-                    }
+                let cols = [];
+                let rows = [];
+                try { cols = JSON.parse(comp.props.ColumnsDefinition); } catch(e) { cols = []; }
+                try { rows = JSON.parse(comp.props.RowsDefinition); } catch(e) { rows = []; }
+                if (cols.length) {
+                    xaml += `${spaces}  <Grid.ColumnDefinitions>\n`;
+                    cols.forEach(def => {
+                        let colAttrs = [];
+                        if (def.width) colAttrs.push(`Width="${def.width}"`);
+                        if (def.minWidth) colAttrs.push(`MinWidth="${def.minWidth}"`);
+                        if (def.maxWidth) colAttrs.push(`MaxWidth="${def.maxWidth}"`);
+                        xaml += `${spaces}    <ColumnDefinition ${colAttrs.join(' ')}/>\n`;
+                    });
+                    xaml += `${spaces}  </Grid.ColumnDefinitions>\n`;
                 }
-                if (comp.props.RowsDefinition) {
-                    const rows = comp.props.RowsDefinition.split(';');
-                    if (rows.length && !(rows.length === 1 && rows[0] === '')) {
-                        xaml += `${spaces}  <Grid.RowDefinitions>\n`;
-                        rows.forEach(h => {
-                            xaml += `${spaces}    <RowDefinition Height="${Utils.escapeXml(h.trim())}"/>\n`;
-                        });
-                        xaml += `${spaces}  </Grid.RowDefinitions>\n`;
-                    }
+                if (rows.length) {
+                    xaml += `${spaces}  <Grid.RowDefinitions>\n`;
+                    rows.forEach(def => {
+                        let rowAttrs = [];
+                        if (def.height) rowAttrs.push(`Height="${def.height}"`);
+                        if (def.minHeight) rowAttrs.push(`MinHeight="${def.minHeight}"`);
+                        if (def.maxHeight) rowAttrs.push(`MaxHeight="${def.maxHeight}"`);
+                        xaml += `${spaces}    <RowDefinition ${rowAttrs.join(' ')}/>\n`;
+                    });
+                    xaml += `${spaces}  </Grid.RowDefinitions>\n`;
                 }
                 for (let child of comp.children) {
                     xaml += this.generateXAML([child], indent + 1);
@@ -1323,104 +1501,158 @@ class ServerApi {
 
 // modules/DragDropManager.js
 class DragDropManager {
-    createProgressOverlay() {
-        let overlay = document.getElementById('globalProgressOverlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'globalProgressOverlay';
-            overlay.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
-                display: flex; align-items: center; justify-content: center;
-                z-index: 10001; flex-direction: column; gap: 16px;
-                color: white; font-weight: 500;
-            `;
-            overlay.innerHTML = `
-                <div><i class="fas fa-spinner fa-pulse fa-2x"></i></div>
-                <div>正在读取文件...</div>
-                <div class="progress-bar-container" style="width: 300px; height: 8px; background: rgba(255,255,255,0.3); border-radius: 4px;">
-                    <div class="progress-bar-fill" style="width: 0%; height: 100%; background: var(--primary); border-radius: 4px; transition: width 0.2s;"></div>
-                </div>
-                <div class="progress-text">0%</div>
-            `;
-            document.body.appendChild(overlay);
-        }
-        return {
-            updateProgress: (percent) => {
-                const fill = overlay.querySelector('.progress-bar-fill');
-                const text = overlay.querySelector('.progress-text');
-                if (fill) fill.style.width = `${percent}%`;
-                if (text) text.innerText = `${Math.round(percent)}%`;
-            },
-            close: () => {
-                overlay.remove();
-            }
-        };
+    constructor() {
+        this.dragSource = null;
+        this.insertPlaceholder = null;
     }
 
-    async handleFileImport(file) {
-        if (!file) return;
-        const ext = file.name.split('.').pop().toLowerCase();
-        if (ext !== 'xaml' && ext !== 'xml') {
-            Utils.showToast('请拖入 .xaml 或 .xml 文件', true);
-            return;
-        }
-        if (!confirm('拖入文件将替换当前所有组件，是否继续？')) return;
-
-        const CHUNK_SIZE = 1024 * 1024; // 1MB
-        const totalSize = file.size;
-        let offset = 0;
-        let content = '';
-        const progress = this.createProgressOverlay();
-
-        const readNextChunk = () => {
-            const chunk = file.slice(offset, offset + CHUNK_SIZE);
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                content += e.target.result;
-                offset += CHUNK_SIZE;
-                const percent = Math.min(100, (offset / totalSize) * 100);
-                progress.updateProgress(percent);
-                if (offset < totalSize) {
-                    setTimeout(readNextChunk, 0);
-                } else {
-                    progress.close();
-                    App.xamlProcessor.importFromXAML(content);
-                }
-            };
-            reader.onerror = () => {
-                progress.close();
-                Utils.showToast('文件读取失败', true);
-            };
-            reader.readAsText(chunk, 'UTF-8');
-        };
-        readNextChunk();
-    }
-
-    showLoadingOverlay(msg = '加载中...') {
-        let overlay = document.getElementById('globalLoadingOverlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'globalLoadingOverlay';
-            overlay.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
-                display: flex; align-items: center; justify-content: center;
-                z-index: 10000; flex-direction: column; gap: 16px;
-                font-size: 1rem; color: white; font-weight: 500;
+    createInsertPlaceholder(isHorizontal = false) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'drag-placeholder';
+        if (isHorizontal) {
+            placeholder.style.cssText = `
+                width: 4px;
+                height: 60px;
+                background: var(--primary);
+                margin: 0 4px;
+                border-radius: 2px;
+                transition: all 0.1s;
+                display: inline-block;
+                vertical-align: middle;
             `;
-            overlay.innerHTML = `<div><i class="fas fa-spinner fa-pulse fa-2x"></i></div><div id="loadingMsg">${Utils.escapeHtml(msg)}</div>`;
-            document.body.appendChild(overlay);
         } else {
-            overlay.style.display = 'flex';
-            const msgDiv = overlay.querySelector('#loadingMsg');
-            if (msgDiv) msgDiv.innerText = msg;
+            placeholder.style.cssText = `
+                height: 4px;
+                background: var(--primary);
+                margin: 4px 0;
+                border-radius: 2px;
+                transition: all 0.1s;
+            `;
         }
+        return placeholder;
     }
 
-    hideLoadingOverlay() {
-        const overlay = document.getElementById('globalLoadingOverlay');
-        if (overlay) overlay.style.display = 'none';
+    clearPlaceholder() {
+        if (this.insertPlaceholder && this.insertPlaceholder.parentNode) {
+            this.insertPlaceholder.parentNode.removeChild(this.insertPlaceholder);
+        }
+        this.insertPlaceholder = null;
+        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    }
+
+    isParentHorizontal(parentId) {
+        if (parentId === null) return false;
+        const parentComp = ComponentFinder.findComponentById(parentId);
+        if (!parentComp) return false;
+        if (parentComp.type === 'horizontalstack') return true;
+        if (parentComp.type === 'stackpanel' && parentComp.props.Orientation === 'Horizontal') return true;
+        return false;
+    }
+
+    computeDropPosition(dragEvent, targetElement) {
+        let dropZone = targetElement.closest('.nested-dropzone');
+        let targetComponent = targetElement.closest('.component-item-wrapper');
+        
+        if (dropZone) {
+            const parentIdAttr = dropZone.getAttribute('data-parent-id');
+            const parentId = parentIdAttr ? parseInt(parentIdAttr) : null;
+            const isHorizontal = this.isParentHorizontal(parentId);
+            const childrenWrappers = Array.from(dropZone.querySelectorAll(':scope > .component-item-wrapper'));
+            if (childrenWrappers.length === 0) {
+                return { parentId, index: 0, targetElement: dropZone, isHorizontal };
+            }
+            const mousePos = isHorizontal ? dragEvent.clientX : dragEvent.clientY;
+            for (let i = 0; i < childrenWrappers.length; i++) {
+                const rect = childrenWrappers[i].getBoundingClientRect();
+                const middle = isHorizontal ? (rect.left + rect.width / 2) : (rect.top + rect.height / 2);
+                if (mousePos < middle) {
+                    return { parentId, index: i, targetElement: childrenWrappers[i], isHorizontal };
+                }
+            }
+            return { parentId, index: childrenWrappers.length, targetElement: dropZone, isHorizontal };
+        }
+        
+        if (targetComponent) {
+            const compId = parseInt(targetComponent.getAttribute('data-id'));
+            const comp = ComponentFinder.findComponentById(compId);
+            if (!comp) return null;
+            const parentId = comp.parentId;
+            const parentComp = parentId === null ? null : ComponentFinder.findComponentById(parentId);
+            const siblings = parentId === null ? App.state.components : parentComp.children;
+            const currentIndex = siblings.findIndex(c => c.id === compId);
+            if (currentIndex === -1) return null;
+            
+            const isHorizontal = this.isParentHorizontal(parentId);
+            const rect = targetComponent.getBoundingClientRect();
+            const mousePos = isHorizontal ? dragEvent.clientX : dragEvent.clientY;
+            const middle = isHorizontal ? (rect.left + rect.width / 2) : (rect.top + rect.height / 2);
+            let newIndex = mousePos < middle ? currentIndex : currentIndex + 1;
+            let parentElement = parentId === null ? document.getElementById('canvas') : 
+                                document.querySelector(`.component-item-wrapper[data-id="${parentId}"] .nested-dropzone`);
+            if (!parentElement) return null;
+            return { parentId, index: newIndex, targetElement: parentElement, isHorizontal };
+        }
+        
+        const canvas = document.getElementById('canvas');
+        if (canvas && canvas.contains(targetElement)) {
+            const childrenWrappers = Array.from(canvas.querySelectorAll(':scope > .component-item-wrapper'));
+            const isHorizontal = false;
+            if (childrenWrappers.length === 0) {
+                return { parentId: null, index: 0, targetElement: canvas, isHorizontal };
+            }
+            const mouseY = dragEvent.clientY;
+            for (let i = 0; i < childrenWrappers.length; i++) {
+                const rect = childrenWrappers[i].getBoundingClientRect();
+                const middle = rect.top + rect.height / 2;
+                if (mouseY < middle) {
+                    return { parentId: null, index: i, targetElement: childrenWrappers[i], isHorizontal };
+                }
+            }
+            return { parentId: null, index: childrenWrappers.length, targetElement: canvas, isHorizontal };
+        }
+        
+        return null;
+    }
+
+    showPlaceholder(dropInfo) {
+        this.clearPlaceholder();
+        if (!dropInfo) return;
+        
+        const { targetElement, index, isHorizontal } = dropInfo;
+        if (!targetElement) return;
+        
+        const placeholder = this.createInsertPlaceholder(isHorizontal);
+        this.insertPlaceholder = placeholder;
+        
+        if (targetElement.classList && targetElement.classList.contains('component-item-wrapper')) {
+            targetElement.parentNode.insertBefore(placeholder, targetElement);
+        } else if (targetElement.classList && targetElement.classList.contains('nested-dropzone')) {
+            const children = Array.from(targetElement.children).filter(child => child.classList.contains('component-item-wrapper'));
+            if (index <= children.length) {
+                if (index === 0) {
+                    targetElement.insertBefore(placeholder, children[0] || null);
+                } else if (index === children.length) {
+                    targetElement.appendChild(placeholder);
+                } else {
+                    targetElement.insertBefore(placeholder, children[index]);
+                }
+            } else {
+                targetElement.appendChild(placeholder);
+            }
+        } else if (targetElement.id === 'canvas') {
+            const children = Array.from(targetElement.children).filter(child => child.classList.contains('component-item-wrapper'));
+            if (index <= children.length) {
+                if (index === 0) {
+                    targetElement.insertBefore(placeholder, children[0] || null);
+                } else if (index === children.length) {
+                    targetElement.appendChild(placeholder);
+                } else {
+                    targetElement.insertBefore(placeholder, children[index]);
+                }
+            } else {
+                targetElement.appendChild(placeholder);
+            }
+        }
     }
 
     initGlobalFileDragAndDrop() {
@@ -1453,98 +1685,207 @@ class DragDropManager {
         });
     }
 
+    async handleFileImport(file) {
+        if (!file) return;
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (ext !== 'xaml' && ext !== 'xml') {
+            Utils.showToast('请拖入 .xaml 或 .xml 文件', true);
+            return;
+        }
+        if (!confirm('拖入文件将替换当前所有组件，是否继续？')) return;
+        const CHUNK_SIZE = 1024 * 1024;
+        const totalSize = file.size;
+        let content = '';
+        if (totalSize < CHUNK_SIZE) {
+            try {
+                content = await file.text();
+                App.xamlProcessor.importFromXAML(content);
+            } catch (err) {
+                Utils.showToast('文件读取失败: ' + err.message, true);
+            }
+            return;
+        }
+        let offset = 0;
+        const progress = this.createProgressOverlay();
+        const readNextChunk = () => {
+            const chunk = file.slice(offset, offset + CHUNK_SIZE);
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                content += e.target.result;
+                offset += CHUNK_SIZE;
+                const percent = Math.min(100, (offset / totalSize) * 100);
+                progress.updateProgress(percent);
+                if (offset < totalSize) {
+                    setTimeout(readNextChunk, 0);
+                } else {
+                    progress.close();
+                    App.xamlProcessor.importFromXAML(content);
+                }
+            };
+            reader.onerror = () => {
+                progress.close();
+                Utils.showToast('文件读取失败', true);
+            };
+            reader.readAsText(chunk, 'UTF-8');
+        };
+        readNextChunk();
+    }
+
+    createProgressOverlay() {
+        let overlay = document.getElementById('globalProgressOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'globalProgressOverlay';
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+                display: flex; align-items: center; justify-content: center;
+                z-index: 10001; flex-direction: column; gap: 16px;
+                color: white; font-weight: 500;
+            `;
+            overlay.innerHTML = `
+                <div><i class="fas fa-spinner fa-pulse fa-2x"></i></div>
+                <div>正在读取文件...</div>
+                <div class="progress-bar-container" style="width: 300px; height: 8px; background: rgba(255,255,255,0.3); border-radius: 4px;">
+                    <div class="progress-bar-fill" style="width: 0%; height: 100%; background: var(--primary); border-radius: 4px; transition: width 0.2s;"></div>
+                </div>
+                <div class="progress-text">0%</div>
+            `;
+            document.body.appendChild(overlay);
+        }
+        return {
+            updateProgress: (percent) => {
+                const fill = overlay.querySelector('.progress-bar-fill');
+                const text = overlay.querySelector('.progress-text');
+                if (fill) fill.style.width = `${percent}%`;
+                if (text) text.innerText = `${Math.round(percent)}%`;
+            },
+            close: () => { overlay.remove(); }
+        };
+    }
+
     initDragAndDrop() {
         const designContainer = document.getElementById('previewContainer');
-        let pendingDragType = null, currentDropZone = null;
-
-        document.body.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'copy';
-        });
-
-        designContainer.addEventListener('dragover', (e) => {
-            if (e.dataTransfer.types.includes('Files')) return;
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'copy';
-            const targetZone = e.target.closest('.nested-dropzone, .canvas');
-            if (targetZone && targetZone !== currentDropZone) {
-                if (currentDropZone) currentDropZone.classList.remove('drag-over');
-                currentDropZone = targetZone;
-                currentDropZone.classList.add('drag-over');
-            } else if (!targetZone && currentDropZone) {
-                currentDropZone.classList.remove('drag-over');
-                currentDropZone = null;
+        
+        document.addEventListener('dragstart', (e) => {
+            const target = e.target.closest('.comp-item');
+            if (target) {
+                const compType = target.getAttribute('data-type');
+                if (compType && ComponentTypes[compType]) {
+                    this.dragSource = { type: compType, isExisting: false };
+                    e.dataTransfer.setData('text/plain', compType);
+                    e.dataTransfer.effectAllowed = 'copy';
+                }
+                return;
             }
-        });
-
-        designContainer.addEventListener('dragleave', (e) => {
-            if (currentDropZone && !designContainer.contains(e.relatedTarget)) {
-                currentDropZone.classList.remove('drag-over');
-                currentDropZone = null;
-            }
-        });
-
-        designContainer.addEventListener('drop', (e) => {
-            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) return;
-            e.preventDefault();
-            if (currentDropZone) {
-                currentDropZone.classList.remove('drag-over');
-                currentDropZone = null;
-            }
-
-            let compType = pendingDragType;
-            if (!compType) compType = e.dataTransfer.getData('text/plain');
-            if (!compType || !ComponentTypes[compType]) return;
-
-            const dropZone = e.target.closest('.nested-dropzone, .canvas');
-            if (!dropZone) return;
-
-            let targetParentId = null;
-            if (dropZone.classList.contains('nested-dropzone')) {
-                const parentAttr = dropZone.getAttribute('data-parent-id');
-                if (parentAttr) targetParentId = parseInt(parentAttr);
-            }
-
-            if (targetParentId !== null) {
-                const parentComp = ComponentFinder.findComponentById(targetParentId);
-                if (!parentComp || !ComponentTypes[parentComp.type]?.canNest) {
-                    Utils.showToast('该容器不允许放置子组件', true);
-                    pendingDragType = null;
-                    return;
+            
+            const existingComp = e.target.closest('.component-item-wrapper');
+            if (existingComp) {
+                const id = parseInt(existingComp.getAttribute('data-id'));
+                const comp = ComponentFinder.findComponentById(id);
+                if (comp) {
+                    this.dragSource = { id: comp.id, type: comp.type, isExisting: true };
+                    e.dataTransfer.setData('text/plain', `move:${comp.id}`);
+                    e.dataTransfer.effectAllowed = 'move';
+                    existingComp.style.opacity = '0.5';
                 }
             }
-
-            const newComp = ComponentManager.createComponent(compType, targetParentId);
-            if (!newComp) return;
-
-            if (ComponentManager.addComponent(newComp, targetParentId)) {
-                // 增量已由 addComponent 完成，无需再全量渲染
-                App.renderManager.selectComponent(newComp.id);
-                Utils.showToast(`添加 ${ComponentTypes[compType].name}`);
+        });
+        
+        document.addEventListener('dragend', (e) => {
+            if (this.dragSource && !this.dragSource.isExisting) {
+                // 新组件拖拽结束清理
+            } else if (this.dragSource && this.dragSource.isExisting) {
+                const wrapper = document.querySelector(`.component-item-wrapper[data-id="${this.dragSource.id}"]`);
+                if (wrapper) wrapper.style.opacity = '';
+            }
+            this.dragSource = null;
+            this.clearPlaceholder();
+        });
+        
+        designContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = this.dragSource && !this.dragSource.isExisting ? 'copy' : 'move';
+            if (!this.dragSource) return;
+            
+            const dropInfo = this.computeDropPosition(e, e.target);
+            if (dropInfo) {
+                this.showPlaceholder(dropInfo);
+                if (dropInfo.targetElement && dropInfo.targetElement.classList && dropInfo.targetElement.classList.contains('nested-dropzone')) {
+                    dropInfo.targetElement.classList.add('drag-over');
+                }
             } else {
-                Utils.showToast('无法添加到此处', true);
+                this.clearPlaceholder();
             }
-
-            pendingDragType = null;
         });
-
-        document.addEventListener('dragend', () => {
-            if (currentDropZone) {
-                currentDropZone.classList.remove('drag-over');
-                currentDropZone = null;
+        
+        designContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (!this.dragSource) {
+                this.clearPlaceholder();
+                return;
             }
-            pendingDragType = null;
+            
+            const dropInfo = this.computeDropPosition(e, e.target);
+            if (!dropInfo) {
+                this.clearPlaceholder();
+                return;
+            }
+            
+            const { parentId, index, isHorizontal } = dropInfo;
+            
+            if (!this.dragSource.isExisting) {
+                const compType = this.dragSource.type;
+                if (compType && ComponentTypes[compType]) {
+                    if (parentId !== null) {
+                        const parentComp = ComponentFinder.findComponentById(parentId);
+                        if (!parentComp || !ComponentTypes[parentComp.type]?.canNest) {
+                            Utils.showToast('该容器不允许放置子组件', true);
+                            this.clearPlaceholder();
+                            this.dragSource = null;
+                            return;
+                        }
+                    }
+                    const newComp = ComponentManager.createComponent(compType, parentId);
+                    if (newComp) {
+                        ComponentManager.addComponent(newComp, parentId, index);
+                        App.renderManager.selectComponent(newComp.id);
+                        Utils.showToast(`添加 ${ComponentTypes[compType].name}`);
+                    }
+                }
+            } else {
+                const sourceId = this.dragSource.id;
+                if (sourceId === parentId) {
+                    Utils.showToast('不能将组件移动到自身', true);
+                    this.clearPlaceholder();
+                    this.dragSource = null;
+                    return;
+                }
+                if (parentId !== null) {
+                    const targetParent = ComponentFinder.findComponentById(parentId);
+                    if (!targetParent || !ComponentTypes[targetParent.type]?.canNest) {
+                        Utils.showToast('目标容器不允许放置子组件', true);
+                        this.clearPlaceholder();
+                        this.dragSource = null;
+                        return;
+                    }
+                }
+                const success = ComponentManager.moveComponentTo(sourceId, parentId, index);
+                if (!success) {
+                    Utils.showToast('移动失败：可能导致循环引用', true);
+                }
+            }
+            
+            this.clearPlaceholder();
+            this.dragSource = null;
         });
-
+        
         const container = document.getElementById('componentsList');
-        container.querySelectorAll('.comp-item').forEach(item => {
-            item.addEventListener('dragstart', (e) => {
-                const type = item.getAttribute('data-type');
-                pendingDragType = type;
-                e.dataTransfer.setData('text/plain', type);
-                e.dataTransfer.effectAllowed = 'copy';
+        if (container) {
+            container.querySelectorAll('.comp-item').forEach(item => {
+                item.setAttribute('draggable', 'true');
             });
-        });
+        }
     }
 }
 
@@ -1789,7 +2130,6 @@ class UIManager {
 class App {
     static state = {
         components: [],
-        nextId: 100,
         selectedId: null,
         dirty: false
     };
@@ -1839,7 +2179,18 @@ class App {
         this.fileManager.updateLocalFileUI();
         this.uiManager.updateOpenFileButton();
 
-        // 关闭页面未保存提示
+        // 全局事件委托：选中组件
+        document.getElementById('previewContainer')?.addEventListener('click', (e) => {
+            const wrapper = e.target.closest('.component-item-wrapper');
+            if (wrapper) {
+                const id = parseInt(wrapper.getAttribute('data-id'));
+                if (!isNaN(id)) {
+                    e.stopPropagation();
+                    this.renderManager.selectComponent(id);
+                }
+            }
+        });
+
         window.addEventListener('beforeunload', (e) => {
             if (App.state.dirty) {
                 const message = '当前设计未保存，离开页面将会丢失更改，确定要离开吗？';
@@ -1848,12 +2199,6 @@ class App {
                 return message;
             }
         });
-
-        // 确保 nextId 足够大（校准）
-        const maxId = ComponentManager.getMaxGlobalId();
-        if (maxId >= App.state.nextId) {
-            App.state.nextId = maxId + 1;
-        }
     }
 }
 
