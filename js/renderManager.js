@@ -463,25 +463,70 @@ export class RenderManager {
         for (let field of group.fields) {
             const fieldDiv = document.createElement('div');
             fieldDiv.className = 'prop-field';
-            if (field.key === 'Margin') {
-                const marginValues = parseMargin(field.val);
-                const [left, top, right, bottom] = marginValues;
-                fieldDiv.innerHTML = `
-                    <label>Margin (左,上,右,下)</label>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <div><label style="font-size:0.65rem;">左</label>
-                        <input type="number" class="margin-part" data-margin="left" value="${Utils.escapeHtmlAttr(String(left))}" step="any" style="width:100%;"></div>
-                        <div><label style="font-size:0.65rem;">上</label>
-                        <input type="number" class="margin-part" data-margin="top" value="${Utils.escapeHtmlAttr(String(top))}" step="any" style="width:100%;"></div>
-                        <div><label style="font-size:0.65rem;">右</label>
-                        <input type="number" class="margin-part" data-margin="right" value="${Utils.escapeHtmlAttr(String(right))}" step="any" style="width:100%;"></div>
-                        <div><label style="font-size:0.65rem;">下</label>
-                        <input type="number" class="margin-part" data-margin="bottom" value="${Utils.escapeHtmlAttr(String(bottom))}" step="any" style="width:100%;"></div>
-                    </div>
-                `;
-                section.appendChild(fieldDiv);
-                continue;
-            }
+// renderManager.js - buildPropSection 内部
+if (field.key === 'Margin') {
+    const marginValues = parseMargin(field.val);
+    const [left, top, right, bottom] = marginValues;
+
+    const marginGroup = document.createElement('div');
+    marginGroup.className = 'margin-visual-group';
+    marginGroup.innerHTML = `
+        <div class="margin-row">
+            <span class="margin-label"><i class="fas fa-arrow-left"></i> 左</span>
+            <input type="range" class="margin-slider" data-margin="left" min="-100" max="200" step="1" value="${left}">
+            <input type="number" class="margin-number" data-margin="left" value="${left}" step="1">
+        </div>
+        <div class="margin-row">
+            <span class="margin-label"><i class="fas fa-arrow-up"></i> 上</span>
+            <input type="range" class="margin-slider" data-margin="top" min="-100" max="200" step="1" value="${top}">
+            <input type="number" class="margin-number" data-margin="top" value="${top}" step="1">
+        </div>
+        <div class="margin-row">
+            <span class="margin-label"><i class="fas fa-arrow-right"></i> 右</span>
+            <input type="range" class="margin-slider" data-margin="right" min="-100" max="200" step="1" value="${right}">
+            <input type="number" class="margin-number" data-margin="right" value="${right}" step="1">
+        </div>
+        <div class="margin-row">
+            <span class="margin-label"><i class="fas fa-arrow-down"></i> 下</span>
+            <input type="range" class="margin-slider" data-margin="bottom" min="-100" max="200" step="1" value="${bottom}">
+            <input type="number" class="margin-number" data-margin="bottom" value="${bottom}" step="1">
+        </div>
+        <div class="margin-preview">当前边距：${formatMargin(left, top, right, bottom)}</div>
+    `;
+
+    // 绑定实时更新事件
+    const sliders = marginGroup.querySelectorAll('.margin-slider');
+    const numbers = marginGroup.querySelectorAll('.margin-number');
+    const previewSpan = marginGroup.querySelector('.margin-preview');
+
+    const updateMargin = () => {
+        const newLeft = parseFloat(marginGroup.querySelector('[data-margin="left"] .margin-number')?.value || 0);
+        const newTop = parseFloat(marginGroup.querySelector('[data-margin="top"] .margin-number')?.value || 0);
+        const newRight = parseFloat(marginGroup.querySelector('[data-margin="right"] .margin-number')?.value || 0);
+        const newBottom = parseFloat(marginGroup.querySelector('[data-margin="bottom"] .margin-number')?.value || 0);
+        const newMarginStr = formatMargin(newLeft, newTop, newRight, newBottom);
+        previewSpan.innerText = `当前边距：${newMarginStr}`;
+        this.updateComponentMargin(comp.id, newMarginStr);
+    };
+
+    const syncControl = (target) => {
+        const marginDir = target.getAttribute('data-margin');
+        const slider = marginGroup.querySelector(`.margin-slider[data-margin="${marginDir}"]`);
+        const number = marginGroup.querySelector(`.margin-number[data-margin="${marginDir}"]`);
+        if (target.classList.contains('margin-slider')) {
+            number.value = target.value;
+        } else {
+            slider.value = target.value;
+        }
+        updateMargin();
+    };
+
+    sliders.forEach(slider => slider.addEventListener('input', (e) => syncControl(e.target)));
+    numbers.forEach(num => num.addEventListener('input', (e) => syncControl(e.target)));
+
+    section.appendChild(marginGroup);
+    continue;
+}
             const selectOptions = PROP_SELECT_OPTIONS[field.key];
             if (selectOptions) {
                 const selectHtml = `
@@ -514,6 +559,23 @@ export class RenderManager {
 
         return section;
     }
+
+    // renderManager.js 中新增方法
+updateComponentMargin(compId, marginStr) {
+    const comp = ComponentFinder.findComponentById(compId);
+    if (!comp) return;
+    const wrapper = document.querySelector(`.component-item-wrapper[data-id="${compId}"]`);
+    if (!wrapper) return;
+
+    // 更新数据模型
+    comp.props.Margin = marginStr;
+
+    // 重新应用布局样式（包含 margin、宽高、对齐等）
+    applyLayoutStyles(wrapper, comp);
+
+    // 标记已修改并触发自动备份
+    App.markDirty();
+}
 
     openGridEditor(gridComp) {
         let cols = [];
@@ -719,21 +781,21 @@ export class RenderManager {
             }
         });
 
-        const marginLeft = document.querySelector('#dynamicProps .margin-part[data-margin="left"]');
-        const marginTop = document.querySelector('#dynamicProps .margin-part[data-margin="top"]');
-        const marginRight = document.querySelector('#dynamicProps .margin-part[data-margin="right"]');
-        const marginBottom = document.querySelector('#dynamicProps .margin-part[data-margin="bottom"]');
-        if (marginLeft && marginTop && marginRight && marginBottom) {
-            let left = parseFloat(marginLeft.value);
-            let top = parseFloat(marginTop.value);
-            let right = parseFloat(marginRight.value);
-            let bottom = parseFloat(marginBottom.value);
-            if (isNaN(left)) left = 0;
-            if (isNaN(top)) top = 0;
-            if (isNaN(right)) right = 0;
-            if (isNaN(bottom)) bottom = 0;
-            comp.props.Margin = formatMargin(left, top, right, bottom);
-        }
+const marginLeft = document.querySelector('#dynamicProps .margin-number[data-margin="left"]');
+const marginTop = document.querySelector('#dynamicProps .margin-number[data-margin="top"]');
+const marginRight = document.querySelector('#dynamicProps .margin-number[data-margin="right"]');
+const marginBottom = document.querySelector('#dynamicProps .margin-number[data-margin="bottom"]');
+if (marginLeft && marginTop && marginRight && marginBottom) {
+    let left = parseFloat(marginLeft.value);
+    let top = parseFloat(marginTop.value);
+    let right = parseFloat(marginRight.value);
+    let bottom = parseFloat(marginBottom.value);
+    if (isNaN(left)) left = 0;
+    if (isNaN(top)) top = 0;
+    if (isNaN(right)) right = 0;
+    if (isNaN(bottom)) bottom = 0;
+    comp.props.Margin = formatMargin(left, top, right, bottom);
+}
 
         comp.events = {
             type: document.getElementById('eventTypeSelect').value,
