@@ -1,3 +1,51 @@
+// ======================== 全局配置：选择类属性的选项映射 ========================
+const PROP_SELECT_OPTIONS = {
+    HorizontalAlignment: ['Stretch', 'Left', 'Center', 'Right', 'Top', 'Bottom'],
+    VerticalAlignment: ['Stretch', 'Top', 'Center', 'Bottom'],
+    TextWrapping: ['Wrap', 'NoWrap', 'WrapWithOverflow'],
+    Theme: ['Blue', 'Yellow', 'Red'],
+    ColorType: ['Highlight', 'Primary', 'Secondary', 'Success', 'Danger'],
+    Type: ['Clickable', 'Toggle', 'Radio'],           // 用于 MyListItem
+    Orientation: ['Horizontal', 'Vertical'],          // 用于 StackPanel
+    CanSwap: ['True', 'False'],
+    IsSwapped: ['True', 'False'],
+    EnableCache: ['True', 'False'],
+    UseAnimation: ['True', 'False'],
+    SwapLogoRight: ['True', 'False'],
+    HasMouseAnimation: ['True', 'False'],
+    IsHitTestVisible: ['True', 'False']
+};
+
+// ======================== Margin 解析与格式化工具 ========================
+function parseMargin(marginStr) {
+    // 默认值 [left, top, right, bottom]
+    const defaults = [0, 0, 0, 0];
+    if (!marginStr || marginStr.trim() === '') return defaults;
+    const parts = marginStr.split(',').map(p => parseFloat(p.trim()));
+    if (parts.length === 1) {
+        const v = parts[0];
+        return [v, v, v, v];
+    } else if (parts.length === 2) {
+        return [parts[0], parts[1], parts[0], parts[1]];
+    } else if (parts.length === 3) {
+        return [parts[0], parts[1], parts[2], parts[1]];
+    } else if (parts.length >= 4) {
+        return [parts[0], parts[1], parts[2], parts[3]];
+    }
+    return defaults;
+}
+
+function formatMargin(left, top, right, bottom) {
+    // 去除末尾多余的0（如果四个值相等则简化为一个值）
+    if (left === top && top === right && right === bottom) {
+        return left.toString();
+    }
+    if (left === right && top === bottom) {
+        return `${left},${top}`;
+    }
+    return `${left},${top},${right},${bottom}`;
+}
+
 // modules/ComponentTypes.js
 const ComponentTypes = {
     card: {
@@ -382,39 +430,79 @@ class RenderManager {
         this.updateHierarchyBar();
     }
 
-    updatePropsPanel() {
-        const comp = ComponentFinder.findComponentById(App.state.selectedId);
-        document.getElementById('compTypeName').innerText = comp ? (ComponentTypes[comp.type]?.name || comp.type) : '未选中';
-        document.getElementById('compIdDisplay').innerText = comp ? comp.id : '-';
-        if (!comp) {
-            document.getElementById('dynamicProps').innerHTML = '';
-            document.getElementById('eventTypeSelect').value = '';
-            document.getElementById('eventDataInput').value = '';
-            return;
-        }
-
-        const container = document.getElementById('dynamicProps');
-        container.innerHTML = '';
-        const groups = this.getPropGroups(comp);
-        for (let group of groups) {
-            const section = document.createElement('div');
-            section.className = 'prop-section';
-            section.innerHTML = `<div class="prop-section-title"><i class="${group.icon}"></i> ${group.title}</div>`;
-            for (let field of group.fields) {
-                const fieldDiv = document.createElement('div');
-                fieldDiv.className = 'prop-field';
-                const isLong = (field.key === 'Text' || field.key === 'Info');
-                const inputHtml = isLong ?
-                    `<textarea data-prop="${field.key}" rows="2">${Utils.escapeHtml(String(field.val))}</textarea>` :
-                    `<input data-prop="${field.key}" value="${Utils.escapeHtml(String(field.val))}" />`;
-                fieldDiv.innerHTML = `<label>${field.key}</label>${inputHtml}`;
-                section.appendChild(fieldDiv);
-            }
-            container.appendChild(section);
-        }
-        document.getElementById('eventTypeSelect').value = comp.events?.type || '';
-        document.getElementById('eventDataInput').value = comp.events?.data || '';
+updatePropsPanel() {
+    const comp = ComponentFinder.findComponentById(App.state.selectedId);
+    document.getElementById('compTypeName').innerText = comp ? (ComponentTypes[comp.type]?.name || comp.type) : '未选中';
+    document.getElementById('compIdDisplay').innerText = comp ? comp.id : '-';
+    if (!comp) {
+        document.getElementById('dynamicProps').innerHTML = '';
+        document.getElementById('eventTypeSelect').value = '';
+        document.getElementById('eventDataInput').value = '';
+        return;
     }
+
+    const container = document.getElementById('dynamicProps');
+    container.innerHTML = '';
+    const groups = this.getPropGroups(comp);
+    
+    for (let group of groups) {
+        const section = document.createElement('div');
+        section.className = 'prop-section';
+        section.innerHTML = `<div class="prop-section-title"><i class="${group.icon}"></i> ${Utils.escapeHtml(group.title)}</div>`;
+        
+        for (let field of group.fields) {
+            const fieldDiv = document.createElement('div');
+            fieldDiv.className = 'prop-field';
+            
+            // 特殊处理 Margin 属性：拆分为四个独立输入框
+            if (field.key === 'Margin') {
+                const marginValues = parseMargin(field.val);
+                const [left, top, right, bottom] = marginValues;
+                fieldDiv.innerHTML = `
+                    <label>Margin (左,上,右,下)</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div><label style="font-size:0.65rem;">左</label>
+                        <input type="number" class="margin-part" data-margin="left" value="${Utils.escapeHtml(String(left))}" step="any" style="width:100%;"></div>
+                        <div><label style="font-size:0.65rem;">上</label>
+                        <input type="number" class="margin-part" data-margin="top" value="${Utils.escapeHtml(String(top))}" step="any" style="width:100%;"></div>
+                        <div><label style="font-size:0.65rem;">右</label>
+                        <input type="number" class="margin-part" data-margin="right" value="${Utils.escapeHtml(String(right))}" step="any" style="width:100%;"></div>
+                        <div><label style="font-size:0.65rem;">下</label>
+                        <input type="number" class="margin-part" data-margin="bottom" value="${Utils.escapeHtml(String(bottom))}" step="any" style="width:100%;"></div>
+                    </div>
+                `;
+                section.appendChild(fieldDiv);
+                continue;
+            }
+            
+            // 判断是否为选择类属性
+            const selectOptions = PROP_SELECT_OPTIONS[field.key];
+            if (selectOptions) {
+                // 生成下拉选择框
+                const selectHtml = `
+                    <label>${Utils.escapeHtml(field.key)}</label>
+                    <select data-prop="${Utils.escapeHtml(field.key)}" class="prop-select">
+                        ${selectOptions.map(opt => `<option value="${Utils.escapeHtml(opt)}" ${opt === field.val ? 'selected' : ''}>${Utils.escapeHtml(opt)}</option>`).join('')}
+                    </select>
+                `;
+                fieldDiv.innerHTML = selectHtml;
+            } else {
+                // 普通文本/数字输入框（长文本使用 textarea）
+                const isLong = (field.key === 'Text' || field.key === 'Info' || field.key === 'ColumnsDefinition' || field.key === 'RowsDefinition');
+                const inputHtml = isLong ?
+                    `<textarea data-prop="${Utils.escapeHtml(field.key)}" rows="2" style="width:100%;">${Utils.escapeHtml(String(field.val))}</textarea>` :
+                    `<input data-prop="${Utils.escapeHtml(field.key)}" value="${Utils.escapeHtml(String(field.val))}" style="width:100%;" />`;
+                fieldDiv.innerHTML = `<label>${Utils.escapeHtml(field.key)}</label>${inputHtml}`;
+            }
+            section.appendChild(fieldDiv);
+        }
+        container.appendChild(section);
+    }
+    
+    // 恢复事件绑定的值
+    document.getElementById('eventTypeSelect').value = comp.events?.type || '';
+    document.getElementById('eventDataInput').value = comp.events?.data || '';
+}
 
     getPropGroups(comp) {
         if (!comp) return [];
@@ -462,26 +550,46 @@ class RenderManager {
         }));
     }
 
-    applyCurrentProps() {
-        const comp = ComponentFinder.findComponentById(App.state.selectedId);
-        if (!comp) return;
+applyCurrentProps() {
+    const comp = ComponentFinder.findComponentById(App.state.selectedId);
+    if (!comp) return;
 
-        // 从表单读取并更新组件属性
-        document.querySelectorAll('#dynamicProps input, #dynamicProps textarea').forEach(inp => {
-            const key = inp.getAttribute('data-prop');
-            if (key) comp.props[key] = inp.value;
-        });
+    // 1. 处理普通属性输入框（带 data-prop 属性的 input/textarea/select）
+    document.querySelectorAll('#dynamicProps input[data-prop], #dynamicProps textarea[data-prop], #dynamicProps select[data-prop]').forEach(inp => {
+        const key = inp.getAttribute('data-prop');
+        if (key) {
+            let value = inp.value;
+            // 对于数字类型属性，保留字符串但做简单修剪
+            if (typeof comp.props[key] === 'number' && !isNaN(parseFloat(value))) {
+                value = parseFloat(value).toString();
+            }
+            comp.props[key] = value;
+        }
+    });
 
-        comp.events = {
-            type: document.getElementById('eventTypeSelect').value,
-            data: document.getElementById('eventDataInput').value
-        };
-
-        // 性能优化：仅局部刷新该组件，而不是全量渲染
-        this.refreshComponent(comp.id);
-        // 刷新后确保属性面板显示最新数据（但 updatePropsPanel 已在 refreshComponent 中调用，此处无需重复）
-        Utils.showToast('属性已更新');
+    // 2. 特殊处理 Margin：从四个独立输入框合成 Margin 字符串
+    const marginLeft = document.querySelector('#dynamicProps .margin-part[data-margin="left"]');
+    const marginTop = document.querySelector('#dynamicProps .margin-part[data-margin="top"]');
+    const marginRight = document.querySelector('#dynamicProps .margin-part[data-margin="right"]');
+    const marginBottom = document.querySelector('#dynamicProps .margin-part[data-margin="bottom"]');
+    if (marginLeft && marginTop && marginRight && marginBottom) {
+        const left = parseFloat(marginLeft.value) || 0;
+        const top = parseFloat(marginTop.value) || 0;
+        const right = parseFloat(marginRight.value) || 0;
+        const bottom = parseFloat(marginBottom.value) || 0;
+        comp.props.Margin = formatMargin(left, top, right, bottom);
     }
+
+    // 3. 保存事件绑定
+    comp.events = {
+        type: document.getElementById('eventTypeSelect').value,
+        data: document.getElementById('eventDataInput').value
+    };
+
+    // 4. 局部刷新该组件
+    this.refreshComponent(comp.id);
+    Utils.showToast('属性已更新');
+}
 }
 
 // modules/XamlProcessor.js
