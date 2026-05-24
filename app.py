@@ -33,9 +33,7 @@ def is_safe_filename(filename: str) -> bool:
 
 def safe_join(base_dir, user_path):
     """安全拼接路径，防止目录遍历"""
-    # 统一分隔符
     user_path = user_path.replace('\\', '/')
-    # 拒绝包含 .. 的路径
     if '..' in user_path.split('/'):
         return None
     absolute_path = os.path.realpath(os.path.join(base_dir, user_path))
@@ -43,13 +41,20 @@ def safe_join(base_dir, user_path):
         return None
     return absolute_path
 
+def atomic_write(filepath: str, content: str):
+    """原子写入文件（先写临时文件，再替换）"""
+    dirname = os.path.dirname(filepath)
+    os.makedirs(dirname, exist_ok=True)
+    tmp_path = filepath + '.tmp'
+    with open(tmp_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    os.replace(tmp_path, filepath)  # 原子替换
+
 # ================== 路由 ==================
 @app.route('/')
 def index():
-    """提供主页面"""
     return send_from_directory('.', 'index.html')
 
-# 显式提供静态文件，避免通配路由泄露源码
 @app.route('/style.css')
 def serve_css():
     return send_from_directory('.', 'style.css')
@@ -61,7 +66,6 @@ def serve_js():
 # ================== API ==================
 @app.route('/api/files', methods=['GET'])
 def list_xml_files():
-    """列出存储目录下所有 .xml 文件"""
     try:
         files = [f for f in os.listdir(BASE_DIR) if f.lower().endswith('.xml') and os.path.isfile(os.path.join(BASE_DIR, f))]
         files.sort(key=lambda x: os.path.getmtime(os.path.join(BASE_DIR, x)), reverse=True)
@@ -71,7 +75,6 @@ def list_xml_files():
 
 @app.route('/api/save', methods=['POST'])
 def save_xml():
-    """保存XAML内容到指定文件（服务端 designs 目录，此处改用 BASE_DIR）"""
     data = request.get_json()
     if not data:
         return jsonify({'success': False, 'error': '无效的请求数据'}), 400
@@ -83,15 +86,13 @@ def save_xml():
         return jsonify({'success': False, 'error': '文件名不合法，仅允许字母数字下划线横线，扩展名为.xml'}), 400
     filepath = os.path.join(BASE_DIR, filename)
     try:
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(content)
+        atomic_write(filepath, content)
         return jsonify({'success': True, 'message': f'已保存到 {filename}'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/load', methods=['GET'])
 def load_xml():
-    """读取指定XML文件内容"""
     filename = request.args.get('filename', '').strip()
     if not filename:
         return jsonify({'success': False, 'error': '缺少文件名参数'}), 400
@@ -109,7 +110,6 @@ def load_xml():
 
 @app.route('/api/delete', methods=['POST'])
 def delete_xml():
-    """删除指定XML文件"""
     data = request.get_json()
     if not data:
         return jsonify({'success': False, 'error': '无效请求'}), 400
@@ -127,7 +127,6 @@ def delete_xml():
 
 @app.route('/api/local/load', methods=['POST'])
 def local_load():
-    """从用户指定的本地路径读取XAML文件（安全限制在 BASE_DIR 内）"""
     data = request.get_json()
     if not data:
         return jsonify({'success': False, 'error': '无效请求'}), 400
@@ -150,7 +149,6 @@ def local_load():
 
 @app.route('/api/local/save', methods=['POST'])
 def local_save():
-    """将当前设计保存到用户指定的本地路径（安全限制在 BASE_DIR 内）"""
     data = request.get_json()
     if not data:
         return jsonify({'success': False, 'error': '无效请求'}), 400
@@ -163,11 +161,9 @@ def local_save():
     safe_path = safe_join(BASE_DIR, user_path)
     if not safe_path:
         return jsonify({'success': False, 'error': '非法路径'}), 400
-    # 确保目录存在
     os.makedirs(os.path.dirname(safe_path), exist_ok=True)
     try:
-        with open(safe_path, 'w', encoding='utf-8') as f:
-            f.write(content)
+        atomic_write(safe_path, content)
         return jsonify({'success': True, 'message': f'已保存到 {user_path}', 'path': user_path})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -176,10 +172,9 @@ def local_save():
 BACKUP_DIR = os.path.join(BASE_DIR, 'backups')
 os.makedirs(BACKUP_DIR, exist_ok=True)
 
-MAX_BACKUPS = 30  # 最多保留30个备份
+MAX_BACKUPS = 30
 
 def get_backup_list():
-    """获取备份文件列表，按修改时间倒序"""
     files = []
     for f in os.listdir(BACKUP_DIR):
         if f.lower().endswith('.xml') and os.path.isfile(os.path.join(BACKUP_DIR, f)):
@@ -195,7 +190,6 @@ def get_backup_list():
     return files
 
 def cleanup_old_backups():
-    """清理超出数量的旧备份"""
     backups = get_backup_list()
     if len(backups) > MAX_BACKUPS:
         for backup in backups[MAX_BACKUPS:]:
@@ -206,7 +200,6 @@ def cleanup_old_backups():
 
 @app.route('/api/backups', methods=['GET'])
 def list_backups():
-    """获取所有备份列表"""
     try:
         return jsonify({'success': True, 'backups': get_backup_list()})
     except Exception as e:
@@ -214,21 +207,19 @@ def list_backups():
 
 @app.route('/api/backup', methods=['POST'])
 def create_backup():
-    """创建新备份（自动保存当前设计）"""
     data = request.get_json()
     if not data:
         return jsonify({'success': False, 'error': '无效请求'}), 400
     content = data.get('content', '')
     if not content.strip():
         return jsonify({'success': False, 'error': '无内容可备份'}), 400
-    
+
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f"backup_{timestamp}.xml"
     filepath = os.path.join(BACKUP_DIR, filename)
-    
+
     try:
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(content)
+        atomic_write(filepath, content)
         cleanup_old_backups()
         return jsonify({'success': True, 'filename': filename, 'message': '备份已创建'})
     except Exception as e:
@@ -236,20 +227,18 @@ def create_backup():
 
 @app.route('/api/backup/load', methods=['GET'])
 def load_backup():
-    """加载指定备份文件"""
     filename = request.args.get('filename', '').strip()
     if not filename:
         return jsonify({'success': False, 'error': '缺少文件名参数'}), 400
-    # 安全检查
     if '..' in filename or '/' in filename or '\\' in filename:
         return jsonify({'success': False, 'error': '非法文件名'}), 400
     if not filename.lower().endswith('.xml'):
         return jsonify({'success': False, 'error': '只支持.xml文件'}), 400
-    
+
     filepath = os.path.join(BACKUP_DIR, filename)
     if not os.path.exists(filepath):
         return jsonify({'success': False, 'error': '备份文件不存在'}), 404
-    
+
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -259,7 +248,6 @@ def load_backup():
 
 @app.route('/api/backup/delete', methods=['POST'])
 def delete_backup():
-    """删除指定备份"""
     data = request.get_json()
     if not data:
         return jsonify({'success': False, 'error': '无效请求'}), 400
@@ -268,11 +256,11 @@ def delete_backup():
         return jsonify({'success': False, 'error': '缺少文件名'}), 400
     if '..' in filename or '/' in filename or '\\' in filename:
         return jsonify({'success': False, 'error': '非法文件名'}), 400
-    
+
     filepath = os.path.join(BACKUP_DIR, filename)
     if not os.path.exists(filepath):
         return jsonify({'success': False, 'error': '文件不存在'}), 404
-    
+
     try:
         os.remove(filepath)
         return jsonify({'success': True, 'message': f'已删除 {filename}'})
@@ -281,5 +269,4 @@ def delete_backup():
 
 if __name__ == '__main__':
     debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
-    # 生产环境请确保 FLASK_DEBUG 环境变量不为 true
     app.run(host='0.0.0.0', port=5000, debug=debug_mode)

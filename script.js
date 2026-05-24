@@ -260,7 +260,8 @@ class ComponentManager {
         return {
             id, type, name: def.name, parentId, children: [],
             props: JSON.parse(JSON.stringify(def.defaults)),
-            events: { type: "", data: "" }
+            events: { type: "", data: "" },
+            customProps: {}   // FIX: 支持未知属性
         };
     }
 
@@ -300,14 +301,33 @@ class ComponentManager {
         return false;
     }
 
+    // FIX: 获取当前组件树中的最大ID
+    static getMaxGlobalId() {
+        let max = 0;
+        const traverse = (list) => {
+            for (let c of list) {
+                if (c.id > max) max = c.id;
+                if (c.children) traverse(c.children);
+            }
+        };
+        traverse(App.state.components);
+        return max;
+    }
+
     static deepCloneComponent(comp, newParentId = null) {
+        // FIX: 确保 nextId 大于当前所有组件ID
+        const currentMax = ComponentManager.getMaxGlobalId();
+        if (App.state.nextId <= currentMax) {
+            App.state.nextId = currentMax + 1;
+        }
         const clone = {
             ...comp,
             id: App.state.nextId++,
             parentId: newParentId,
             children: [],
             props: { ...comp.props },
-            events: { ...comp.events }
+            events: { ...comp.events },
+            customProps: { ...(comp.customProps || {}) }
         };
         for (let child of comp.children) {
             const childClone = ComponentManager.deepCloneComponent(child, clone.id);
@@ -549,6 +569,7 @@ class RenderManager {
         this.updateHierarchyBar();
     }
 
+    // FIX: 异步渲染属性面板，避免卡顿
     updatePropsPanel() {
         const comp = ComponentFinder.findComponentById(App.state.selectedId);
         document.getElementById('compTypeName').innerText = comp ? (ComponentTypes[comp.type]?.name || comp.type) : '未选中';
@@ -561,61 +582,66 @@ class RenderManager {
         }
 
         const container = document.getElementById('dynamicProps');
-        container.innerHTML = '';
-        const groups = this.getPropGroups(comp);
-        
-        for (let group of groups) {
-            const section = document.createElement('div');
-            section.className = 'prop-section';
-            section.innerHTML = `<div class="prop-section-title"><i class="${group.icon}"></i> ${Utils.escapeHtml(group.title)}</div>`;
-            
-            for (let field of group.fields) {
-                const fieldDiv = document.createElement('div');
-                fieldDiv.className = 'prop-field';
-                
-                if (field.key === 'Margin') {
-                    const marginValues = parseMargin(field.val);
-                    const [left, top, right, bottom] = marginValues;
-                    fieldDiv.innerHTML = `
-                        <label>Margin (左,上,右,下)</label>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                            <div><label style="font-size:0.65rem;">左</label>
-                            <input type="number" class="margin-part" data-margin="left" value="${Utils.escapeHtmlAttr(String(left))}" step="any" style="width:100%;"></div>
-                            <div><label style="font-size:0.65rem;">上</label>
-                            <input type="number" class="margin-part" data-margin="top" value="${Utils.escapeHtmlAttr(String(top))}" step="any" style="width:100%;"></div>
-                            <div><label style="font-size:0.65rem;">右</label>
-                            <input type="number" class="margin-part" data-margin="right" value="${Utils.escapeHtmlAttr(String(right))}" step="any" style="width:100%;"></div>
-                            <div><label style="font-size:0.65rem;">下</label>
-                            <input type="number" class="margin-part" data-margin="bottom" value="${Utils.escapeHtmlAttr(String(bottom))}" step="any" style="width:100%;"></div>
-                        </div>
-                    `;
-                    section.appendChild(fieldDiv);
-                    continue;
-                }
-                
-                const selectOptions = PROP_SELECT_OPTIONS[field.key];
-                if (selectOptions) {
-                    const selectHtml = `
-                        <label>${Utils.escapeHtml(field.key)}</label>
-                        <select data-prop="${Utils.escapeHtmlAttr(field.key)}" class="prop-select">
-                            ${selectOptions.map(opt => `<option value="${Utils.escapeHtmlAttr(opt)}" ${opt === field.val ? 'selected' : ''}>${Utils.escapeHtml(opt)}</option>`).join('')}
-                        </select>
-                    `;
-                    fieldDiv.innerHTML = selectHtml;
-                } else {
-                    const isLong = (field.key === 'Text' || field.key === 'Info' || field.key === 'ColumnsDefinition' || field.key === 'RowsDefinition');
-                    const inputHtml = isLong ?
-                        `<textarea data-prop="${Utils.escapeHtmlAttr(field.key)}" rows="2" style="width:100%;">${Utils.escapeHtml(String(field.val))}</textarea>` :
-                        `<input data-prop="${Utils.escapeHtmlAttr(field.key)}" value="${Utils.escapeHtmlAttr(String(field.val))}" style="width:100%;" />`;
-                    fieldDiv.innerHTML = `<label>${Utils.escapeHtml(field.key)}</label>${inputHtml}`;
-                }
-                section.appendChild(fieldDiv);
+        container.innerHTML = '<div class="props-loading">加载属性中...</div>';
+
+        requestIdleCallback(() => {
+            const groups = this.getPropGroups(comp);
+            const fragment = document.createDocumentFragment();
+            for (let group of groups) {
+                fragment.appendChild(this.buildPropSection(group, comp));
             }
-            container.appendChild(section);
+            document.getElementById('eventTypeSelect').value = comp.events?.type || '';
+            document.getElementById('eventDataInput').value = comp.events?.data || '';
+            container.innerHTML = '';
+            container.appendChild(fragment);
+        }, { timeout: 50 });
+    }
+
+    buildPropSection(group, comp) {
+        const section = document.createElement('div');
+        section.className = 'prop-section';
+        section.innerHTML = `<div class="prop-section-title"><i class="${group.icon}"></i> ${Utils.escapeHtml(group.title)}</div>`;
+        for (let field of group.fields) {
+            const fieldDiv = document.createElement('div');
+            fieldDiv.className = 'prop-field';
+            if (field.key === 'Margin') {
+                const marginValues = parseMargin(field.val);
+                const [left, top, right, bottom] = marginValues;
+                fieldDiv.innerHTML = `
+                    <label>Margin (左,上,右,下)</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div><label style="font-size:0.65rem;">左</label>
+                        <input type="number" class="margin-part" data-margin="left" value="${Utils.escapeHtmlAttr(String(left))}" step="any" style="width:100%;"></div>
+                        <div><label style="font-size:0.65rem;">上</label>
+                        <input type="number" class="margin-part" data-margin="top" value="${Utils.escapeHtmlAttr(String(top))}" step="any" style="width:100%;"></div>
+                        <div><label style="font-size:0.65rem;">右</label>
+                        <input type="number" class="margin-part" data-margin="right" value="${Utils.escapeHtmlAttr(String(right))}" step="any" style="width:100%;"></div>
+                        <div><label style="font-size:0.65rem;">下</label>
+                        <input type="number" class="margin-part" data-margin="bottom" value="${Utils.escapeHtmlAttr(String(bottom))}" step="any" style="width:100%;"></div>
+                    </div>
+                `;
+                section.appendChild(fieldDiv);
+                continue;
+            }
+            const selectOptions = PROP_SELECT_OPTIONS[field.key];
+            if (selectOptions) {
+                const selectHtml = `
+                    <label>${Utils.escapeHtml(field.key)}</label>
+                    <select data-prop="${Utils.escapeHtmlAttr(field.key)}" class="prop-select">
+                        ${selectOptions.map(opt => `<option value="${Utils.escapeHtmlAttr(opt)}" ${opt === field.val ? 'selected' : ''}>${Utils.escapeHtml(opt)}</option>`).join('')}
+                    </select>
+                `;
+                fieldDiv.innerHTML = selectHtml;
+            } else {
+                const isLong = (field.key === 'Text' || field.key === 'Info' || field.key === 'ColumnsDefinition' || field.key === 'RowsDefinition');
+                const inputHtml = isLong ?
+                    `<textarea data-prop="${Utils.escapeHtmlAttr(field.key)}" rows="2" style="width:100%;">${Utils.escapeHtml(String(field.val))}</textarea>` :
+                    `<input data-prop="${Utils.escapeHtmlAttr(field.key)}" value="${Utils.escapeHtmlAttr(String(field.val))}" style="width:100%;" />`;
+                fieldDiv.innerHTML = `<label>${Utils.escapeHtml(field.key)}</label>${inputHtml}`;
+            }
+            section.appendChild(fieldDiv);
         }
-        
-        document.getElementById('eventTypeSelect').value = comp.events?.type || '';
-        document.getElementById('eventDataInput').value = comp.events?.data || '';
+        return section;
     }
 
     getPropGroups(comp) {
@@ -640,7 +666,6 @@ class RenderManager {
             else if (behaviorKeys.includes(key)) groups.behavior.fields.push({ key, val });
             else groups.other.fields.push({ key, val });
         }
-
         return Object.values(groups).filter(g => g.fields.length > 0);
     }
 
@@ -704,7 +729,6 @@ class RenderManager {
 
 // modules/XamlProcessor.js
 class XamlProcessor {
-    // 辅助方法：获取去掉命名空间前缀的标签名
     static getLocalTagName(node) {
         const tag = node.tagName;
         if (!tag) return '';
@@ -723,12 +747,23 @@ class XamlProcessor {
             const parseError = xml.querySelector('parsererror');
             if (parseError) {
                 let errMsg = parseError.textContent || 'XML 格式错误';
-                const lineMatch = errMsg.match(/line:?\s*(\d+)/i);
-                const colMatch = errMsg.match(/column:?\s*(\d+)/i);
+                let line = null, column = null;
+                const lineAttr = parseError.getAttribute('line') || parseError.getAttribute('lineNumber');
+                const colAttr = parseError.getAttribute('column') || parseError.getAttribute('columnNumber');
+                if (lineAttr) line = parseInt(lineAttr);
+                if (colAttr) column = parseInt(colAttr);
+                if (!line) {
+                    const lineMatch = errMsg.match(/line:?\s*(\d+)/i) || errMsg.match(/行\s*(\d+)/);
+                    if (lineMatch) line = parseInt(lineMatch[1]);
+                }
+                if (!column) {
+                    const colMatch = errMsg.match(/column:?\s*(\d+)/i) || errMsg.match(/列\s*(\d+)/);
+                    if (colMatch) column = parseInt(colMatch[1]);
+                }
                 let location = '';
-                if (lineMatch) location += `第 ${lineMatch[1]} 行`;
-                if (colMatch) location += `第 ${colMatch[1]} 列`;
-                throw new Error(`XAML 解析失败: ${errMsg.substring(0, 100)}${location ? ` (${location})` : ''}`);
+                if (line) location += `第 ${line} 行`;
+                if (column) location += `第 ${column} 列`;
+                throw new Error(`XAML 解析失败: ${errMsg.substring(0, 200)}${location ? ` (${location})` : ''}`);
             }
 
             const parseNode = (node, parentId = null) => {
@@ -758,7 +793,6 @@ class XamlProcessor {
                     if (val !== null) comp.props[prop] = val;
                 });
 
-                // 处理 Grid 附加属性 (Grid.Row, Grid.Column)
                 const gridRow = node.getAttribute('Grid.Row');
                 if (gridRow !== null) comp.props['Grid.Row'] = gridRow;
                 const gridColumn = node.getAttribute('Grid.Column');
@@ -767,6 +801,21 @@ class XamlProcessor {
                 if (gridRowSpan !== null) comp.props['Grid.RowSpan'] = gridRowSpan;
                 const gridColumnSpan = node.getAttribute('Grid.ColumnSpan');
                 if (gridColumnSpan !== null) comp.props['Grid.ColumnSpan'] = gridColumnSpan;
+
+                // FIX: 收集所有未知属性
+                const knownProps = new Set([
+                    ...commonProps,
+                    'Title', 'Text', 'Source', 'Height', 'ColorType', 'Padding', 'FontSize', 'TextWrapping', 'Foreground',
+                    'Theme', 'Logo', 'Type', 'Info', 'ColumnsDefinition', 'RowsDefinition', 'Orientation',
+                    'CanSwap', 'IsSwapped', 'Grid.Row', 'Grid.Column', 'Grid.RowSpan', 'Grid.ColumnSpan'
+                ]);
+                for (let attr of node.attributes) {
+                    const name = attr.name;
+                    const value = attr.value;
+                    if (!knownProps.has(name) && name !== 'EventType' && name !== 'EventData') {
+                        comp.customProps[name] = value;
+                    }
+                }
 
                 if (type === 'card') {
                     comp.props.Title = node.getAttribute('Title') || '卡片';
@@ -852,20 +901,9 @@ class XamlProcessor {
 
             if (newComponents.length) {
                 App.state.components = newComponents;
-                App.state.nextId = Math.max(
-                    (function getMaxId(comps) {
-                        let max = 0;
-                        const traverse = (list) => {
-                            for (let c of list) {
-                                if (c.id > max) max = c.id;
-                                if (c.children) traverse(c.children);
-                            }
-                        };
-                        traverse(comps);
-                        return max;
-                    })(App.state.components) + 1,
-                    200
-                );
+                // 更新 nextId
+                const maxId = ComponentManager.getMaxGlobalId();
+                App.state.nextId = maxId + 1;
                 App.state.selectedId = null;
                 App.renderManager.renderCanvas();
                 Utils.showToast(`成功导入 ${newComponents.length} 个组件`);
@@ -879,124 +917,127 @@ class XamlProcessor {
         }
     }
 
-generateXAML(comps, indent = 0) {
-    let xaml = '';
-    const spaces = '  '.repeat(indent);
+    generateXAML(comps, indent = 0) {
+        let xaml = '';
+        const spaces = '  '.repeat(indent);
 
-    for (let comp of comps) {
-        const attrs = [];
-        const commonAttrs = ['Margin', 'ToolTip', 'HorizontalAlignment', 'VerticalAlignment'];
-        commonAttrs.forEach(attr => {
-            if (comp.props[attr] && comp.props[attr] !== '') {
-                attrs.push(`${attr}="${Utils.escapeXml(comp.props[attr])}"`);
-            }
-        });
-
-        // 附加属性：Grid.Row, Grid.Column 等
-        const gridAttrs = ['Grid.Row', 'Grid.Column', 'Grid.RowSpan', 'Grid.ColumnSpan'];
-        gridAttrs.forEach(attr => {
-            if (comp.props[attr] && comp.props[attr] !== '') {
-                attrs.push(`${attr}="${Utils.escapeXml(comp.props[attr])}"`);
-            }
-        });
-
-        if (comp.type === 'card') {
-            attrs.push(`Title="${Utils.escapeXml(comp.props.Title)}"`);
-            attrs.push(`CanSwap="${comp.props.CanSwap || 'True'}"`);
-            attrs.push(`IsSwapped="${comp.props.IsSwapped || 'True'}"`);
-            xaml += `${spaces}<local:MyCard ${attrs.join(' ')}>\n`;
-            for (let child of comp.children) {
-                xaml += this.generateXAML([child], indent + 1);
-            }
-            xaml += `${spaces}</local:MyCard>\n\n`;
-        }
-        else if (comp.type === 'grid') {
-            xaml += `${spaces}<Grid ${attrs.join(' ')}>\n`;
-            if (comp.props.ColumnsDefinition) {
-                const cols = comp.props.ColumnsDefinition.split(';');
-                if (cols.length && !(cols.length === 1 && cols[0] === '')) {
-                    xaml += `${spaces}  <Grid.ColumnDefinitions>\n`;
-                    cols.forEach(w => {
-                        xaml += `${spaces}    <ColumnDefinition Width="${Utils.escapeXml(w.trim())}"/>\n`;
-                    });
-                    xaml += `${spaces}  </Grid.ColumnDefinitions>\n`;
+        for (let comp of comps) {
+            const attrs = [];
+            const commonAttrs = ['Margin', 'ToolTip', 'HorizontalAlignment', 'VerticalAlignment'];
+            commonAttrs.forEach(attr => {
+                if (comp.props[attr] && comp.props[attr] !== '') {
+                    attrs.push(`${attr}="${Utils.escapeXml(comp.props[attr])}"`);
                 }
-            }
-            if (comp.props.RowsDefinition) {
-                const rows = comp.props.RowsDefinition.split(';');
-                if (rows.length && !(rows.length === 1 && rows[0] === '')) {
-                    xaml += `${spaces}  <Grid.RowDefinitions>\n`;
-                    rows.forEach(h => {
-                        xaml += `${spaces}    <RowDefinition Height="${Utils.escapeXml(h.trim())}"/>\n`;
-                    });
-                    xaml += `${spaces}  </Grid.RowDefinitions>\n`;
+            });
+
+            const gridAttrs = ['Grid.Row', 'Grid.Column', 'Grid.RowSpan', 'Grid.ColumnSpan'];
+            gridAttrs.forEach(attr => {
+                if (comp.props[attr] && comp.props[attr] !== '') {
+                    attrs.push(`${attr}="${Utils.escapeXml(comp.props[attr])}"`);
                 }
+            });
+
+            // FIX: 统一添加事件属性
+            if (comp.events?.type) {
+                attrs.push(`EventType="${Utils.escapeXml(comp.events.type)}"`);
+                attrs.push(`EventData="${Utils.escapeXml(comp.events.data || '')}"`);
             }
-            for (let child of comp.children) {
-                xaml += this.generateXAML([child], indent + 1);
+
+            // FIX: 添加自定义属性
+            for (const [key, val] of Object.entries(comp.customProps || {})) {
+                attrs.push(`${key}="${Utils.escapeXml(val)}"`);
             }
-            xaml += `${spaces}</Grid>\n\n`;
-        }
-        else if (comp.type === 'stackpanel') {
-            xaml += `${spaces}<StackPanel ${attrs.join(' ')}>\n`;
-            for (let child of comp.children) {
-                xaml += this.generateXAML([child], indent + 1);
+
+            if (comp.type === 'card') {
+                attrs.push(`Title="${Utils.escapeXml(comp.props.Title)}"`);
+                attrs.push(`CanSwap="${comp.props.CanSwap || 'True'}"`);
+                attrs.push(`IsSwapped="${comp.props.IsSwapped || 'True'}"`);
+                xaml += `${spaces}<local:MyCard ${attrs.join(' ')}>\n`;
+                for (let child of comp.children) {
+                    xaml += this.generateXAML([child], indent + 1);
+                }
+                xaml += `${spaces}</local:MyCard>\n\n`;
             }
-            xaml += `${spaces}</StackPanel>\n\n`;
-        }
-        else if (comp.type === 'horizontalstack') {
-            attrs.push('Orientation="Horizontal"');
-            xaml += `${spaces}<StackPanel ${attrs.join(' ')}>\n`;
-            for (let child of comp.children) {
-                xaml += this.generateXAML([child], indent + 1);
+            else if (comp.type === 'grid') {
+                xaml += `${spaces}<Grid ${attrs.join(' ')}>\n`;
+                if (comp.props.ColumnsDefinition) {
+                    const cols = comp.props.ColumnsDefinition.split(';');
+                    if (cols.length && !(cols.length === 1 && cols[0] === '')) {
+                        xaml += `${spaces}  <Grid.ColumnDefinitions>\n`;
+                        cols.forEach(w => {
+                            xaml += `${spaces}    <ColumnDefinition Width="${Utils.escapeXml(w.trim())}"/>\n`;
+                        });
+                        xaml += `${spaces}  </Grid.ColumnDefinitions>\n`;
+                    }
+                }
+                if (comp.props.RowsDefinition) {
+                    const rows = comp.props.RowsDefinition.split(';');
+                    if (rows.length && !(rows.length === 1 && rows[0] === '')) {
+                        xaml += `${spaces}  <Grid.RowDefinitions>\n`;
+                        rows.forEach(h => {
+                            xaml += `${spaces}    <RowDefinition Height="${Utils.escapeXml(h.trim())}"/>\n`;
+                        });
+                        xaml += `${spaces}  </Grid.RowDefinitions>\n`;
+                    }
+                }
+                for (let child of comp.children) {
+                    xaml += this.generateXAML([child], indent + 1);
+                }
+                xaml += `${spaces}</Grid>\n\n`;
             }
-            xaml += `${spaces}</StackPanel>\n\n`;
+            else if (comp.type === 'stackpanel') {
+                xaml += `${spaces}<StackPanel ${attrs.join(' ')}>\n`;
+                for (let child of comp.children) {
+                    xaml += this.generateXAML([child], indent + 1);
+                }
+                xaml += `${spaces}</StackPanel>\n\n`;
+            }
+            else if (comp.type === 'horizontalstack') {
+                attrs.push('Orientation="Horizontal"');
+                xaml += `${spaces}<StackPanel ${attrs.join(' ')}>\n`;
+                for (let child of comp.children) {
+                    xaml += this.generateXAML([child], indent + 1);
+                }
+                xaml += `${spaces}</StackPanel>\n\n`;
+            }
+            else if (comp.type === 'text') {
+                attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
+                if (comp.props.FontSize) attrs.push(`FontSize="${comp.props.FontSize}"`);
+                if (comp.props.TextWrapping) attrs.push(`TextWrapping="${comp.props.TextWrapping}"`);
+                if (comp.props.Foreground) attrs.push(`Foreground="${comp.props.Foreground}"`);
+                xaml += `${spaces}<TextBlock ${attrs.join(' ')} />\n`;
+            }
+            else if (comp.type === 'hint') {
+                attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
+                if (comp.props.Theme) attrs.push(`Theme="${comp.props.Theme}"`);
+                xaml += `${spaces}<local:MyHint ${attrs.join(' ')} />\n`;
+            }
+            else if (comp.type === 'image') {
+                attrs.push(`Source="${Utils.escapeXml(comp.props.Source)}"`);
+                if (comp.props.Height) attrs.push(`Height="${comp.props.Height}"`);
+                xaml += `${spaces}<local:MyImage ${attrs.join(' ')} />\n`;
+            }
+            else if (comp.type === 'button') {
+                attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
+                if (comp.props.ColorType) attrs.push(`ColorType="${comp.props.ColorType}"`);
+                if (comp.props.Height) attrs.push(`Height="${comp.props.Height}"`);
+                if (comp.props.Padding) attrs.push(`Padding="${comp.props.Padding}"`);
+                xaml += `${spaces}<local:MyButton ${attrs.join(' ')} />\n`;
+            }
+            else if (comp.type === 'textbutton') {
+                attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
+                xaml += `${spaces}<local:MyTextButton ${attrs.join(' ')} />\n`;
+            }
+            else if (comp.type === 'listitem') {
+                attrs.push(`Title="${Utils.escapeXml(comp.props.Title)}"`);
+                attrs.push(`Info="${Utils.escapeXml(comp.props.Info)}"`);
+                attrs.push(`Logo="${Utils.escapeXml(comp.props.Logo)}"`);
+                attrs.push(`Type="${comp.props.Type || 'Clickable'}"`);
+                xaml += `${spaces}<local:MyListItem ${attrs.join(' ')} />\n`;
+            }
         }
-        else if (comp.type === 'text') {
-            attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
-            if (comp.props.FontSize) attrs.push(`FontSize="${comp.props.FontSize}"`);
-            if (comp.props.TextWrapping) attrs.push(`TextWrapping="${comp.props.TextWrapping}"`);
-            if (comp.props.Foreground) attrs.push(`Foreground="${comp.props.Foreground}"`);
-            xaml += `${spaces}<TextBlock ${attrs.join(' ')} />\n`;
-        }
-        else if (comp.type === 'hint') {
-            attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
-            if (comp.props.Theme) attrs.push(`Theme="${comp.props.Theme}"`);
-            xaml += `${spaces}<local:MyHint ${attrs.join(' ')} />\n`;
-        }
-        else if (comp.type === 'image') {
-            attrs.push(`Source="${Utils.escapeXml(comp.props.Source)}"`);
-            if (comp.props.Height) attrs.push(`Height="${comp.props.Height}"`);
-            // 注意：HorizontalAlignment 已由 commonAttrs 处理，不再重复添加
-            xaml += `${spaces}<local:MyImage ${attrs.join(' ')} />\n`;
-        }
-        else if (comp.type === 'button') {
-            attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
-            if (comp.props.ColorType) attrs.push(`ColorType="${comp.props.ColorType}"`);
-            if (comp.props.Height) attrs.push(`Height="${comp.props.Height}"`);
-            if (comp.props.Padding) attrs.push(`Padding="${comp.props.Padding}"`);
-            // Margin 已由 commonAttrs 处理，不再重复添加
-            if (comp.events?.type) attrs.push(`EventType="${Utils.escapeXml(comp.events.type)}" EventData="${Utils.escapeXml(comp.events.data || '')}"`);
-            xaml += `${spaces}<local:MyButton ${attrs.join(' ')} />\n`;
-        }
-        else if (comp.type === 'textbutton') {
-            attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
-            // Margin 已由 commonAttrs 处理，不再重复添加
-            if (comp.events?.type) attrs.push(`EventType="${Utils.escapeXml(comp.events.type)}" EventData="${Utils.escapeXml(comp.events.data || '')}"`);
-            xaml += `${spaces}<local:MyTextButton ${attrs.join(' ')} />\n`;
-        }
-        else if (comp.type === 'listitem') {
-            attrs.push(`Title="${Utils.escapeXml(comp.props.Title)}"`);
-            attrs.push(`Info="${Utils.escapeXml(comp.props.Info)}"`);
-            attrs.push(`Logo="${Utils.escapeXml(comp.props.Logo)}"`);
-            attrs.push(`Type="${comp.props.Type || 'Clickable'}"`);
-            // Margin 已由 commonAttrs 处理，不再重复添加
-            if (comp.events?.type) attrs.push(`EventType="${Utils.escapeXml(comp.events.type)}" EventData="${Utils.escapeXml(comp.events.data || '')}"`);
-            xaml += `${spaces}<local:MyListItem ${attrs.join(' ')} />\n`;
-        }
+        return xaml;
     }
-    return xaml;
-}
 }
 
 // modules/FileManager.js
@@ -1004,7 +1045,7 @@ class FileManager {
     constructor() {
         this.currentFileHandle = null;
         this.currentFileName = '';
-        this.currentFileBlob = null;   // 用于传统方式打开的文件内容暂存
+        this.currentFileBlob = null;
     }
 
     isFileSystemAccessSupported() {
@@ -1023,7 +1064,6 @@ class FileManager {
                 if (confirm('打开文件将替换当前所有组件，是否继续？')) {
                     App.xamlProcessor.importFromXAML(text);
                     Utils.showToast(`已打开: ${file.name} (只读模式，如需保存请使用另存为)`);
-                    // 传统方式：保存文件引用和名称，但没有写入句柄
                     this.currentFileHandle = null;
                     this.currentFileName = file.name;
                     this.currentFileBlob = new Blob([text], { type: 'text/plain' });
@@ -1057,7 +1097,6 @@ class FileManager {
     }
 
     async saveToLinkedFile() {
-        // 有可写的文件句柄
         if (this.currentFileHandle && this.isFileSystemAccessSupported()) {
             const xamlContent = App.xamlProcessor.generateXAML(App.state.components);
             if (!xamlContent.trim()) {
@@ -1077,16 +1116,14 @@ class FileManager {
             }
         }
 
-        // 没有句柄但存在文件名（传统打开方式） -> 尝试另存为覆盖原文件
         if (this.currentFileName && !this.currentFileHandle) {
             const overwrite = confirm(`文件 "${this.currentFileName}" 为只读打开，是否另存为覆盖它？\n点击“确定”将选择该文件保存，点击“取消”将不保存。`);
             if (overwrite) {
-                await this.saveAsLocalFile(true); // 覆盖模式，预设文件名
+                await this.saveAsLocalFile(true);
             }
             return;
         }
 
-        // 没有任何链接文件
         Utils.showToast('没有链接的本地文件，请先“打开本地文件”或使用“另存为”', true);
     }
 
@@ -1117,7 +1154,6 @@ class FileManager {
                 if (err.name !== 'AbortError') Utils.showToast('保存失败: ' + err.message, true);
             }
         } else {
-            // 不支持 File System Access，直接下载
             const blob = new Blob([xamlContent], { type: 'text/plain' });
             const link = document.createElement('a');
             const downloadName = this.currentFileName || 'design.xaml';
@@ -1126,7 +1162,6 @@ class FileManager {
             link.click();
             URL.revokeObjectURL(link.href);
             Utils.showToast(`已下载文件 ${downloadName}`);
-            // 更新链接状态：当前文件改为这个下载的文件（无句柄，但记录名称）
             this.currentFileName = downloadName;
             this.currentFileHandle = null;
             this.currentFileBlob = blob;
@@ -1160,11 +1195,11 @@ class FileManager {
     }
 }
 
-// modules/ServerApi.js - 重写为自动备份API，增加焦点记忆
+// modules/ServerApi.js
 class ServerApi {
     constructor() {
         this.backups = [];
-        this.lastSelectedBackup = null; // 记录最近选中的备份文件名
+        this.lastSelectedBackup = null;
     }
 
     async getBackupList() {
@@ -1258,27 +1293,79 @@ class ServerApi {
 
 // modules/DragDropManager.js
 class DragDropManager {
-    handleFileImport(file) {
+    // FIX: 大文件分块读取 + 进度指示
+    createProgressOverlay() {
+        let overlay = document.getElementById('globalProgressOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'globalProgressOverlay';
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+                display: flex; align-items: center; justify-content: center;
+                z-index: 10001; flex-direction: column; gap: 16px;
+                color: white; font-weight: 500;
+            `;
+            overlay.innerHTML = `
+                <div><i class="fas fa-spinner fa-pulse fa-2x"></i></div>
+                <div>正在读取文件...</div>
+                <div class="progress-bar-container" style="width: 300px; height: 8px; background: rgba(255,255,255,0.3); border-radius: 4px;">
+                    <div class="progress-bar-fill" style="width: 0%; height: 100%; background: var(--primary); border-radius: 4px; transition: width 0.2s;"></div>
+                </div>
+                <div class="progress-text">0%</div>
+            `;
+            document.body.appendChild(overlay);
+        }
+        return {
+            updateProgress: (percent) => {
+                const fill = overlay.querySelector('.progress-bar-fill');
+                const text = overlay.querySelector('.progress-text');
+                if (fill) fill.style.width = `${percent}%`;
+                if (text) text.innerText = `${Math.round(percent)}%`;
+            },
+            close: () => {
+                overlay.remove();
+            }
+        };
+    }
+
+    async handleFileImport(file) {
         if (!file) return;
         const ext = file.name.split('.').pop().toLowerCase();
         if (ext !== 'xaml' && ext !== 'xml') {
             Utils.showToast('请拖入 .xaml 或 .xml 文件', true);
             return;
         }
-        if (confirm('拖入文件将替换当前所有组件，是否继续？')) {
-            // 显示 loading 遮罩
-            this.showLoadingOverlay('正在读取文件，请稍候...');
+        if (!confirm('拖入文件将替换当前所有组件，是否继续？')) return;
+
+        const CHUNK_SIZE = 1024 * 1024; // 1MB
+        const totalSize = file.size;
+        let offset = 0;
+        let content = '';
+        const progress = this.createProgressOverlay();
+
+        const readNextChunk = () => {
+            const chunk = file.slice(offset, offset + CHUNK_SIZE);
             const reader = new FileReader();
             reader.onload = (e) => {
-                this.hideLoadingOverlay();
-                App.xamlProcessor.importFromXAML(e.target.result);
+                content += e.target.result;
+                offset += CHUNK_SIZE;
+                const percent = Math.min(100, (offset / totalSize) * 100);
+                progress.updateProgress(percent);
+                if (offset < totalSize) {
+                    setTimeout(readNextChunk, 0);
+                } else {
+                    progress.close();
+                    App.xamlProcessor.importFromXAML(content);
+                }
             };
             reader.onerror = () => {
-                this.hideLoadingOverlay();
+                progress.close();
                 Utils.showToast('文件读取失败', true);
             };
-            reader.readAsText(file, 'UTF-8');
-        }
+            reader.readAsText(chunk, 'UTF-8');
+        };
+        readNextChunk();
     }
 
     showLoadingOverlay(msg = '加载中...') {
@@ -1328,7 +1415,6 @@ class DragDropManager {
             if (files && files.length > 0) {
                 e.preventDefault();
                 e.stopPropagation();
-                // 大文件提醒（>5MB）
                 if (files[0].size > 5 * 1024 * 1024) {
                     Utils.showToast('文件较大，加载可能需要几秒钟...', false);
                 }
@@ -1362,8 +1448,9 @@ class DragDropManager {
             }
         });
 
+        // FIX: 改进 dragleave 清除高亮
         designContainer.addEventListener('dragleave', (e) => {
-            if (currentDropZone && !currentDropZone.contains(e.relatedTarget)) {
+            if (currentDropZone && !designContainer.contains(e.relatedTarget)) {
                 currentDropZone.classList.remove('drag-over');
                 currentDropZone = null;
             }
@@ -1414,11 +1501,11 @@ class DragDropManager {
         });
 
         document.addEventListener('dragend', () => {
-            pendingDragType = null;
             if (currentDropZone) {
                 currentDropZone.classList.remove('drag-over');
                 currentDropZone = null;
             }
+            pendingDragType = null;
         });
 
         const container = document.getElementById('componentsList');
@@ -1502,16 +1589,13 @@ class UIManager {
             </div>
         `;
         
-        // 高亮上一次选中的备份（如果还在列表中）
         if (App.serverApi.lastSelectedBackup) {
             const targetItem = container.querySelector(`.backup-item[data-name="${App.serverApi.lastSelectedBackup}"]`);
             if (targetItem) {
                 targetItem.style.backgroundColor = 'var(--primary-soft)';
                 targetItem.style.borderColor = 'var(--primary)';
-                // 可选：滚动到视图
                 targetItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } else {
-                // 已删除，清除记忆
                 App.serverApi.lastSelectedBackup = null;
             }
         }
@@ -1529,7 +1613,7 @@ class UIManager {
             btn.addEventListener('click', async (e) => {
                 const name = btn.getAttribute('data-name');
                 await App.serverApi.deleteBackup(name);
-                await this.renderBackupList(); // 刷新列表
+                await this.renderBackupList();
             });
         });
         
