@@ -643,32 +643,30 @@ class RenderManager {
                 }
                 wrapper.appendChild(img);
             }
-            else if (comp.type === 'button') {
-                const btn = document.createElement('button');
-                btn.className = 'btn';
-                btn.textContent = comp.props.Text || '按钮';
-                let bgColor = '#4f46e5';
-                if (comp.props.ColorType === 'Highlight') bgColor = '#4f46e5';
-                else if (comp.props.ColorType === 'Primary') bgColor = '#3b82f6';
-                else if (comp.props.ColorType === 'Secondary') bgColor = '#64748b';
-                else if (comp.props.ColorType === 'Success') bgColor = '#10b981';
-                else if (comp.props.ColorType === 'Danger') bgColor = '#ef4444';
-                btn.style.backgroundColor = bgColor;
-                btn.style.color = 'white';
-                btn.style.border = 'none';
-                btn.style.padding = '8px 16px';
-                btn.style.borderRadius = '30px';
-                wrapper.appendChild(btn);
-            }
-            else if (comp.type === 'textbutton') {
-                const btn = document.createElement('button');
-                btn.style.background = 'none';
-                btn.style.border = 'none';
-                btn.style.color = 'var(--primary)';
-                btn.style.cursor = 'pointer';
-                btn.textContent = comp.props.Text || '文本按钮';
-                wrapper.appendChild(btn);
-            }
+else if (comp.type === 'button') {
+    const btn = document.createElement('button');
+    btn.textContent = comp.props.Text || '按钮';
+    let colorType = comp.props.ColorType || 'Highlight';
+    // 映射到 CSS 类
+    let btnClass = 'btn';
+    if (colorType === 'Highlight') btnClass += ' btn-highlight';
+    else if (colorType === 'Primary') btnClass += ' btn-primary';
+    else if (colorType === 'Secondary') btnClass += ' btn-secondary';
+    else if (colorType === 'Success') btnClass += ' btn-success';
+    else if (colorType === 'Danger') btnClass += ' btn-danger';
+    btn.className = btnClass;
+    // 如果有自定义高度/边距，保留样式
+    if (comp.props.Height) btn.style.height = comp.props.Height + 'px';
+    if (comp.props.Padding) btn.style.padding = comp.props.Padding.replace(/,/g, ' ');
+    wrapper.appendChild(btn);
+}
+else if (comp.type === 'textbutton') {
+    const btn = document.createElement('button');
+    btn.className = 'btn-text';
+    btn.textContent = comp.props.Text || '文本按钮';
+    // 保留 Margin 等属性（由外层 wrapper 负责）
+    wrapper.appendChild(btn);
+}
             else if (comp.type === 'listitem') {
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'list-item-mock';
