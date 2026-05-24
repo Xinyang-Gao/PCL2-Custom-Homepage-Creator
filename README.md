@@ -7,6 +7,8 @@
 ![后端](https://img.shields.io/badge/Flask-2.0+-lightgrey)
 ![许可](https://img.shields.io/badge/license-MIT-green)
 
+<img width="1919" height="962" alt="捕获" src="https://github.com/user-attachments/assets/61d3feb3-d0d9-40cd-a3df-44dfc3a1e88a" />
+
 ---
 
 ## 主要功能
