@@ -270,6 +270,61 @@ class ComponentFinder {
     }
 }
 
+// ======================== #8 历史管理器 ========================
+class HistoryManager {
+    constructor(maxSize = 50) {
+        this.undoStack = [];
+        this.redoStack = [];
+        this.maxSize = maxSize;
+        this.ignoreNext = false;
+    }
+
+    getSnapshot() {
+        return JSON.parse(JSON.stringify(App.state.components));
+    }
+
+    pushState() {
+        if (this.ignoreNext) {
+            this.ignoreNext = false;
+            return;
+        }
+        const snapshot = this.getSnapshot();
+        this.undoStack.push(snapshot);
+        if (this.undoStack.length > this.maxSize) this.undoStack.shift();
+        this.redoStack = [];
+    }
+
+    undo() {
+        if (this.undoStack.length === 0) return false;
+        const current = this.getSnapshot();
+        this.redoStack.push(current);
+        const previous = this.undoStack.pop();
+        this.ignoreNext = true;
+        App.state.components = previous;
+        App.state.selectedId = null;
+        App.renderManager.renderCanvas();
+        App.markDirty();
+        return true;
+    }
+
+    redo() {
+        if (this.redoStack.length === 0) return false;
+        const next = this.redoStack.pop();
+        this.undoStack.push(this.getSnapshot());
+        this.ignoreNext = true;
+        App.state.components = next;
+        App.state.selectedId = null;
+        App.renderManager.renderCanvas();
+        App.markDirty();
+        return true;
+    }
+
+    reset() {
+        this.undoStack = [];
+        this.redoStack = [];
+    }
+}
+
 // modules/ComponentManager.js
 class ComponentManager {
     static getMaxGlobalId() {
@@ -288,19 +343,20 @@ class ComponentManager {
         return this.getMaxGlobalId() + 1;
     }
 
-static createComponent(type, parentId = null, customId = null) {
-    const def = ComponentTypes[type];
-    if (!def) return null;
-    const id = (customId !== null) ? customId : this.getNextId();
-    return {
-        id, type, name: def.name, parentId, children: [],
-        props: JSON.parse(JSON.stringify(def.defaults)),
-        events: { type: "", data: "" },
-        customProps: {}
-    };
-}
+    static createComponent(type, parentId = null, customId = null) {
+        const def = ComponentTypes[type];
+        if (!def) return null;
+        const id = (customId !== null) ? customId : this.getNextId();
+        return {
+            id, type, name: def.name, parentId, children: [],
+            props: JSON.parse(JSON.stringify(def.defaults)),
+            events: { type: "", data: "" },
+            customProps: {}
+        };
+    }
 
     static addComponent(comp, targetParentId = null, insertIndex = null) {
+        App.recordSnapshot();  // #8 记录快照
         if (targetParentId === null) {
             if (insertIndex !== null && insertIndex >= 0 && insertIndex <= App.state.components.length) {
                 App.state.components.splice(insertIndex, 0, comp);
@@ -327,6 +383,7 @@ static createComponent(type, parentId = null, customId = null) {
     }
 
     static removeComponentById(id) {
+        App.recordSnapshot();  // #8 记录快照
         let removedComp = null;
         let parentOfRemoved = null;
 
@@ -390,6 +447,7 @@ static createComponent(type, parentId = null, customId = null) {
 
     static duplicateComponent(comp) {
         if (!comp) return false;
+        App.recordSnapshot();  // #8 记录快照
         const parentId = comp.parentId;
         let parentList = null;
         let originalIndex = -1;
@@ -420,6 +478,7 @@ static createComponent(type, parentId = null, customId = null) {
     static moveComponentTo(compId, newParentId, newIndex) {
         const comp = ComponentFinder.findComponentById(compId);
         if (!comp) return false;
+        App.recordSnapshot();  // #8 记录快照
         const oldParentId = comp.parentId;
         // 禁止将父组件移动到自己的子组件中
         if (newParentId !== null) {
@@ -462,7 +521,7 @@ static createComponent(type, parentId = null, customId = null) {
             }
         }
 
-        // 4. 刷新画布（简化逻辑，避免 DOM 移动出错）
+        // 4. 刷新画布
         App.renderManager.renderCanvas();
         App.renderManager.selectComponent(compId);
         App.markDirty();
@@ -482,8 +541,6 @@ class RenderManager {
         if (comp.props.ToolTip) {
             wrapper.setAttribute('title', comp.props.ToolTip);
         }
-
-        // 移除了 click 监听，改为全局事件委托（在 App.init 中绑定）
 
         if (comp.type === 'card') {
             const cardDiv = document.createElement('div');
@@ -713,48 +770,76 @@ class RenderManager {
         this.updateHierarchyBar();
     }
 
-updatePropsPanel() {
-    const comp = ComponentFinder.findComponentById(App.state.selectedId);
-    document.getElementById('compTypeName').innerText = comp ? (ComponentTypes[comp.type]?.name || comp.type) : '未选中';
-    document.getElementById('compIdDisplay').innerText = comp ? comp.id : '-';
-    if (!comp) {
-        document.getElementById('dynamicProps').innerHTML = '';
-        document.getElementById('eventTypeSelect').value = '';
-        document.getElementById('eventDataInput').value = '';
-        return;
+    updatePropsPanel() {
+        const comp = ComponentFinder.findComponentById(App.state.selectedId);
+        document.getElementById('compTypeName').innerText = comp ? (ComponentTypes[comp.type]?.name || comp.type) : '未选中';
+        document.getElementById('compIdDisplay').innerText = comp ? comp.id : '-';
+        if (!comp) {
+            document.getElementById('dynamicProps').innerHTML = '';
+            document.getElementById('eventTypeSelect').value = '';
+            document.getElementById('eventDataInput').value = '';
+            return;
+        }
+
+        const container = document.getElementById('dynamicProps');
+        container.innerHTML = '<div class="props-loading">加载属性中...</div>';
+
+        const currentSelectedId = App.state.selectedId;
+
+        requestIdleCallback(() => {
+            const currentComp = ComponentFinder.findComponentById(App.state.selectedId);
+            if (!currentComp || currentComp.id !== currentSelectedId) return;
+
+            const groups = this.getPropGroups(currentComp);
+            const fragment = document.createDocumentFragment();
+            for (let group of groups) {
+                fragment.appendChild(this.buildPropSection(group, currentComp));
+            }
+            document.getElementById('eventTypeSelect').value = currentComp.events?.type || '';
+            document.getElementById('eventDataInput').value = currentComp.events?.data || '';
+            container.innerHTML = '';
+            container.appendChild(fragment);
+        }, { timeout: 50 });
     }
-
-    const container = document.getElementById('dynamicProps');
-    container.innerHTML = '<div class="props-loading">加载属性中...</div>';
-
-    // 保存当前选中的ID，用于回调中验证
-    const currentSelectedId = App.state.selectedId;
-
-    requestIdleCallback(() => {
-        // 重新获取当前选中的组件，避免闭包问题
-        const currentComp = ComponentFinder.findComponentById(App.state.selectedId);
-        
-        // 验证组件是否还是同一个（防止快速切换）
-        if (!currentComp || currentComp.id !== currentSelectedId) {
-            return; // 组件已改变，放弃这次更新
-        }
-
-        const groups = this.getPropGroups(currentComp);
-        const fragment = document.createDocumentFragment();
-        for (let group of groups) {
-            fragment.appendChild(this.buildPropSection(group, currentComp));
-        }
-        document.getElementById('eventTypeSelect').value = currentComp.events?.type || '';
-        document.getElementById('eventDataInput').value = currentComp.events?.data || '';
-        container.innerHTML = '';
-        container.appendChild(fragment);
-    }, { timeout: 50 });
-}
 
     buildPropSection(group, comp) {
         const section = document.createElement('div');
         section.className = 'prop-section';
         section.innerHTML = `<div class="prop-section-title"><i class="${group.icon}"></i> ${Utils.escapeHtml(group.title)}</div>`;
+
+        // 处理自定义属性分组（可删除行）
+        if (group.title === "自定义属性") {
+            group.fields.forEach(field => {
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'prop-field custom-property-row';
+                fieldDiv.innerHTML = `
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input data-custom-key="${Utils.escapeHtmlAttr(field.key)}" value="${Utils.escapeHtmlAttr(field.key)}" placeholder="属性名" style="flex:1;">
+                        <input data-custom-val="${Utils.escapeHtmlAttr(field.key)}" value="${Utils.escapeHtmlAttr(field.val)}" placeholder="属性值" style="flex:2;">
+                        <button class="delete-custom-prop" data-key="${Utils.escapeHtmlAttr(field.key)}" style="background:none; border:none; color:var(--danger); cursor:pointer;"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                `;
+                section.appendChild(fieldDiv);
+            });
+            return section;
+        }
+
+        // 处理添加自定义属性的特殊分组
+        if (group.title === "添加自定义属性") {
+            const addDiv = document.createElement('div');
+            addDiv.className = 'prop-field';
+            addDiv.innerHTML = `
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="newCustomKey" placeholder="新属性名" style="flex:1;">
+                    <input type="text" id="newCustomVal" placeholder="属性值" style="flex:2;">
+                    <button id="addCustomPropBtn" class="btn" style="padding:6px 12px;">添加</button>
+                </div>
+            `;
+            section.appendChild(addDiv);
+            return section;
+        }
+
+        // 常规属性字段
         for (let field of group.fields) {
             const fieldDiv = document.createElement('div');
             fieldDiv.className = 'prop-field';
@@ -795,56 +880,219 @@ updatePropsPanel() {
             }
             section.appendChild(fieldDiv);
         }
+
+        // 如果是 Grid 组件，添加可视化编辑按钮
+        if (comp.type === 'grid') {
+            const btnDiv = document.createElement('div');
+            btnDiv.className = 'prop-field';
+            btnDiv.innerHTML = `<button id="editGridLayoutBtn" class="btn btn-primary" style="width:100%"><i class="fas fa-th"></i> 可视化编辑网格布局</button>`;
+            section.appendChild(btnDiv);
+            setTimeout(() => {
+                const btn = document.getElementById('editGridLayoutBtn');
+                if (btn) btn.onclick = () => this.openGridEditor(comp);
+            }, 0);
+        }
+
         return section;
     }
 
-getPropGroups(comp) {
-    if (!comp) return [];
-    const groups = {
-        content: { title: "内容", icon: "fas fa-align-left", fields: [] },
-        appearance: { title: "外观样式", icon: "fas fa-palette", fields: [] },
-        layout: { title: "布局与边距", icon: "fas fa-expand-alt", fields: [] },
-        gridLayout: { title: "Grid 布局附加属性", icon: "fas fa-th", fields: [] },
-        behavior: { title: "行为", icon: "fas fa-cog", fields: [] },
-        other: { title: "其他", icon: "fas fa-ellipsis-h", fields: [] }
-    };
+    // #9 网格布局可视化编辑器
+    openGridEditor(gridComp) {
+        let cols = [];
+        let rows = [];
+        try { cols = JSON.parse(gridComp.props.ColumnsDefinition || "[]"); } catch(e) { cols = []; }
+        try { rows = JSON.parse(gridComp.props.RowsDefinition || "[]"); } catch(e) { rows = []; }
 
-    const specificContentKeys = ["Text", "Title", "Info", "Source", "Logo"];
-    const appearanceKeys = ["Foreground", "FontSize", "TextWrapping", "Theme", "ColorType", "LogoScale", "Type"];
-    const layoutKeys = ["Margin", "Padding", "Width", "Height", "HorizontalAlignment", "VerticalAlignment", "ColumnsDefinition", "RowsDefinition", "Orientation"];
-    const gridAttachKeys = ["Grid.Row", "Grid.Column", "Grid.RowSpan", "Grid.ColumnSpan"];
-    const behaviorKeys = ["CanSwap", "IsSwapped", "ToolTip", "EnableCache", "UseAnimation", "SwapLogoRight", "HasMouseAnimation", "IsHitTestVisible"];
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 700px;">
+                <h3><i class="fas fa-th"></i> 编辑网格布局</h3>
+                <div style="display: flex; gap: 24px; margin: 20px 0;">
+                    <div style="flex:1">
+                        <h4>列定义 <button id="addColBtn" class="btn btn-sm">+ 添加列</button></h4>
+                        <div id="columnsEditor"></div>
+                    </div>
+                    <div style="flex:1">
+                        <h4>行定义 <button id="addRowBtn" class="btn btn-sm">+ 添加行</button></h4>
+                        <div id="rowsEditor"></div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button id="gridEditorSave" class="btn btn-primary">保存</button>
+                    <button id="gridEditorCancel" class="btn">取消</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
 
-    for (let [key, val] of Object.entries(comp.props)) {
-        if (specificContentKeys.includes(key)) groups.content.fields.push({ key, val });
-        else if (appearanceKeys.includes(key)) groups.appearance.fields.push({ key, val });
-        else if (layoutKeys.includes(key)) groups.layout.fields.push({ key, val });
-        else if (gridAttachKeys.includes(key)) groups.gridLayout.fields.push({ key, val });
-        else if (behaviorKeys.includes(key)) groups.behavior.fields.push({ key, val });
-        else groups.other.fields.push({ key, val });
+        const renderList = (containerId, list, type) => {
+            const container = modal.querySelector(`#${containerId}`);
+            container.innerHTML = '';
+            list.forEach((item, idx) => {
+                let unit = 'px';
+                let val = 100;
+                if (type === 'col') {
+                    const w = item.width;
+                    if (w === 'Auto') unit = 'auto';
+                    else if (w && w.endsWith('*')) { unit = 'star'; val = parseFloat(w); if (isNaN(val)) val = 1; }
+                    else { unit = 'px'; val = parseFloat(w); if (isNaN(val)) val = 100; }
+                } else {
+                    const h = item.height;
+                    if (h === 'Auto') unit = 'auto';
+                    else if (h && h.endsWith('*')) { unit = 'star'; val = parseFloat(h); if (isNaN(val)) val = 1; }
+                    else { unit = 'px'; val = parseFloat(h); if (isNaN(val)) val = 100; }
+                }
+                const minVal = type === 'col' ? (item.minWidth || '') : (item.minHeight || '');
+                const maxVal = type === 'col' ? (item.maxWidth || '') : (item.maxHeight || '');
+                const div = document.createElement('div');
+                div.className = 'grid-def-item';
+                div.style.cssText = 'display:flex; gap:8px; margin-bottom:8px; align-items:center;';
+                div.innerHTML = `
+                    <select class="grid-unit" data-type="${type}" data-index="${idx}">
+                        <option value="px" ${unit==='px'?'selected':''}>像素(px)</option>
+                        <option value="star" ${unit==='star'?'selected':''}>星(*)</option>
+                        <option value="auto" ${unit==='auto'?'selected':''}>自动</option>
+                    </select>
+                    <input class="grid-value" data-type="${type}" data-index="${idx}" value="${val}" ${unit==='auto'?'disabled':''} style="width:80px;">
+                    <input class="grid-min" placeholder="Min" data-type="${type}" data-index="${idx}" value="${Utils.escapeHtmlAttr(minVal)}" style="width:70px;">
+                    <input class="grid-max" placeholder="Max" data-type="${type}" data-index="${idx}" value="${Utils.escapeHtmlAttr(maxVal)}" style="width:70px;">
+                    <button class="grid-del" data-type="${type}" data-index="${idx}" style="background:none; border:none; color:red;"><i class="fas fa-trash"></i></button>
+                `;
+                container.appendChild(div);
+            });
+        };
+
+        renderList('columnsEditor', cols, 'col');
+        renderList('rowsEditor', rows, 'row');
+
+        modal.querySelector('#addColBtn').onclick = () => {
+            cols.push({ width: '1*' });
+            renderList('columnsEditor', cols, 'col');
+        };
+        modal.querySelector('#addRowBtn').onclick = () => {
+            rows.push({ height: '1*' });
+            renderList('rowsEditor', rows, 'row');
+        };
+
+        const updateDefinition = () => {
+            // 从 DOM 中读取最新值并更新 cols/rows 数组
+            const colItems = modal.querySelectorAll('#columnsEditor .grid-def-item');
+            cols = [];
+            colItems.forEach((item, idx) => {
+                const unitSelect = item.querySelector('.grid-unit');
+                const unit = unitSelect.value;
+                const valInput = item.querySelector('.grid-value');
+                const minInput = item.querySelector('.grid-min');
+                const maxInput = item.querySelector('.grid-max');
+                let width = '';
+                if (unit === 'auto') width = 'Auto';
+                else if (unit === 'star') width = (valInput.value ? parseFloat(valInput.value) : 1) + '*';
+                else width = (valInput.value ? parseFloat(valInput.value) : 100) + '';
+                const colDef = { width };
+                if (minInput.value.trim()) colDef.minWidth = minInput.value.trim();
+                if (maxInput.value.trim()) colDef.maxWidth = maxInput.value.trim();
+                cols.push(colDef);
+            });
+            const rowItems = modal.querySelectorAll('#rowsEditor .grid-def-item');
+            rows = [];
+            rowItems.forEach((item, idx) => {
+                const unitSelect = item.querySelector('.grid-unit');
+                const unit = unitSelect.value;
+                const valInput = item.querySelector('.grid-value');
+                const minInput = item.querySelector('.grid-min');
+                const maxInput = item.querySelector('.grid-max');
+                let height = '';
+                if (unit === 'auto') height = 'Auto';
+                else if (unit === 'star') height = (valInput.value ? parseFloat(valInput.value) : 1) + '*';
+                else height = (valInput.value ? parseFloat(valInput.value) : 100) + '';
+                const rowDef = { height };
+                if (minInput.value.trim()) rowDef.minHeight = minInput.value.trim();
+                if (maxInput.value.trim()) rowDef.maxHeight = maxInput.value.trim();
+                rows.push(rowDef);
+            });
+        };
+
+        modal.addEventListener('input', (e) => {
+            const target = e.target;
+            if (target.classList.contains('grid-unit') || target.classList.contains('grid-value') ||
+                target.classList.contains('grid-min') || target.classList.contains('grid-max')) {
+                updateDefinition();
+                // 实时刷新显示（可选，可不做）
+            }
+        });
+        modal.addEventListener('click', (e) => {
+            if (e.target.closest('.grid-del')) {
+                const btn = e.target.closest('.grid-del');
+                const type = btn.getAttribute('data-type');
+                const idx = parseInt(btn.getAttribute('data-index'));
+                if (type === 'col') cols.splice(idx, 1);
+                else rows.splice(idx, 1);
+                renderList(`${type}sEditor`, type==='col'?cols:rows, type);
+                updateDefinition();
+            }
+        });
+
+        modal.querySelector('#gridEditorSave').onclick = () => {
+            updateDefinition();
+            gridComp.props.ColumnsDefinition = JSON.stringify(cols);
+            gridComp.props.RowsDefinition = JSON.stringify(rows);
+            App.renderManager.refreshComponent(gridComp.id);
+            App.markDirty();
+            modal.remove();
+        };
+        modal.querySelector('#gridEditorCancel').onclick = () => modal.remove();
     }
 
-    // 转换为数组，过滤空分组
-    let groupsArray = Object.values(groups).filter(g => g.fields.length > 0);
+    getPropGroups(comp) {
+        if (!comp) return [];
+        const groups = {
+            content: { title: "内容", icon: "fas fa-align-left", fields: [] },
+            appearance: { title: "外观样式", icon: "fas fa-palette", fields: [] },
+            layout: { title: "布局与边距", icon: "fas fa-expand-alt", fields: [] },
+            gridLayout: { title: "Grid 布局附加属性", icon: "fas fa-th", fields: [] },
+            behavior: { title: "行为", icon: "fas fa-cog", fields: [] },
+            other: { title: "其他", icon: "fas fa-ellipsis-h", fields: [] }
+        };
 
-    // 强制添加通用分组（ToolTip, IsHitTestVisible）到最前面
-    const commonFields = [];
-    if (comp.props.ToolTip !== undefined) {
-        commonFields.push({ key: "ToolTip", val: comp.props.ToolTip });
-    }
-    if (comp.props.IsHitTestVisible !== undefined) {
-        commonFields.push({ key: "IsHitTestVisible", val: comp.props.IsHitTestVisible });
-    }
-    if (commonFields.length) {
-        groupsArray.unshift({ title: "通用", icon: "fas fa-cogs", fields: commonFields });
-    }
+        const specificContentKeys = ["Text", "Title", "Info", "Source", "Logo"];
+        const appearanceKeys = ["Foreground", "FontSize", "TextWrapping", "Theme", "ColorType", "LogoScale", "Type"];
+        const layoutKeys = ["Margin", "Padding", "Width", "Height", "HorizontalAlignment", "VerticalAlignment", "ColumnsDefinition", "RowsDefinition", "Orientation"];
+        const gridAttachKeys = ["Grid.Row", "Grid.Column", "Grid.RowSpan", "Grid.ColumnSpan"];
+        const behaviorKeys = ["CanSwap", "IsSwapped", "ToolTip", "EnableCache", "UseAnimation", "SwapLogoRight", "HasMouseAnimation", "IsHitTestVisible"];
 
-    return groupsArray;
-}
+        for (let [key, val] of Object.entries(comp.props)) {
+            if (specificContentKeys.includes(key)) groups.content.fields.push({ key, val });
+            else if (appearanceKeys.includes(key)) groups.appearance.fields.push({ key, val });
+            else if (layoutKeys.includes(key)) groups.layout.fields.push({ key, val });
+            else if (gridAttachKeys.includes(key)) groups.gridLayout.fields.push({ key, val });
+            else if (behaviorKeys.includes(key)) groups.behavior.fields.push({ key, val });
+            else groups.other.fields.push({ key, val });
+        }
+
+        let groupsArray = Object.values(groups).filter(g => g.fields.length > 0);
+
+        // 通用分组
+        const commonFields = [];
+        if (comp.props.ToolTip !== undefined) commonFields.push({ key: "ToolTip", val: comp.props.ToolTip });
+        if (comp.props.IsHitTestVisible !== undefined) commonFields.push({ key: "IsHitTestVisible", val: comp.props.IsHitTestVisible });
+        if (commonFields.length) groupsArray.unshift({ title: "通用", icon: "fas fa-cogs", fields: commonFields });
+
+        // 自定义属性分组
+        const customFields = Object.entries(comp.customProps || {}).map(([key, val]) => ({ key, val }));
+        if (customFields.length) {
+            groupsArray.push({ title: "自定义属性", icon: "fas fa-tags", fields: customFields });
+        }
+        groupsArray.push({ title: "添加自定义属性", icon: "fas fa-plus-circle", fields: [{ key: "_add_custom", val: "" }] });
+
+        return groupsArray;
+    }
 
     applyCurrentProps() {
         const comp = ComponentFinder.findComponentById(App.state.selectedId);
         if (!comp) return;
+        App.recordSnapshot();  // #8 记录快照
 
         document.querySelectorAll('#dynamicProps input[data-prop], #dynamicProps textarea[data-prop], #dynamicProps select[data-prop]').forEach(inp => {
             const key = inp.getAttribute('data-prop');
@@ -857,7 +1105,7 @@ getPropGroups(comp) {
             }
         });
 
-        // Margin 容错处理
+        // Margin 处理
         const marginLeft = document.querySelector('#dynamicProps .margin-part[data-margin="left"]');
         const marginTop = document.querySelector('#dynamicProps .margin-part[data-margin="top"]');
         const marginRight = document.querySelector('#dynamicProps .margin-part[data-margin="right"]');
@@ -874,10 +1122,45 @@ getPropGroups(comp) {
             comp.props.Margin = formatMargin(left, top, right, bottom);
         }
 
+        // 事件绑定
         comp.events = {
             type: document.getElementById('eventTypeSelect').value,
             data: document.getElementById('eventDataInput').value
         };
+
+        // 处理自定义属性：重建 customProps
+        const newCustomProps = {};
+        document.querySelectorAll('.custom-property-row').forEach(row => {
+            const keyInput = row.querySelector('input[data-custom-key]');
+            const valInput = row.querySelector('input[data-custom-val]');
+            if (keyInput && valInput && keyInput.value.trim() !== '') {
+                newCustomProps[keyInput.value.trim()] = valInput.value;
+            }
+        });
+        comp.customProps = newCustomProps;
+
+        // 处理新增自定义属性
+        const newKey = document.getElementById('newCustomKey')?.value.trim();
+        const newVal = document.getElementById('newCustomVal')?.value.trim();
+        if (newKey) {
+            comp.customProps[newKey] = newVal;
+            const keyInput = document.getElementById('newCustomKey');
+            const valInput = document.getElementById('newCustomVal');
+            if (keyInput) keyInput.value = '';
+            if (valInput) valInput.value = '';
+        }
+
+        // 绑定删除按钮事件（动态）
+        document.querySelectorAll('.delete-custom-prop').forEach(btn => {
+            btn.onclick = (e) => {
+                const key = btn.getAttribute('data-key');
+                if (key && comp.customProps[key] !== undefined) {
+                    delete comp.customProps[key];
+                    this.updatePropsPanel();
+                    App.markDirty();
+                }
+            };
+        });
 
         this.refreshComponent(comp.id);
         Utils.showToast('属性已更新');
@@ -915,11 +1198,10 @@ class XamlProcessor {
     }
 
     importFromXAML(xmlStr) {
+        App.recordSnapshot();  // #8 记录快照
         const unknownTags = new Set();
         try {
-            if (xmlStr.charCodeAt(0) === 0xFEFF) {
-                xmlStr = xmlStr.slice(1);
-            }
+            if (xmlStr.charCodeAt(0) === 0xFEFF) xmlStr = xmlStr.slice(1);
             const wrappedXml = `<root xmlns:local="http://tempuri.org/pcl">${xmlStr}</root>`;
             const parser = new DOMParser();
             const xml = parser.parseFromString(wrappedXml, 'text/xml');
@@ -1106,6 +1388,7 @@ class XamlProcessor {
                     Utils.showToast(`警告：发现未知组件类型: ${Array.from(unknownTags).join(', ')}，它们已被忽略`, true);
                 }
                 App.resetDirty();
+                App.history.reset();  // #8 重置历史
             } else {
                 Utils.showToast('未找到有效组件', true);
                 if (unknownTags.size > 0) {
@@ -2015,10 +2298,12 @@ class UIManager {
     bindUIEvents() {
         document.getElementById('clearCanvasBtn').onclick = () => {
             if (confirm('清空所有组件？')) {
+                App.recordSnapshot();  // #8 记录快照
                 App.state.components = [];
                 App.state.selectedId = null;
                 App.renderManager.renderCanvas();
                 App.markDirty();
+                App.history.reset();   // 清空历史
             }
         };
 
@@ -2137,6 +2422,12 @@ class App {
     static autoBackupTimer = null;
     static AUTO_BACKUP_DELAY = 1000;
 
+    static history = new HistoryManager();  // #8
+
+    static recordSnapshot() {
+        App.history.pushState();
+    }
+
     static markDirty() {
         if (!App.state.dirty) {
             App.state.dirty = true;
@@ -2188,6 +2479,17 @@ class App {
                     e.stopPropagation();
                     this.renderManager.selectComponent(id);
                 }
+            }
+        });
+
+        // #8 全局撤销/重做快捷键
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'z') {
+                e.preventDefault();
+                App.history.undo();
+            } else if (e.ctrlKey && e.key === 'y') {
+                e.preventDefault();
+                App.history.redo();
             }
         });
 

@@ -857,3 +857,45 @@ hr {
     padding: 4px 12px;
     font-size: 0.75rem;
 }
+
+/* #9 网格编辑器样式 */
+.grid-def-item {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: center;
+    background: var(--bg-subtle);
+    padding: 6px 10px;
+    border-radius: var(--radius-md);
+}
+.grid-def-item input, .grid-def-item select {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 6px;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+}
+.grid-def-item button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+}
+.grid-def-item button:hover {
+    color: var(--danger);
+}
+
+/* 自定义属性行样式 */
+.custom-property-row {
+    background: var(--bg-subtle);
+    padding: 6px;
+    border-radius: var(--radius-md);
+    margin-bottom: 8px;
+}
+.custom-property-row input {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 6px;
+}
