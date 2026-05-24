@@ -704,6 +704,14 @@ class RenderManager {
 
 // modules/XamlProcessor.js
 class XamlProcessor {
+    // 辅助方法：获取去掉命名空间前缀的标签名
+    static getLocalTagName(node) {
+        const tag = node.tagName;
+        if (!tag) return '';
+        const colonIndex = tag.indexOf(':');
+        return colonIndex !== -1 ? tag.substring(colonIndex + 1).toLowerCase() : tag.toLowerCase();
+    }
+
     importFromXAML(xmlStr) {
         try {
             if (xmlStr.charCodeAt(0) === 0xFEFF) {
@@ -724,17 +732,17 @@ class XamlProcessor {
             }
 
             const parseNode = (node, parentId = null) => {
-                const tagName = node.tagName?.toLowerCase();
+                const tagName = XamlProcessor.getLocalTagName(node);
                 if (!tagName) return null;
 
                 let type = null;
-                if (tagName.includes('mycard')) type = 'card';
-                else if (tagName.includes('textblock')) type = 'text';
-                else if (tagName.includes('myhint')) type = 'hint';
-                else if (tagName.includes('myimage')) type = 'image';
-                else if (tagName.includes('mybutton')) type = 'button';
-                else if (tagName.includes('mytextbutton')) type = 'textbutton';
-                else if (tagName.includes('mylistitem')) type = 'listitem';
+                if (tagName === 'mycard') type = 'card';
+                else if (tagName === 'textblock') type = 'text';
+                else if (tagName === 'myhint') type = 'hint';
+                else if (tagName === 'myimage') type = 'image';
+                else if (tagName === 'mybutton') type = 'button';
+                else if (tagName === 'mytextbutton') type = 'textbutton';
+                else if (tagName === 'mylistitem') type = 'listitem';
                 else if (tagName === 'stackpanel') {
                     const orientation = node.getAttribute('Orientation') || node.getAttribute('orientation');
                     type = orientation && orientation.toLowerCase() === 'horizontal' ? 'horizontalstack' : 'stackpanel';
@@ -750,6 +758,16 @@ class XamlProcessor {
                     if (val !== null) comp.props[prop] = val;
                 });
 
+                // 处理 Grid 附加属性 (Grid.Row, Grid.Column)
+                const gridRow = node.getAttribute('Grid.Row');
+                if (gridRow !== null) comp.props['Grid.Row'] = gridRow;
+                const gridColumn = node.getAttribute('Grid.Column');
+                if (gridColumn !== null) comp.props['Grid.Column'] = gridColumn;
+                const gridRowSpan = node.getAttribute('Grid.RowSpan');
+                if (gridRowSpan !== null) comp.props['Grid.RowSpan'] = gridRowSpan;
+                const gridColumnSpan = node.getAttribute('Grid.ColumnSpan');
+                if (gridColumnSpan !== null) comp.props['Grid.ColumnSpan'] = gridColumnSpan;
+
                 if (type === 'card') {
                     comp.props.Title = node.getAttribute('Title') || '卡片';
                     comp.props.CanSwap = node.getAttribute('CanSwap') ?? 'True';
@@ -762,7 +780,7 @@ class XamlProcessor {
                 else if (type === 'grid') {
                     let colsDef = '', rowsDef = '';
                     for (let child of node.children) {
-                        const childName = child.tagName?.toLowerCase();
+                        const childName = XamlProcessor.getLocalTagName(child);
                         if (childName === 'grid.columndefinitions') {
                             const colDefs = Array.from(child.children).map(cd => cd.getAttribute('Width') || '').join(';');
                             if (colDefs) colsDef = colDefs;
@@ -874,6 +892,14 @@ class XamlProcessor {
                 }
             });
 
+            // 附加属性：Grid.Row, Grid.Column 等
+            const gridAttrs = ['Grid.Row', 'Grid.Column', 'Grid.RowSpan', 'Grid.ColumnSpan'];
+            gridAttrs.forEach(attr => {
+                if (comp.props[attr] && comp.props[attr] !== '') {
+                    attrs.push(`${attr}="${Utils.escapeXml(comp.props[attr])}"`);
+                }
+            });
+
             if (comp.type === 'card') {
                 attrs.push(`Title="${Utils.escapeXml(comp.props.Title)}"`);
                 attrs.push(`CanSwap="${comp.props.CanSwap || 'True'}"`);
@@ -975,6 +1001,7 @@ class FileManager {
     constructor() {
         this.currentFileHandle = null;
         this.currentFileName = '';
+        this.currentFileBlob = null;   // 用于传统方式打开的文件内容暂存
     }
 
     isFileSystemAccessSupported() {
@@ -993,8 +1020,10 @@ class FileManager {
                 if (confirm('打开文件将替换当前所有组件，是否继续？')) {
                     App.xamlProcessor.importFromXAML(text);
                     Utils.showToast(`已打开: ${file.name} (只读模式，如需保存请使用另存为)`);
+                    // 传统方式：保存文件引用和名称，但没有写入句柄
                     this.currentFileHandle = null;
                     this.currentFileName = file.name;
+                    this.currentFileBlob = new Blob([text], { type: 'text/plain' });
                     this.updateLocalFileUI();
                     App.resetDirty();
                 }
@@ -1014,6 +1043,7 @@ class FileManager {
                 App.xamlProcessor.importFromXAML(content);
                 this.currentFileHandle = handle;
                 this.currentFileName = file.name;
+                this.currentFileBlob = null;
                 this.updateLocalFileUI();
                 Utils.showToast(`已链接本地文件: ${file.name}`);
                 App.resetDirty();
@@ -1024,33 +1054,40 @@ class FileManager {
     }
 
     async saveToLinkedFile() {
-        if (!this.currentFileHandle) {
-            Utils.showToast('没有链接的本地文件，请先"打开本地文件"', true);
-            return;
+        // 有可写的文件句柄
+        if (this.currentFileHandle && this.isFileSystemAccessSupported()) {
+            const xamlContent = App.xamlProcessor.generateXAML(App.state.components);
+            if (!xamlContent.trim()) {
+                Utils.showToast('没有可保存的内容', true);
+                return;
+            }
+            try {
+                const writable = await this.currentFileHandle.createWritable();
+                await writable.write(xamlContent);
+                await writable.close();
+                Utils.showToast(`已保存到 ${this.currentFileName}`);
+                App.resetDirty();
+                return;
+            } catch (err) {
+                Utils.showToast('保存失败: ' + err.message, true);
+                return;
+            }
         }
-        if (!this.isFileSystemAccessSupported()) {
-            Utils.showToast('当前浏览器不支持直接写入，请使用"另存为"', true);
+
+        // 没有句柄但存在文件名（传统打开方式） -> 尝试另存为覆盖原文件
+        if (this.currentFileName && !this.currentFileHandle) {
+            const overwrite = confirm(`文件 "${this.currentFileName}" 为只读打开，是否另存为覆盖它？\n点击“确定”将选择该文件保存，点击“取消”将不保存。`);
+            if (overwrite) {
+                await this.saveAsLocalFile(true); // 覆盖模式，预设文件名
+            }
             return;
         }
 
-        const xamlContent = App.xamlProcessor.generateXAML(App.state.components);
-        if (!xamlContent.trim()) {
-            Utils.showToast('没有可保存的内容', true);
-            return;
-        }
-
-        try {
-            const writable = await this.currentFileHandle.createWritable();
-            await writable.write(xamlContent);
-            await writable.close();
-            Utils.showToast(`已保存到 ${this.currentFileName}`);
-            App.resetDirty();
-        } catch (err) {
-            Utils.showToast('保存失败: ' + err.message, true);
-        }
+        // 没有任何链接文件
+        Utils.showToast('没有链接的本地文件，请先“打开本地文件”或使用“另存为”', true);
     }
 
-    async saveAsLocalFile() {
+    async saveAsLocalFile(overwriteMode = false) {
         const xamlContent = App.xamlProcessor.generateXAML(App.state.components);
         if (!xamlContent.trim()) {
             Utils.showToast('没有可保存的内容', true);
@@ -1059,8 +1096,9 @@ class FileManager {
 
         if (this.isFileSystemAccessSupported()) {
             try {
+                const suggestedName = overwriteMode && this.currentFileName ? this.currentFileName : (this.currentFileName || 'design.xaml');
                 const handle = await window.showSaveFilePicker({
-                    suggestedName: this.currentFileName || 'design.xaml',
+                    suggestedName: suggestedName,
                     types: [{ description: 'XAML文件', accept: { 'application/xml': ['.xaml', '.xml'] } }]
                 });
                 const writable = await handle.createWritable();
@@ -1068,20 +1106,28 @@ class FileManager {
                 await writable.close();
                 this.currentFileHandle = handle;
                 this.currentFileName = handle.name;
+                this.currentFileBlob = null;
                 this.updateLocalFileUI();
-                Utils.showToast(`已另存为: ${handle.name}，并已链接此文件`);
+                Utils.showToast(`已保存到: ${handle.name}，并已链接此文件`);
                 App.resetDirty();
             } catch (err) {
                 if (err.name !== 'AbortError') Utils.showToast('保存失败: ' + err.message, true);
             }
         } else {
+            // 不支持 File System Access，直接下载
             const blob = new Blob([xamlContent], { type: 'text/plain' });
             const link = document.createElement('a');
+            const downloadName = this.currentFileName || 'design.xaml';
             link.href = URL.createObjectURL(blob);
-            link.download = this.currentFileName || 'design.xaml';
+            link.download = downloadName;
             link.click();
             URL.revokeObjectURL(link.href);
-            Utils.showToast('已下载文件，如需再次编辑请使用"打开本地文件"');
+            Utils.showToast(`已下载文件 ${downloadName}`);
+            // 更新链接状态：当前文件改为这个下载的文件（无句柄，但记录名称）
+            this.currentFileName = downloadName;
+            this.currentFileHandle = null;
+            this.currentFileBlob = blob;
+            this.updateLocalFileUI();
             App.resetDirty();
             setTimeout(() => {
                 Utils.showToast('提示：当前浏览器不支持直接读写文件，保存采用下载方式。', false);
@@ -1094,7 +1140,8 @@ class FileManager {
         const saveBtn = document.getElementById('saveToLocalFileBtn');
 
         if (this.currentFileName) {
-            infoDiv.innerHTML = `<i class="fas fa-link"></i> 已链接: ${this.currentFileName}${this.currentFileHandle ? ' (可读写)' : ' (只读)'}`;
+            const mode = this.currentFileHandle ? '可读写' : (this.currentFileBlob ? '只读(已下载)' : '仅名称');
+            infoDiv.innerHTML = `<i class="fas fa-link"></i> 已链接: ${this.currentFileName} (${mode})`;
             if (saveBtn) saveBtn.disabled = false;
         } else {
             infoDiv.innerHTML = `<i class="fas fa-link"></i> 未链接任何本地文件`;
@@ -1110,10 +1157,11 @@ class FileManager {
     }
 }
 
-// modules/ServerApi.js - 重写为自动备份API
+// modules/ServerApi.js - 重写为自动备份API，增加焦点记忆
 class ServerApi {
     constructor() {
         this.backups = [];
+        this.lastSelectedBackup = null; // 记录最近选中的备份文件名
     }
 
     async getBackupList() {
@@ -1159,6 +1207,7 @@ class ServerApi {
                 if (confirm(`加载备份 "${filename}" 将替换当前所有组件，是否继续？`)) {
                     App.xamlProcessor.importFromXAML(data.content);
                     Utils.showToast(`已加载备份: ${filename}`);
+                    this.lastSelectedBackup = filename;
                     return true;
                 }
             } else {
@@ -1182,6 +1231,7 @@ class ServerApi {
             const data = await res.json();
             if (data.success) {
                 Utils.showToast(`已删除 ${filename}`);
+                if (this.lastSelectedBackup === filename) this.lastSelectedBackup = null;
                 return true;
             } else {
                 Utils.showToast('删除失败: ' + (data.error || '未知错误'), true);
@@ -1213,11 +1263,45 @@ class DragDropManager {
             return;
         }
         if (confirm('拖入文件将替换当前所有组件，是否继续？')) {
+            // 显示 loading 遮罩
+            this.showLoadingOverlay('正在读取文件，请稍候...');
             const reader = new FileReader();
-            reader.onload = (e) => { App.xamlProcessor.importFromXAML(e.target.result); };
-            reader.onerror = () => Utils.showToast('文件读取失败', true);
+            reader.onload = (e) => {
+                this.hideLoadingOverlay();
+                App.xamlProcessor.importFromXAML(e.target.result);
+            };
+            reader.onerror = () => {
+                this.hideLoadingOverlay();
+                Utils.showToast('文件读取失败', true);
+            };
             reader.readAsText(file, 'UTF-8');
         }
+    }
+
+    showLoadingOverlay(msg = '加载中...') {
+        let overlay = document.getElementById('globalLoadingOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'globalLoadingOverlay';
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+                display: flex; align-items: center; justify-content: center;
+                z-index: 10000; flex-direction: column; gap: 16px;
+                font-size: 1rem; color: white; font-weight: 500;
+            `;
+            overlay.innerHTML = `<div><i class="fas fa-spinner fa-pulse fa-2x"></i></div><div id="loadingMsg">${Utils.escapeHtml(msg)}</div>`;
+            document.body.appendChild(overlay);
+        } else {
+            overlay.style.display = 'flex';
+            const msgDiv = overlay.querySelector('#loadingMsg');
+            if (msgDiv) msgDiv.innerText = msg;
+        }
+    }
+
+    hideLoadingOverlay() {
+        const overlay = document.getElementById('globalLoadingOverlay');
+        if (overlay) overlay.style.display = 'none';
     }
 
     initGlobalFileDragAndDrop() {
@@ -1241,6 +1325,10 @@ class DragDropManager {
             if (files && files.length > 0) {
                 e.preventDefault();
                 e.stopPropagation();
+                // 大文件提醒（>5MB）
+                if (files[0].size > 5 * 1024 * 1024) {
+                    Utils.showToast('文件较大，加载可能需要几秒钟...', false);
+                }
                 this.handleFileImport(files[0]);
                 return false;
             }
@@ -1411,6 +1499,20 @@ class UIManager {
             </div>
         `;
         
+        // 高亮上一次选中的备份（如果还在列表中）
+        if (App.serverApi.lastSelectedBackup) {
+            const targetItem = container.querySelector(`.backup-item[data-name="${App.serverApi.lastSelectedBackup}"]`);
+            if (targetItem) {
+                targetItem.style.backgroundColor = 'var(--primary-soft)';
+                targetItem.style.borderColor = 'var(--primary)';
+                // 可选：滚动到视图
+                targetItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                // 已删除，清除记忆
+                App.serverApi.lastSelectedBackup = null;
+            }
+        }
+        
         container.querySelectorAll('.load-backup').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const name = btn.getAttribute('data-name');
@@ -1424,7 +1526,7 @@ class UIManager {
             btn.addEventListener('click', async (e) => {
                 const name = btn.getAttribute('data-name');
                 await App.serverApi.deleteBackup(name);
-                this.renderBackupList();
+                await this.renderBackupList(); // 刷新列表
             });
         });
         
