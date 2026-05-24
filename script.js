@@ -261,13 +261,14 @@ class ComponentManager {
             id, type, name: def.name, parentId, children: [],
             props: JSON.parse(JSON.stringify(def.defaults)),
             events: { type: "", data: "" },
-            customProps: {}   // FIX: 支持未知属性
+            customProps: {}
         };
     }
 
     static addComponent(comp, targetParentId = null) {
         if (targetParentId === null) {
             App.state.components.push(comp);
+            App.renderManager.appendComponentToParent(comp, null); // 增量添加至画布根部
             App.markDirty();
             return true;
         }
@@ -275,6 +276,7 @@ class ComponentManager {
         if (parent && ComponentTypes[parent.type]?.canNest) {
             parent.children.push(comp);
             comp.parentId = targetParentId;
+            App.renderManager.appendComponentToParent(comp, targetParentId);
             App.markDirty();
             return true;
         }
@@ -285,6 +287,8 @@ class ComponentManager {
         const removeFromList = (list) => {
             for (let i = 0; i < list.length; i++) {
                 if (list[i].id === id) {
+                    const el = document.querySelector(`.component-item-wrapper[data-id="${id}"]`);
+                    if (el) el.remove();
                     list.splice(i, 1);
                     return true;
                 }
@@ -295,13 +299,15 @@ class ComponentManager {
         if (removeFromList(App.state.components)) {
             if (App.state.selectedId === id) App.state.selectedId = null;
             App.markDirty();
-            App.renderManager.renderCanvas();
+            // 增量移除后无需全量渲染，只需更新面板和层级栏
+            App.renderManager.updatePropsPanel();
+            App.renderManager.updateHierarchyBar();
             return true;
         }
         return false;
     }
 
-    // FIX: 获取当前组件树中的最大ID
+    // 获取当前组件树中的最大ID（用于初始化）
     static getMaxGlobalId() {
         let max = 0;
         const traverse = (list) => {
@@ -315,11 +321,7 @@ class ComponentManager {
     }
 
     static deepCloneComponent(comp, newParentId = null) {
-        // FIX: 确保 nextId 大于当前所有组件ID
-        const currentMax = ComponentManager.getMaxGlobalId();
-        if (App.state.nextId <= currentMax) {
-            App.state.nextId = currentMax + 1;
-        }
+        // 优化：直接使用 App.state.nextId 自增，无需遍历整棵树
         const clone = {
             ...comp,
             id: App.state.nextId++,
@@ -346,7 +348,8 @@ class ComponentManager {
         } else {
             App.state.components.push(clone);
         }
-        App.renderManager.renderCanvas();
+        // 增量渲染克隆的组件（需要插入到合适位置）
+        App.renderManager.appendComponentToParent(clone, clone.parentId);
         App.renderManager.selectComponent(clone.id);
         Utils.showToast(`已复制组件: ${clone.name}`);
         App.markDirty();
@@ -519,6 +522,35 @@ class RenderManager {
         container.appendChild(wrapper);
     }
 
+    // 增量添加组件到父容器
+    appendComponentToParent(comp, parentId) {
+        // 获取父容器
+        let parentWrapper = null;
+        if (parentId === null) {
+            parentWrapper = document.getElementById('canvas');
+            // 若画布中只有空占位符，先清空
+            const emptyPlaceholder = parentWrapper.querySelector('.empty-placeholder');
+            if (emptyPlaceholder) emptyPlaceholder.remove();
+        } else {
+            parentWrapper = document.querySelector(`.component-item-wrapper[data-id="${parentId}"] .nested-dropzone`);
+        }
+        if (!parentWrapper) {
+            // 回退全量渲染
+            this.renderCanvas();
+            return;
+        }
+        const tempContainer = document.createElement('div');
+        this.renderComponentDOM(comp, tempContainer);
+        const newComponentNode = tempContainer.firstChild;
+        if (newComponentNode) {
+            parentWrapper.appendChild(newComponentNode);
+            // 移除 placeholder 属性（如果容器变非空，CSS 会自动处理占位符）
+            if (parentWrapper.getAttribute('data-placeholder') && parentWrapper.children.length > 0) {
+                // 保留属性但无影响，可不处理
+            }
+        }
+    }
+
     renderCanvas() {
         const canvas = document.getElementById('canvas');
         canvas.innerHTML = '';
@@ -569,7 +601,6 @@ class RenderManager {
         this.updateHierarchyBar();
     }
 
-    // FIX: 异步渲染属性面板，避免卡顿
     updatePropsPanel() {
         const comp = ComponentFinder.findComponentById(App.state.selectedId);
         document.getElementById('compTypeName').innerText = comp ? (ComponentTypes[comp.type]?.name || comp.type) : '未选中';
@@ -650,6 +681,7 @@ class RenderManager {
             content: { title: "内容", icon: "fas fa-align-left", fields: [] },
             appearance: { title: "外观样式", icon: "fas fa-palette", fields: [] },
             layout: { title: "布局与边距", icon: "fas fa-expand-alt", fields: [] },
+            gridLayout: { title: "Grid 布局附加属性", icon: "fas fa-th", fields: [] },   // 新增 Grid 分组
             behavior: { title: "行为", icon: "fas fa-cog", fields: [] },
             other: { title: "其他", icon: "fas fa-ellipsis-h", fields: [] }
         };
@@ -657,12 +689,14 @@ class RenderManager {
         const specificContentKeys = ["Text", "Title", "Info", "Source", "Logo"];
         const appearanceKeys = ["Foreground", "FontSize", "TextWrapping", "Theme", "ColorType", "LogoScale", "Type"];
         const layoutKeys = ["Margin", "Padding", "Width", "Height", "HorizontalAlignment", "VerticalAlignment", "ColumnsDefinition", "RowsDefinition", "Orientation"];
+        const gridAttachKeys = ["Grid.Row", "Grid.Column", "Grid.RowSpan", "Grid.ColumnSpan"];
         const behaviorKeys = ["CanSwap", "IsSwapped", "ToolTip", "EnableCache", "UseAnimation", "SwapLogoRight", "HasMouseAnimation", "IsHitTestVisible"];
 
         for (let [key, val] of Object.entries(comp.props)) {
             if (specificContentKeys.includes(key)) groups.content.fields.push({ key, val });
             else if (appearanceKeys.includes(key)) groups.appearance.fields.push({ key, val });
             else if (layoutKeys.includes(key)) groups.layout.fields.push({ key, val });
+            else if (gridAttachKeys.includes(key)) groups.gridLayout.fields.push({ key, val });
             else if (behaviorKeys.includes(key)) groups.behavior.fields.push({ key, val });
             else groups.other.fields.push({ key, val });
         }
@@ -802,7 +836,6 @@ class XamlProcessor {
                 const gridColumnSpan = node.getAttribute('Grid.ColumnSpan');
                 if (gridColumnSpan !== null) comp.props['Grid.ColumnSpan'] = gridColumnSpan;
 
-                // FIX: 收集所有未知属性
                 const knownProps = new Set([
                     ...commonProps,
                     'Title', 'Text', 'Source', 'Height', 'ColorType', 'Padding', 'FontSize', 'TextWrapping', 'Foreground',
@@ -901,7 +934,6 @@ class XamlProcessor {
 
             if (newComponents.length) {
                 App.state.components = newComponents;
-                // 更新 nextId
                 const maxId = ComponentManager.getMaxGlobalId();
                 App.state.nextId = maxId + 1;
                 App.state.selectedId = null;
@@ -937,13 +969,11 @@ class XamlProcessor {
                 }
             });
 
-            // FIX: 统一添加事件属性
             if (comp.events?.type) {
                 attrs.push(`EventType="${Utils.escapeXml(comp.events.type)}"`);
                 attrs.push(`EventData="${Utils.escapeXml(comp.events.data || '')}"`);
             }
 
-            // FIX: 添加自定义属性
             for (const [key, val] of Object.entries(comp.customProps || {})) {
                 attrs.push(`${key}="${Utils.escapeXml(val)}"`);
             }
@@ -1293,7 +1323,6 @@ class ServerApi {
 
 // modules/DragDropManager.js
 class DragDropManager {
-    // FIX: 大文件分块读取 + 进度指示
     createProgressOverlay() {
         let overlay = document.getElementById('globalProgressOverlay');
         if (!overlay) {
@@ -1448,7 +1477,6 @@ class DragDropManager {
             }
         });
 
-        // FIX: 改进 dragleave 清除高亮
         designContainer.addEventListener('dragleave', (e) => {
             if (currentDropZone && !designContainer.contains(e.relatedTarget)) {
                 currentDropZone.classList.remove('drag-over');
@@ -1490,7 +1518,7 @@ class DragDropManager {
             if (!newComp) return;
 
             if (ComponentManager.addComponent(newComp, targetParentId)) {
-                App.renderManager.renderCanvas();
+                // 增量已由 addComponent 完成，无需再全量渲染
                 App.renderManager.selectComponent(newComp.id);
                 Utils.showToast(`添加 ${ComponentTypes[compType].name}`);
             } else {
@@ -1522,47 +1550,44 @@ class DragDropManager {
 
 // modules/UIManager.js
 class UIManager {
-updateOpenFileButton() {
-    const btn = document.getElementById('openLocalFileBtn');
-    if (!btn) return;
+    updateOpenFileButton() {
+        const btn = document.getElementById('openLocalFileBtn');
+        if (!btn) return;
 
-    const hasLinkedFile = !!App.fileManager.currentFileName;
-    const isDirty = App.state.dirty;
+        const hasLinkedFile = !!App.fileManager.currentFileName;
+        const isDirty = App.state.dirty;
 
-    if (hasLinkedFile && isDirty) {
-        // 有链接文件且有未保存更改 → 保存按钮
-        btn.innerHTML = '<i class="fas fa-save"></i> 保存到文件';
-        btn.classList.add('btn-primary');
-        btn.disabled = false;
-        btn.title = '保存到当前链接的文件';
-        btn.onclick = () => App.fileManager.saveToLinkedFile();
-    } else if (hasLinkedFile && !isDirty) {
-        // 有链接文件且已同步 → 已是最新（不可点击）
-        btn.innerHTML = '<i class="fas fa-check"></i> 已是最新';
-        btn.classList.remove('btn-primary');
-        btn.disabled = true;
-        btn.title = '文件已同步，无需保存';
-        btn.onclick = null;
-    } else {
-        // 无链接文件 → 打开本地文件
-        btn.innerHTML = '<i class="fas fa-folder-open"></i> 打开本地文件';
-        btn.classList.remove('btn-primary');
-        btn.disabled = false;
-        btn.title = '打开或链接本地文件';
-        btn.onclick = () => App.fileManager.openLocalFileWithPicker();
+        if (hasLinkedFile && isDirty) {
+            btn.innerHTML = '<i class="fas fa-save"></i> 保存到文件';
+            btn.classList.add('btn-primary');
+            btn.disabled = false;
+            btn.title = '保存到当前链接的文件';
+            btn.onclick = () => App.fileManager.saveToLinkedFile();
+        } else if (hasLinkedFile && !isDirty) {
+            btn.innerHTML = '<i class="fas fa-check"></i> 已是最新';
+            btn.classList.remove('btn-primary');
+            btn.disabled = true;
+            btn.title = '文件已同步，无需保存';
+            btn.onclick = null;
+        } else {
+            btn.innerHTML = '<i class="fas fa-folder-open"></i> 打开本地文件';
+            btn.classList.remove('btn-primary');
+            btn.disabled = false;
+            btn.title = '打开或链接本地文件';
+            btn.onclick = () => App.fileManager.openLocalFileWithPicker();
+        }
     }
-}
 
     async renderBackupList() {
         const container = document.getElementById('backupListContainer');
         if (!container) return;
-        
+
         const backups = await App.serverApi.getBackupList();
         if (!backups.length) {
             container.innerHTML = '<div class="empty-placeholder" style="padding:20px"><i class="fas fa-cloud-upload-alt"></i><p>暂无自动备份，编辑组件后将自动创建</p></div>';
             return;
         }
-        
+
         container.innerHTML = `
             <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
                 <span><i class="fas fa-history"></i> 自动备份列表（最多保留30个）</span>
@@ -1585,7 +1610,7 @@ updateOpenFileButton() {
                 `).join('')}
             </div>
         `;
-        
+
         if (App.serverApi.lastSelectedBackup) {
             const targetItem = container.querySelector(`.backup-item[data-name="${App.serverApi.lastSelectedBackup}"]`);
             if (targetItem) {
@@ -1596,7 +1621,7 @@ updateOpenFileButton() {
                 App.serverApi.lastSelectedBackup = null;
             }
         }
-        
+
         container.querySelectorAll('.load-backup').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const name = btn.getAttribute('data-name');
@@ -1605,7 +1630,7 @@ updateOpenFileButton() {
                 document.getElementById('serverModal').style.display = 'none';
             });
         });
-        
+
         container.querySelectorAll('.delete-backup').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const name = btn.getAttribute('data-name');
@@ -1613,7 +1638,7 @@ updateOpenFileButton() {
                 await this.renderBackupList();
             });
         });
-        
+
         const manualBtn = document.getElementById('manualBackupBtn');
         if (manualBtn) {
             manualBtn.onclick = async () => {
@@ -1813,6 +1838,22 @@ class App {
         this.renderManager.renderCanvas();
         this.fileManager.updateLocalFileUI();
         this.uiManager.updateOpenFileButton();
+
+        // 关闭页面未保存提示
+        window.addEventListener('beforeunload', (e) => {
+            if (App.state.dirty) {
+                const message = '当前设计未保存，离开页面将会丢失更改，确定要离开吗？';
+                e.preventDefault();
+                e.returnValue = message;
+                return message;
+            }
+        });
+
+        // 确保 nextId 足够大（校准）
+        const maxId = ComponentManager.getMaxGlobalId();
+        if (maxId >= App.state.nextId) {
+            App.state.nextId = maxId + 1;
+        }
     }
 }
 
