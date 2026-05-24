@@ -40,17 +40,16 @@ function formatMargin(left, top, right, bottom) {
 
 // 应用外边距、宽高、对齐等通用布局样式（直接模拟位置，无虚线框）
 function applyLayoutStyles(wrapper, comp) {
-    // 1. Margin
+    // 获取并解析 Margin 值
     const margin = comp.props.Margin || '0';
     const [ml, mt, mr, mb] = parseMargin(margin);
+    
+    // 先设置总 margin（会被后续单独的 left/right 覆盖）
     wrapper.style.margin = `${mt}px ${mr}px ${mb}px ${ml}px`;
 
-    // 2. 宽度/高度
+    // 宽度 / 高度处理
     if (comp.props.Width) {
         wrapper.style.width = comp.props.Width;
-        if (!comp.props.HorizontalAlignment || comp.props.HorizontalAlignment === 'Stretch') {
-            wrapper.style.width = comp.props.Width;
-        }
     } else {
         wrapper.style.width = '';
     }
@@ -60,29 +59,54 @@ function applyLayoutStyles(wrapper, comp) {
         wrapper.style.height = '';
     }
 
-    // 3. 水平对齐
     const halign = comp.props.HorizontalAlignment || 'Stretch';
+    const isLeftMarginSet = ml !== 0;   // 左边距是否被用户显式设置（非0）
+    const isRightMarginSet = mr !== 0;  // 右边距是否被用户显式设置（非0）
+
+    // 根据水平对齐方式，决定是否覆盖左右边距
     if (halign === 'Center') {
-        wrapper.style.marginLeft = 'auto';
-        wrapper.style.marginRight = 'auto';
-        wrapper.style.width = wrapper.style.width || 'auto';
-    } else if (halign === 'Right') {
-        wrapper.style.marginLeft = 'auto';
-        wrapper.style.marginRight = '0';
-        wrapper.style.width = wrapper.style.width || 'auto';
-    } else if (halign === 'Left') {
-        wrapper.style.marginLeft = '0';
-        wrapper.style.marginRight = 'auto';
-        wrapper.style.width = wrapper.style.width || 'auto';
-    } else {
-        if (!comp.props.Width) {
-            wrapper.style.width = '100%';
+        if (!isLeftMarginSet && !isRightMarginSet) {
+            // 无用户边距时，使用居中
+            wrapper.style.marginLeft = 'auto';
+            wrapper.style.marginRight = 'auto';
+        } else {
+            // 有用户边距时，保留用户设置的具体像素值
+            if (isLeftMarginSet) wrapper.style.marginLeft = `${ml}px`;
+            if (isRightMarginSet) wrapper.style.marginRight = `${mr}px`;
         }
-        wrapper.style.marginLeft = '';
-        wrapper.style.marginRight = '';
+        if (!comp.props.Width) wrapper.style.width = 'auto';
+    } 
+    else if (halign === 'Right') {
+        if (!isRightMarginSet) {
+            // 无右边距用户值时，按右对齐处理
+            wrapper.style.marginLeft = 'auto';
+            wrapper.style.marginRight = '0';
+        } else {
+            // 有右边距时优先使用用户值，左边距同理
+            if (isLeftMarginSet) wrapper.style.marginLeft = `${ml}px`;
+            wrapper.style.marginRight = `${mr}px`;
+        }
+        if (!comp.props.Width) wrapper.style.width = 'auto';
+    } 
+    else if (halign === 'Left') {
+        if (!isLeftMarginSet) {
+            wrapper.style.marginLeft = '0';
+            wrapper.style.marginRight = 'auto';
+        } else {
+            wrapper.style.marginLeft = `${ml}px`;
+            if (isRightMarginSet) wrapper.style.marginRight = `${mr}px`;
+            else wrapper.style.marginRight = 'auto';
+        }
+        if (!comp.props.Width) wrapper.style.width = 'auto';
+    } 
+    else { // Stretch 拉伸模式
+        if (!comp.props.Width) wrapper.style.width = '100%';
+        // 拉伸模式下也保留用户设置的左右边距
+        if (isLeftMarginSet) wrapper.style.marginLeft = `${ml}px`;
+        if (isRightMarginSet) wrapper.style.marginRight = `${mr}px`;
     }
 
-    // 4. 垂直对齐
+    // 垂直对齐处理（不变）
     const valign = comp.props.VerticalAlignment || 'Stretch';
     if (valign === 'Top') {
         wrapper.style.alignSelf = 'flex-start';
@@ -94,6 +118,7 @@ function applyLayoutStyles(wrapper, comp) {
         wrapper.style.alignSelf = 'stretch';
     }
 
+    // 记录属性到自定义 data 属性，便于调试
     wrapper.setAttribute('data-halign', halign);
     wrapper.setAttribute('data-valign', valign);
 }
