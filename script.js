@@ -343,6 +343,36 @@ class RenderManager {
         this.updatePropsPanel();
     }
 
+    // 性能优化：局部刷新单个组件及其子组件，避免全量重绘
+    refreshComponent(compId) {
+        const comp = ComponentFinder.findComponentById(compId);
+        if (!comp) return;
+        const oldWrapper = document.querySelector(`.component-item-wrapper[data-id="${compId}"]`);
+        if (!oldWrapper) {
+            // 如果找不到对应的DOM元素（例如组件不在当前画布中），则回退全量渲染
+            this.renderCanvas();
+            return;
+        }
+        const parent = oldWrapper.parentNode;
+        if (!parent) return;
+        // 创建临时容器，重新生成该组件及其所有子组件的 DOM
+        const tempContainer = document.createElement('div');
+        this.renderComponentDOM(comp, tempContainer);
+        const newWrapper = tempContainer.firstChild;
+        if (newWrapper) {
+            parent.replaceChild(newWrapper, oldWrapper);
+            // 如果当前选中的组件就是被刷新的组件，重新添加 selected 类
+            if (App.state.selectedId === compId) {
+                newWrapper.classList.add('selected');
+                // 确保属性面板仍然显示该组件的最新属性（updatePropsPanel 会重新读取 comp）
+                this.updatePropsPanel();
+            }
+        } else {
+            console.warn("refreshComponent: failed to generate new DOM, fallback to full render");
+            this.renderCanvas();
+        }
+    }
+
     selectComponent(id) {
         App.state.selectedId = id;
         document.querySelectorAll('.component-item-wrapper').forEach(el => el.classList.remove('selected'));
@@ -436,6 +466,7 @@ class RenderManager {
         const comp = ComponentFinder.findComponentById(App.state.selectedId);
         if (!comp) return;
 
+        // 从表单读取并更新组件属性
         document.querySelectorAll('#dynamicProps input, #dynamicProps textarea').forEach(inp => {
             const key = inp.getAttribute('data-prop');
             if (key) comp.props[key] = inp.value;
@@ -446,7 +477,9 @@ class RenderManager {
             data: document.getElementById('eventDataInput').value
         };
 
-        this.renderCanvas();
+        // 性能优化：仅局部刷新该组件，而不是全量渲染
+        this.refreshComponent(comp.id);
+        // 刷新后确保属性面板显示最新数据（但 updatePropsPanel 已在 refreshComponent 中调用，此处无需重复）
         Utils.showToast('属性已更新');
     }
 }
@@ -455,11 +488,27 @@ class RenderManager {
 class XamlProcessor {
     importFromXAML(xmlStr) {
         try {
+            // 预处理：移除 BOM 头
+            if (xmlStr.charCodeAt(0) === 0xFEFF) {
+                xmlStr = xmlStr.slice(1);
+            }
+            // 用根节点包裹以确保最外层多个组件能被解析
             const wrappedXml = `<root xmlns:local="http://tempuri.org/pcl">${xmlStr}</root>`;
             const parser = new DOMParser();
             const xml = parser.parseFromString(wrappedXml, 'text/xml');
 
-            if (xml.querySelector('parsererror')) throw new Error('XML格式错误');
+            // 增强错误检测：检查 parsererror
+            const parseError = xml.querySelector('parsererror');
+            if (parseError) {
+                let errMsg = parseError.textContent || 'XML 格式错误';
+                // 尝试提取行号信息
+                const lineMatch = errMsg.match(/line:?\s*(\d+)/i);
+                const colMatch = errMsg.match(/column:?\s*(\d+)/i);
+                let location = '';
+                if (lineMatch) location += `第 ${lineMatch[1]} 行`;
+                if (colMatch) location += `第 ${colMatch[1]} 列`;
+                throw new Error(`XAML 解析失败: ${errMsg.substring(0, 100)}${location ? ` (${location})` : ''}`);
+            }
 
             const parseNode = (node, parentId = null) => {
                 const tagName = node.tagName?.toLowerCase();
@@ -499,6 +548,7 @@ class XamlProcessor {
                 }
                 else if (type === 'grid') {
                     let colsDef = '', rowsDef = '';
+                    // 遍历子节点，识别 ColumnDefinitions 和 RowDefinitions（忽略大小写）
                     for (let child of node.children) {
                         const childName = child.tagName?.toLowerCase();
                         if (childName === 'grid.columndefinitions') {
@@ -808,6 +858,7 @@ class FileManager {
                 if (err.name !== 'AbortError') Utils.showToast('保存失败: ' + err.message, true);
             }
         } else {
+            // 降级处理：使用 <a download> 下载文件，并提示用户
             const blob = new Blob([xamlContent], { type: 'text/plain' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
@@ -815,6 +866,10 @@ class FileManager {
             link.click();
             URL.revokeObjectURL(link.href);
             Utils.showToast('已下载文件，如需再次编辑请使用"打开本地文件"');
+            // 提示用户当前为只读模式
+            setTimeout(() => {
+                Utils.showToast('提示：当前浏览器不支持直接读写文件，保存采用下载方式。', false);
+            }, 1500);
         }
     }
 

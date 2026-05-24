@@ -12,6 +12,9 @@ CORS(app)  # 允许跨域，方便开发
 STORAGE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'designs')
 os.makedirs(STORAGE_DIR, exist_ok=True)
 
+# 后端请求大小限制：限制最大请求体为 16MB，防止超大XAML内容导致性能问题
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+
 def is_safe_filename(filename: str) -> bool:
     """检查文件名是否安全，防止路径遍历"""
     if not filename:
@@ -99,8 +102,6 @@ def delete_xml():
         return jsonify({'success': True, 'message': f'已删除 {filename}'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
-# 在 app.py 中添加以下两个接口
 
 @app.route('/api/local/load', methods=['POST'])
 def local_load():
