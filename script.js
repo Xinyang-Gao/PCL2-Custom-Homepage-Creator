@@ -5,8 +5,8 @@ const PROP_SELECT_OPTIONS = {
     TextWrapping: ['Wrap', 'NoWrap', 'WrapWithOverflow'],
     Theme: ['Blue', 'Yellow', 'Red'],
     ColorType: ['Highlight', 'Primary', 'Secondary', 'Success', 'Danger'],
-    Type: ['Clickable', 'Toggle', 'Radio'],           // 用于 MyListItem
-    Orientation: ['Horizontal', 'Vertical'],          // 用于 StackPanel
+    Type: ['Clickable', 'Toggle', 'Radio'],
+    Orientation: ['Horizontal', 'Vertical'],
     CanSwap: ['True', 'False'],
     IsSwapped: ['True', 'False'],
     EnableCache: ['True', 'False'],
@@ -16,9 +16,8 @@ const PROP_SELECT_OPTIONS = {
     IsHitTestVisible: ['True', 'False']
 };
 
-// ======================== Margin 解析与格式化工具 ========================
+// ======================== Margin 解析与格式化 ========================
 function parseMargin(marginStr) {
-    // 默认值 [left, top, right, bottom]
     const defaults = [0, 0, 0, 0];
     if (!marginStr || marginStr.trim() === '') return defaults;
     const parts = marginStr.split(',').map(p => parseFloat(p.trim()));
@@ -36,7 +35,6 @@ function parseMargin(marginStr) {
 }
 
 function formatMargin(left, top, right, bottom) {
-    // 去除末尾多余的0（如果四个值相等则简化为一个值）
     if (left === top && top === right && right === bottom) {
         return left.toString();
     }
@@ -193,7 +191,6 @@ class Utils {
             toast.className = 'toast';
             document.body.appendChild(toast);
         }
-
         toast.textContent = msg;
         toast.style.background = isErr ? '#ef4444' : '#4f46e5';
         toast.style.opacity = '1';
@@ -218,6 +215,27 @@ class Utils {
             if (m === '>') return '&gt;';
             return m;
         }).replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+    }
+
+    // 用于属性值的严格转义（HTML属性）
+    static escapeHtmlAttr(str) {
+        if (!str) return '';
+        return str.replace(/[&<>"]/g, function (m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            if (m === '"') return '&quot;';
+            return m;
+        }).replace(/'/g, '&apos;');
+    }
+
+    // 校验 URL 是否安全（防止 javascript: 等协议）
+    static isSafeUrl(url) {
+        if (!url) return false;
+        const lowerUrl = url.toLowerCase().trim();
+        if (lowerUrl.startsWith('javascript:')) return false;
+        if (lowerUrl.startsWith('data:') && !lowerUrl.startsWith('data:image/')) return false;
+        return true;
     }
 }
 
@@ -314,63 +332,172 @@ class ComponentManager {
     }
 }
 
-// modules/RenderManager.js
+// modules/RenderManager.js (完全重写，使用 DOM API 防 XSS)
 class RenderManager {
     renderComponentDOM(comp, container) {
         const wrapper = document.createElement('div');
         wrapper.className = 'component-item-wrapper';
         wrapper.setAttribute('data-id', comp.id);
         wrapper.setAttribute('data-type', comp.type);
-
-        if (comp.type === 'card') {
-            wrapper.innerHTML = `<div class="card-component"><div class="card-header"><span>${Utils.escapeHtml(comp.props.Title || '卡片')}</span><div><i class="fas fa-arrows-alt"></i></div></div><div class="card-content"><div class="nested-dropzone" data-parent-id="${comp.id}" data-placeholder="将组件拖入卡片"></div></div></div>`;
-            const dropzone = wrapper.querySelector('.nested-dropzone');
-            comp.children.forEach(child => this.renderComponentDOM(child, dropzone));
-        }
-        else if (comp.type === 'stackpanel') {
-            wrapper.innerHTML = `<div class="card-component" style="background:var(--bg-card); padding:8px; border:1px dashed var(--border);"><div style="font-size:0.7rem; color:var(--text-light);"><i class="fas fa-layer-group"></i> 垂直布局</div><div class="nested-dropzone" data-parent-id="${comp.id}"></div></div>`;
-            const dz = wrapper.querySelector('.nested-dropzone');
-            comp.children.forEach(child => this.renderComponentDOM(child, dz));
-        }
-        else if (comp.type === 'horizontalstack') {
-            wrapper.innerHTML = `<div class="card-component" style="background:var(--bg-card); padding:8px; border:1px dashed var(--border);"><div style="font-size:0.7rem;"><i class="fas fa-arrows-alt-h"></i> 水平布局</div><div class="nested-dropzone horizontal" data-parent-id="${comp.id}" style="display:flex; gap:8px; flex-wrap:wrap;"></div></div>`;
-            const dz = wrapper.querySelector('.nested-dropzone');
-            comp.children.forEach(child => this.renderComponentDOM(child, dz));
-        }
-        else if (comp.type === 'grid') {
-            wrapper.innerHTML = `<div class="card-component grid-mock"><div style="font-size:0.7rem;"><i class="fas fa-th"></i> 网格布局 (${comp.props.ColumnsDefinition || '未定义列'})</div><div class="nested-dropzone" data-parent-id="${comp.id}"></div></div>`;
-            const dz = wrapper.querySelector('.nested-dropzone');
-            comp.children.forEach(child => this.renderComponentDOM(child, dz));
-        }
-        else {
-            let innerHtml = '';
-            if (comp.type === 'text') {
-                innerHtml = `<div style="margin:4px 0; color:${comp.props.Foreground || '#000'}">${Utils.escapeHtml(comp.props.Text || '文本')}</div>`;
-            }
-            else if (comp.type === 'hint') {
-                innerHtml = `<div class="hint-${(comp.props.Theme || 'blue').toLowerCase()}" style="padding:8px; border-radius:8px;">${Utils.escapeHtml(comp.props.Text)}</div>`;
-            }
-            else if (comp.type === 'image') {
-                innerHtml = `<img src="${comp.props.Source}" style="max-width:100%; height:${comp.props.Height || 'auto'}" />`;
-            }
-            else if (comp.type === 'button') {
-                innerHtml = `<button class="btn" style="background:${comp.props.ColorType === 'Highlight' ? '#4f46e5' : '#333'}; color:white; border:none; padding:8px 16px; border-radius:30px;">${Utils.escapeHtml(comp.props.Text)}</button>`;
-            }
-            else if (comp.type === 'textbutton') {
-                innerHtml = `<button style="background:none; border:none; color:var(--primary); cursor:pointer;">${Utils.escapeHtml(comp.props.Text)}</button>`;
-            }
-            else if (comp.type === 'listitem') {
-                innerHtml = `<div class="list-item-mock"><i class="fas fa-cube"></i><div><strong>${Utils.escapeHtml(comp.props.Title)}</strong><div style="font-size:12px;">${Utils.escapeHtml(comp.props.Info)}</div></div></div>`;
-            }
-
-            wrapper.innerHTML = innerHtml;
-            if (comp.props.ToolTip) wrapper.title = comp.props.ToolTip;
+        if (comp.props.ToolTip) {
+            wrapper.setAttribute('title', comp.props.ToolTip);
         }
 
+        // 点击选中
         wrapper.addEventListener('click', (e) => {
             e.stopPropagation();
             this.selectComponent(comp.id);
         });
+
+        // 根据组件类型构建内部 DOM
+        if (comp.type === 'card') {
+            const cardDiv = document.createElement('div');
+            cardDiv.className = 'card-component';
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'card-header';
+            const titleSpan = document.createElement('span');
+            titleSpan.textContent = comp.props.Title || '卡片';
+            const iconSpan = document.createElement('div');
+            iconSpan.innerHTML = '<i class="fas fa-arrows-alt"></i>';
+            headerDiv.appendChild(titleSpan);
+            headerDiv.appendChild(iconSpan);
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'card-content';
+            const dropzone = document.createElement('div');
+            dropzone.className = 'nested-dropzone';
+            dropzone.setAttribute('data-parent-id', comp.id);
+            dropzone.setAttribute('data-placeholder', '将组件拖入卡片');
+            contentDiv.appendChild(dropzone);
+            cardDiv.appendChild(headerDiv);
+            cardDiv.appendChild(contentDiv);
+            wrapper.appendChild(cardDiv);
+            // 渲染子组件
+            comp.children.forEach(child => this.renderComponentDOM(child, dropzone));
+        }
+        else if (comp.type === 'stackpanel') {
+            const containerDiv = document.createElement('div');
+            containerDiv.className = 'card-component';
+            containerDiv.style.cssText = 'background:var(--bg-card); padding:8px; border:1px dashed var(--border);';
+            const labelDiv = document.createElement('div');
+            labelDiv.style.fontSize = '0.7rem';
+            labelDiv.style.color = 'var(--text-light)';
+            labelDiv.innerHTML = '<i class="fas fa-layer-group"></i> 垂直布局';
+            const dropzone = document.createElement('div');
+            dropzone.className = 'nested-dropzone';
+            dropzone.setAttribute('data-parent-id', comp.id);
+            containerDiv.appendChild(labelDiv);
+            containerDiv.appendChild(dropzone);
+            wrapper.appendChild(containerDiv);
+            comp.children.forEach(child => this.renderComponentDOM(child, dropzone));
+        }
+        else if (comp.type === 'horizontalstack') {
+            const containerDiv = document.createElement('div');
+            containerDiv.className = 'card-component';
+            containerDiv.style.cssText = 'background:var(--bg-card); padding:8px; border:1px dashed var(--border);';
+            const labelDiv = document.createElement('div');
+            labelDiv.style.fontSize = '0.7rem';
+            labelDiv.innerHTML = '<i class="fas fa-arrows-alt-h"></i> 水平布局';
+            const dropzone = document.createElement('div');
+            dropzone.className = 'nested-dropzone horizontal';
+            dropzone.setAttribute('data-parent-id', comp.id);
+            dropzone.style.display = 'flex';
+            dropzone.style.gap = '8px';
+            dropzone.style.flexWrap = 'wrap';
+            containerDiv.appendChild(labelDiv);
+            containerDiv.appendChild(dropzone);
+            wrapper.appendChild(containerDiv);
+            comp.children.forEach(child => this.renderComponentDOM(child, dropzone));
+        }
+        else if (comp.type === 'grid') {
+            const containerDiv = document.createElement('div');
+            containerDiv.className = 'card-component grid-mock';
+            const labelDiv = document.createElement('div');
+            labelDiv.style.fontSize = '0.7rem';
+            labelDiv.innerHTML = `<i class="fas fa-th"></i> 网格布局 (${Utils.escapeHtml(comp.props.ColumnsDefinition || '未定义列')})`;
+            const dropzone = document.createElement('div');
+            dropzone.className = 'nested-dropzone';
+            dropzone.setAttribute('data-parent-id', comp.id);
+            containerDiv.appendChild(labelDiv);
+            containerDiv.appendChild(dropzone);
+            wrapper.appendChild(containerDiv);
+            comp.children.forEach(child => this.renderComponentDOM(child, dropzone));
+        }
+        else {
+            // 叶子组件：完全使用安全 DOM 方法
+            if (comp.type === 'text') {
+                const textDiv = document.createElement('div');
+                textDiv.style.margin = '4px 0';
+                if (comp.props.Foreground) textDiv.style.color = comp.props.Foreground;
+                textDiv.textContent = comp.props.Text || '文本';
+                wrapper.appendChild(textDiv);
+            }
+            else if (comp.type === 'hint') {
+                const hintDiv = document.createElement('div');
+                const theme = (comp.props.Theme || 'blue').toLowerCase();
+                hintDiv.className = `hint-${theme}`;
+                hintDiv.style.padding = '8px';
+                hintDiv.style.borderRadius = '8px';
+                hintDiv.textContent = comp.props.Text || '';
+                wrapper.appendChild(hintDiv);
+            }
+            else if (comp.type === 'image') {
+                const img = document.createElement('img');
+                img.style.maxWidth = '100%';
+                if (comp.props.Height) img.style.height = comp.props.Height;
+                const srcVal = comp.props.Source || '';
+                if (Utils.isSafeUrl(srcVal)) {
+                    img.src = srcVal;
+                } else {
+                    img.src = '#';
+                    img.alt = '非法图片地址';
+                }
+                wrapper.appendChild(img);
+            }
+            else if (comp.type === 'button') {
+                const btn = document.createElement('button');
+                btn.className = 'btn';
+                btn.textContent = comp.props.Text || '按钮';
+                let bgColor = '#4f46e5';
+                if (comp.props.ColorType === 'Highlight') bgColor = '#4f46e5';
+                else if (comp.props.ColorType === 'Primary') bgColor = '#3b82f6';
+                else if (comp.props.ColorType === 'Secondary') bgColor = '#64748b';
+                else if (comp.props.ColorType === 'Success') bgColor = '#10b981';
+                else if (comp.props.ColorType === 'Danger') bgColor = '#ef4444';
+                btn.style.backgroundColor = bgColor;
+                btn.style.color = 'white';
+                btn.style.border = 'none';
+                btn.style.padding = '8px 16px';
+                btn.style.borderRadius = '30px';
+                wrapper.appendChild(btn);
+            }
+            else if (comp.type === 'textbutton') {
+                const btn = document.createElement('button');
+                btn.style.background = 'none';
+                btn.style.border = 'none';
+                btn.style.color = 'var(--primary)';
+                btn.style.cursor = 'pointer';
+                btn.textContent = comp.props.Text || '文本按钮';
+                wrapper.appendChild(btn);
+            }
+            else if (comp.type === 'listitem') {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'list-item-mock';
+                const icon = document.createElement('i');
+                icon.className = 'fas fa-cube';
+                const contentDiv = document.createElement('div');
+                const titleStrong = document.createElement('strong');
+                titleStrong.textContent = comp.props.Title || '';
+                const infoSpan = document.createElement('div');
+                infoSpan.style.fontSize = '12px';
+                infoSpan.textContent = comp.props.Info || '';
+                contentDiv.appendChild(titleStrong);
+                contentDiv.appendChild(infoSpan);
+                itemDiv.appendChild(icon);
+                itemDiv.appendChild(contentDiv);
+                wrapper.appendChild(itemDiv);
+            }
+        }
+
         container.appendChild(wrapper);
     }
 
@@ -391,32 +518,26 @@ class RenderManager {
         this.updatePropsPanel();
     }
 
-    // 性能优化：局部刷新单个组件及其子组件，避免全量重绘
     refreshComponent(compId) {
         const comp = ComponentFinder.findComponentById(compId);
         if (!comp) return;
         const oldWrapper = document.querySelector(`.component-item-wrapper[data-id="${compId}"]`);
         if (!oldWrapper) {
-            // 如果找不到对应的DOM元素（例如组件不在当前画布中），则回退全量渲染
             this.renderCanvas();
             return;
         }
         const parent = oldWrapper.parentNode;
         if (!parent) return;
-        // 创建临时容器，重新生成该组件及其所有子组件的 DOM
         const tempContainer = document.createElement('div');
         this.renderComponentDOM(comp, tempContainer);
         const newWrapper = tempContainer.firstChild;
         if (newWrapper) {
             parent.replaceChild(newWrapper, oldWrapper);
-            // 如果当前选中的组件就是被刷新的组件，重新添加 selected 类
             if (App.state.selectedId === compId) {
                 newWrapper.classList.add('selected');
-                // 确保属性面板仍然显示该组件的最新属性（updatePropsPanel 会重新读取 comp）
                 this.updatePropsPanel();
             }
         } else {
-            console.warn("refreshComponent: failed to generate new DOM, fallback to full render");
             this.renderCanvas();
         }
     }
@@ -430,79 +551,74 @@ class RenderManager {
         this.updateHierarchyBar();
     }
 
-updatePropsPanel() {
-    const comp = ComponentFinder.findComponentById(App.state.selectedId);
-    document.getElementById('compTypeName').innerText = comp ? (ComponentTypes[comp.type]?.name || comp.type) : '未选中';
-    document.getElementById('compIdDisplay').innerText = comp ? comp.id : '-';
-    if (!comp) {
-        document.getElementById('dynamicProps').innerHTML = '';
-        document.getElementById('eventTypeSelect').value = '';
-        document.getElementById('eventDataInput').value = '';
-        return;
-    }
-
-    const container = document.getElementById('dynamicProps');
-    container.innerHTML = '';
-    const groups = this.getPropGroups(comp);
-    
-    for (let group of groups) {
-        const section = document.createElement('div');
-        section.className = 'prop-section';
-        section.innerHTML = `<div class="prop-section-title"><i class="${group.icon}"></i> ${Utils.escapeHtml(group.title)}</div>`;
-        
-        for (let field of group.fields) {
-            const fieldDiv = document.createElement('div');
-            fieldDiv.className = 'prop-field';
-            
-            // 特殊处理 Margin 属性：拆分为四个独立输入框
-            if (field.key === 'Margin') {
-                const marginValues = parseMargin(field.val);
-                const [left, top, right, bottom] = marginValues;
-                fieldDiv.innerHTML = `
-                    <label>Margin (左,上,右,下)</label>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <div><label style="font-size:0.65rem;">左</label>
-                        <input type="number" class="margin-part" data-margin="left" value="${Utils.escapeHtml(String(left))}" step="any" style="width:100%;"></div>
-                        <div><label style="font-size:0.65rem;">上</label>
-                        <input type="number" class="margin-part" data-margin="top" value="${Utils.escapeHtml(String(top))}" step="any" style="width:100%;"></div>
-                        <div><label style="font-size:0.65rem;">右</label>
-                        <input type="number" class="margin-part" data-margin="right" value="${Utils.escapeHtml(String(right))}" step="any" style="width:100%;"></div>
-                        <div><label style="font-size:0.65rem;">下</label>
-                        <input type="number" class="margin-part" data-margin="bottom" value="${Utils.escapeHtml(String(bottom))}" step="any" style="width:100%;"></div>
-                    </div>
-                `;
-                section.appendChild(fieldDiv);
-                continue;
-            }
-            
-            // 判断是否为选择类属性
-            const selectOptions = PROP_SELECT_OPTIONS[field.key];
-            if (selectOptions) {
-                // 生成下拉选择框
-                const selectHtml = `
-                    <label>${Utils.escapeHtml(field.key)}</label>
-                    <select data-prop="${Utils.escapeHtml(field.key)}" class="prop-select">
-                        ${selectOptions.map(opt => `<option value="${Utils.escapeHtml(opt)}" ${opt === field.val ? 'selected' : ''}>${Utils.escapeHtml(opt)}</option>`).join('')}
-                    </select>
-                `;
-                fieldDiv.innerHTML = selectHtml;
-            } else {
-                // 普通文本/数字输入框（长文本使用 textarea）
-                const isLong = (field.key === 'Text' || field.key === 'Info' || field.key === 'ColumnsDefinition' || field.key === 'RowsDefinition');
-                const inputHtml = isLong ?
-                    `<textarea data-prop="${Utils.escapeHtml(field.key)}" rows="2" style="width:100%;">${Utils.escapeHtml(String(field.val))}</textarea>` :
-                    `<input data-prop="${Utils.escapeHtml(field.key)}" value="${Utils.escapeHtml(String(field.val))}" style="width:100%;" />`;
-                fieldDiv.innerHTML = `<label>${Utils.escapeHtml(field.key)}</label>${inputHtml}`;
-            }
-            section.appendChild(fieldDiv);
+    updatePropsPanel() {
+        const comp = ComponentFinder.findComponentById(App.state.selectedId);
+        document.getElementById('compTypeName').innerText = comp ? (ComponentTypes[comp.type]?.name || comp.type) : '未选中';
+        document.getElementById('compIdDisplay').innerText = comp ? comp.id : '-';
+        if (!comp) {
+            document.getElementById('dynamicProps').innerHTML = '';
+            document.getElementById('eventTypeSelect').value = '';
+            document.getElementById('eventDataInput').value = '';
+            return;
         }
-        container.appendChild(section);
+
+        const container = document.getElementById('dynamicProps');
+        container.innerHTML = '';
+        const groups = this.getPropGroups(comp);
+        
+        for (let group of groups) {
+            const section = document.createElement('div');
+            section.className = 'prop-section';
+            section.innerHTML = `<div class="prop-section-title"><i class="${group.icon}"></i> ${Utils.escapeHtml(group.title)}</div>`;
+            
+            for (let field of group.fields) {
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'prop-field';
+                
+                if (field.key === 'Margin') {
+                    const marginValues = parseMargin(field.val);
+                    const [left, top, right, bottom] = marginValues;
+                    fieldDiv.innerHTML = `
+                        <label>Margin (左,上,右,下)</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <div><label style="font-size:0.65rem;">左</label>
+                            <input type="number" class="margin-part" data-margin="left" value="${Utils.escapeHtmlAttr(String(left))}" step="any" style="width:100%;"></div>
+                            <div><label style="font-size:0.65rem;">上</label>
+                            <input type="number" class="margin-part" data-margin="top" value="${Utils.escapeHtmlAttr(String(top))}" step="any" style="width:100%;"></div>
+                            <div><label style="font-size:0.65rem;">右</label>
+                            <input type="number" class="margin-part" data-margin="right" value="${Utils.escapeHtmlAttr(String(right))}" step="any" style="width:100%;"></div>
+                            <div><label style="font-size:0.65rem;">下</label>
+                            <input type="number" class="margin-part" data-margin="bottom" value="${Utils.escapeHtmlAttr(String(bottom))}" step="any" style="width:100%;"></div>
+                        </div>
+                    `;
+                    section.appendChild(fieldDiv);
+                    continue;
+                }
+                
+                const selectOptions = PROP_SELECT_OPTIONS[field.key];
+                if (selectOptions) {
+                    const selectHtml = `
+                        <label>${Utils.escapeHtml(field.key)}</label>
+                        <select data-prop="${Utils.escapeHtmlAttr(field.key)}" class="prop-select">
+                            ${selectOptions.map(opt => `<option value="${Utils.escapeHtmlAttr(opt)}" ${opt === field.val ? 'selected' : ''}>${Utils.escapeHtml(opt)}</option>`).join('')}
+                        </select>
+                    `;
+                    fieldDiv.innerHTML = selectHtml;
+                } else {
+                    const isLong = (field.key === 'Text' || field.key === 'Info' || field.key === 'ColumnsDefinition' || field.key === 'RowsDefinition');
+                    const inputHtml = isLong ?
+                        `<textarea data-prop="${Utils.escapeHtmlAttr(field.key)}" rows="2" style="width:100%;">${Utils.escapeHtml(String(field.val))}</textarea>` :
+                        `<input data-prop="${Utils.escapeHtmlAttr(field.key)}" value="${Utils.escapeHtmlAttr(String(field.val))}" style="width:100%;" />`;
+                    fieldDiv.innerHTML = `<label>${Utils.escapeHtml(field.key)}</label>${inputHtml}`;
+                }
+                section.appendChild(fieldDiv);
+            }
+            container.appendChild(section);
+        }
+        
+        document.getElementById('eventTypeSelect').value = comp.events?.type || '';
+        document.getElementById('eventDataInput').value = comp.events?.data || '';
     }
-    
-    // 恢复事件绑定的值
-    document.getElementById('eventTypeSelect').value = comp.events?.type || '';
-    document.getElementById('eventDataInput').value = comp.events?.data || '';
-}
 
     getPropGroups(comp) {
         if (!comp) return [];
@@ -530,6 +646,42 @@ updatePropsPanel() {
         return Object.values(groups).filter(g => g.fields.length > 0);
     }
 
+    applyCurrentProps() {
+        const comp = ComponentFinder.findComponentById(App.state.selectedId);
+        if (!comp) return;
+
+        document.querySelectorAll('#dynamicProps input[data-prop], #dynamicProps textarea[data-prop], #dynamicProps select[data-prop]').forEach(inp => {
+            const key = inp.getAttribute('data-prop');
+            if (key) {
+                let value = inp.value;
+                if (typeof comp.props[key] === 'number' && !isNaN(parseFloat(value))) {
+                    value = parseFloat(value).toString();
+                }
+                comp.props[key] = value;
+            }
+        });
+
+        const marginLeft = document.querySelector('#dynamicProps .margin-part[data-margin="left"]');
+        const marginTop = document.querySelector('#dynamicProps .margin-part[data-margin="top"]');
+        const marginRight = document.querySelector('#dynamicProps .margin-part[data-margin="right"]');
+        const marginBottom = document.querySelector('#dynamicProps .margin-part[data-margin="bottom"]');
+        if (marginLeft && marginTop && marginRight && marginBottom) {
+            const left = parseFloat(marginLeft.value) || 0;
+            const top = parseFloat(marginTop.value) || 0;
+            const right = parseFloat(marginRight.value) || 0;
+            const bottom = parseFloat(marginBottom.value) || 0;
+            comp.props.Margin = formatMargin(left, top, right, bottom);
+        }
+
+        comp.events = {
+            type: document.getElementById('eventTypeSelect').value,
+            data: document.getElementById('eventDataInput').value
+        };
+
+        this.refreshComponent(comp.id);
+        Utils.showToast('属性已更新');
+    }
+
     updateHierarchyBar() {
         const bar = document.getElementById('hierarchyBar');
         if (!App.state.selectedId) {
@@ -544,72 +696,26 @@ updatePropsPanel() {
             cur = ComponentFinder.findComponentById(cur.parentId);
         }
 
-        bar.innerHTML = path.map(c => `<span class="hierarchy-item" data-id="${c.id}">${c.name}</span>`).join(' <i class="fas fa-chevron-right"></i> ');
+        bar.innerHTML = path.map(c => `<span class="hierarchy-item" data-id="${c.id}">${Utils.escapeHtml(c.name)}</span>`).join(' <i class="fas fa-chevron-right"></i> ');
         document.querySelectorAll('.hierarchy-item').forEach(el => el.addEventListener('click', (e) => {
             this.selectComponent(parseInt(el.getAttribute('data-id')));
         }));
     }
-
-applyCurrentProps() {
-    const comp = ComponentFinder.findComponentById(App.state.selectedId);
-    if (!comp) return;
-
-    // 1. 处理普通属性输入框（带 data-prop 属性的 input/textarea/select）
-    document.querySelectorAll('#dynamicProps input[data-prop], #dynamicProps textarea[data-prop], #dynamicProps select[data-prop]').forEach(inp => {
-        const key = inp.getAttribute('data-prop');
-        if (key) {
-            let value = inp.value;
-            // 对于数字类型属性，保留字符串但做简单修剪
-            if (typeof comp.props[key] === 'number' && !isNaN(parseFloat(value))) {
-                value = parseFloat(value).toString();
-            }
-            comp.props[key] = value;
-        }
-    });
-
-    // 2. 特殊处理 Margin：从四个独立输入框合成 Margin 字符串
-    const marginLeft = document.querySelector('#dynamicProps .margin-part[data-margin="left"]');
-    const marginTop = document.querySelector('#dynamicProps .margin-part[data-margin="top"]');
-    const marginRight = document.querySelector('#dynamicProps .margin-part[data-margin="right"]');
-    const marginBottom = document.querySelector('#dynamicProps .margin-part[data-margin="bottom"]');
-    if (marginLeft && marginTop && marginRight && marginBottom) {
-        const left = parseFloat(marginLeft.value) || 0;
-        const top = parseFloat(marginTop.value) || 0;
-        const right = parseFloat(marginRight.value) || 0;
-        const bottom = parseFloat(marginBottom.value) || 0;
-        comp.props.Margin = formatMargin(left, top, right, bottom);
-    }
-
-    // 3. 保存事件绑定
-    comp.events = {
-        type: document.getElementById('eventTypeSelect').value,
-        data: document.getElementById('eventDataInput').value
-    };
-
-    // 4. 局部刷新该组件
-    this.refreshComponent(comp.id);
-    Utils.showToast('属性已更新');
-}
 }
 
-// modules/XamlProcessor.js
+// modules/XamlProcessor.js (保持不变，已使用 Utils.escapeXml)
 class XamlProcessor {
     importFromXAML(xmlStr) {
         try {
-            // 预处理：移除 BOM 头
             if (xmlStr.charCodeAt(0) === 0xFEFF) {
                 xmlStr = xmlStr.slice(1);
             }
-            // 用根节点包裹以确保最外层多个组件能被解析
             const wrappedXml = `<root xmlns:local="http://tempuri.org/pcl">${xmlStr}</root>`;
             const parser = new DOMParser();
             const xml = parser.parseFromString(wrappedXml, 'text/xml');
-
-            // 增强错误检测：检查 parsererror
             const parseError = xml.querySelector('parsererror');
             if (parseError) {
                 let errMsg = parseError.textContent || 'XML 格式错误';
-                // 尝试提取行号信息
                 const lineMatch = errMsg.match(/line:?\s*(\d+)/i);
                 const colMatch = errMsg.match(/column:?\s*(\d+)/i);
                 let location = '';
@@ -656,7 +762,6 @@ class XamlProcessor {
                 }
                 else if (type === 'grid') {
                     let colsDef = '', rowsDef = '';
-                    // 遍历子节点，识别 ColumnDefinitions 和 RowDefinitions（忽略大小写）
                     for (let child of node.children) {
                         const childName = child.tagName?.toLowerCase();
                         if (childName === 'grid.columndefinitions') {
@@ -865,7 +970,7 @@ class XamlProcessor {
     }
 }
 
-// modules/FileManager.js
+// modules/FileManager.js (保持不变)
 class FileManager {
     constructor() {
         this.currentFileHandle = null;
@@ -966,7 +1071,6 @@ class FileManager {
                 if (err.name !== 'AbortError') Utils.showToast('保存失败: ' + err.message, true);
             }
         } else {
-            // 降级处理：使用 <a download> 下载文件，并提示用户
             const blob = new Blob([xamlContent], { type: 'text/plain' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
@@ -974,7 +1078,6 @@ class FileManager {
             link.click();
             URL.revokeObjectURL(link.href);
             Utils.showToast('已下载文件，如需再次编辑请使用"打开本地文件"');
-            // 提示用户当前为只读模式
             setTimeout(() => {
                 Utils.showToast('提示：当前浏览器不支持直接读写文件，保存采用下载方式。', false);
             }, 1500);
@@ -1002,7 +1105,7 @@ class FileManager {
     }
 }
 
-// modules/ServerApi.js
+// modules/ServerApi.js (保持不变)
 class ServerApi {
     constructor() {
         this.currentSelectedServerFile = '';
@@ -1108,7 +1211,7 @@ class ServerApi {
     }
 }
 
-// modules/DragDropManager.js
+// modules/DragDropManager.js (保持不变)
 class DragDropManager {
     handleFileImport(file) {
         if (!file) return;
@@ -1235,7 +1338,6 @@ class DragDropManager {
             }
         });
 
-        // 组件库拖拽初始化
         const container = document.getElementById('componentsList');
         container.querySelectorAll('.comp-item').forEach(item => {
             item.addEventListener('dragstart', (e) => {
@@ -1248,7 +1350,7 @@ class DragDropManager {
     }
 }
 
-// modules/UIManager.js
+// modules/UIManager.js (保持不变，但注意已经使用了 Utils.escapeHtml)
 class UIManager {
     buildComponentLibrary() {
         const container = document.getElementById('componentsList');
@@ -1258,7 +1360,7 @@ class UIManager {
             div.className = 'comp-item';
             div.setAttribute('data-type', key);
             div.setAttribute('draggable', 'true');
-            div.innerHTML = `<i class="${val.icon}"></i><span>${val.name}</span><i class="fas fa-grip-vertical" style="margin-left:auto; opacity:0.5"></i>`;
+            div.innerHTML = `<i class="${val.icon}"></i><span>${Utils.escapeHtml(val.name)}</span><i class="fas fa-grip-vertical" style="margin-left:auto; opacity:0.5"></i>`;
             container.appendChild(div);
         }
 
@@ -1295,7 +1397,6 @@ class UIManager {
             }
         };
 
-        // XAML工具 - 仅查看代码，无导入功能
         document.getElementById('xamlExportBtn').onclick = () => {
             const modal = document.getElementById('xamlModal');
             const codeArea = document.getElementById('xamlCodeArea');
@@ -1351,7 +1452,6 @@ class UIManager {
         document.getElementById('eventTypeSelect')?.addEventListener('change', () => App.renderManager.applyCurrentProps());
         document.getElementById('eventDataInput')?.addEventListener('blur', () => App.renderManager.applyCurrentProps());
 
-        // 服务器管理相关事件
         const serverModal = document.getElementById('serverModal');
         document.getElementById('serverManageBtn').onclick = () => {
             serverModal.style.display = 'flex';
@@ -1451,12 +1551,10 @@ class App {
     };
 
     static init() {
-        // 初始化主题
         if (localStorage.getItem('theme') === 'dark') {
             document.body.classList.add('dark');
         }
 
-        // 创建模块实例
         this.renderManager = new RenderManager();
         this.xamlProcessor = new XamlProcessor();
         this.fileManager = new FileManager();
@@ -1464,7 +1562,6 @@ class App {
         this.dragDropManager = new DragDropManager();
         this.uiManager = new UIManager();
 
-        // 初始化各个模块
         this.uiManager.buildComponentLibrary();
         this.dragDropManager.initGlobalFileDragAndDrop();
         this.uiManager.bindUIEvents();
@@ -1473,7 +1570,6 @@ class App {
     }
 }
 
-// Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     App.init();
 });
