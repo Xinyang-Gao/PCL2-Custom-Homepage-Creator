@@ -2,7 +2,7 @@
 
 一个基于 Web 的图形化编辑器，用于可视化设计 **Plain Craft Launcher (PCL)** 的主页界面。支持拖拽组件、实时预览、XAML 导入/导出、本地文件同步及自动备份。
 
-![版本](https://img.shields.io/badge/version-1.0.0-blue)
+![版本](https://img.shields.io/badge/version-1.1.0-blue)
 ![语言](https://img.shields.io/badge/JavaScript-ES6+-yellow)
 ![后端](https://img.shields.io/badge/Flask-2.0+-lightgrey)
 ![许可](https://img.shields.io/badge/license-MIT-green)
