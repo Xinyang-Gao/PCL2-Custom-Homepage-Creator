@@ -879,121 +879,124 @@ class XamlProcessor {
         }
     }
 
-    generateXAML(comps, indent = 0) {
-        let xaml = '';
-        const spaces = '  '.repeat(indent);
+generateXAML(comps, indent = 0) {
+    let xaml = '';
+    const spaces = '  '.repeat(indent);
 
-        for (let comp of comps) {
-            const attrs = [];
-            const commonAttrs = ['Margin', 'ToolTip', 'HorizontalAlignment', 'VerticalAlignment'];
-            commonAttrs.forEach(attr => {
-                if (comp.props[attr] && comp.props[attr] !== '') {
-                    attrs.push(`${attr}="${Utils.escapeXml(comp.props[attr])}"`);
-                }
-            });
+    for (let comp of comps) {
+        const attrs = [];
+        const commonAttrs = ['Margin', 'ToolTip', 'HorizontalAlignment', 'VerticalAlignment'];
+        commonAttrs.forEach(attr => {
+            if (comp.props[attr] && comp.props[attr] !== '') {
+                attrs.push(`${attr}="${Utils.escapeXml(comp.props[attr])}"`);
+            }
+        });
 
-            // 附加属性：Grid.Row, Grid.Column 等
-            const gridAttrs = ['Grid.Row', 'Grid.Column', 'Grid.RowSpan', 'Grid.ColumnSpan'];
-            gridAttrs.forEach(attr => {
-                if (comp.props[attr] && comp.props[attr] !== '') {
-                    attrs.push(`${attr}="${Utils.escapeXml(comp.props[attr])}"`);
-                }
-            });
+        // 附加属性：Grid.Row, Grid.Column 等
+        const gridAttrs = ['Grid.Row', 'Grid.Column', 'Grid.RowSpan', 'Grid.ColumnSpan'];
+        gridAttrs.forEach(attr => {
+            if (comp.props[attr] && comp.props[attr] !== '') {
+                attrs.push(`${attr}="${Utils.escapeXml(comp.props[attr])}"`);
+            }
+        });
 
-            if (comp.type === 'card') {
-                attrs.push(`Title="${Utils.escapeXml(comp.props.Title)}"`);
-                attrs.push(`CanSwap="${comp.props.CanSwap || 'True'}"`);
-                attrs.push(`IsSwapped="${comp.props.IsSwapped || 'True'}"`);
-                xaml += `${spaces}<local:MyCard ${attrs.join(' ')}>\n`;
-                for (let child of comp.children) {
-                    xaml += this.generateXAML([child], indent + 1);
-                }
-                xaml += `${spaces}</local:MyCard>\n\n`;
+        if (comp.type === 'card') {
+            attrs.push(`Title="${Utils.escapeXml(comp.props.Title)}"`);
+            attrs.push(`CanSwap="${comp.props.CanSwap || 'True'}"`);
+            attrs.push(`IsSwapped="${comp.props.IsSwapped || 'True'}"`);
+            xaml += `${spaces}<local:MyCard ${attrs.join(' ')}>\n`;
+            for (let child of comp.children) {
+                xaml += this.generateXAML([child], indent + 1);
             }
-            else if (comp.type === 'grid') {
-                xaml += `${spaces}<Grid ${attrs.join(' ')}>\n`;
-                if (comp.props.ColumnsDefinition) {
-                    const cols = comp.props.ColumnsDefinition.split(';');
-                    if (cols.length && !(cols.length === 1 && cols[0] === '')) {
-                        xaml += `${spaces}  <Grid.ColumnDefinitions>\n`;
-                        cols.forEach(w => {
-                            xaml += `${spaces}    <ColumnDefinition Width="${Utils.escapeXml(w.trim())}"/>\n`;
-                        });
-                        xaml += `${spaces}  </Grid.ColumnDefinitions>\n`;
-                    }
-                }
-                if (comp.props.RowsDefinition) {
-                    const rows = comp.props.RowsDefinition.split(';');
-                    if (rows.length && !(rows.length === 1 && rows[0] === '')) {
-                        xaml += `${spaces}  <Grid.RowDefinitions>\n`;
-                        rows.forEach(h => {
-                            xaml += `${spaces}    <RowDefinition Height="${Utils.escapeXml(h.trim())}"/>\n`;
-                        });
-                        xaml += `${spaces}  </Grid.RowDefinitions>\n`;
-                    }
-                }
-                for (let child of comp.children) {
-                    xaml += this.generateXAML([child], indent + 1);
-                }
-                xaml += `${spaces}</Grid>\n\n`;
-            }
-            else if (comp.type === 'stackpanel') {
-                xaml += `${spaces}<StackPanel ${attrs.join(' ')}>\n`;
-                for (let child of comp.children) {
-                    xaml += this.generateXAML([child], indent + 1);
-                }
-                xaml += `${spaces}</StackPanel>\n\n`;
-            }
-            else if (comp.type === 'horizontalstack') {
-                attrs.push('Orientation="Horizontal"');
-                xaml += `${spaces}<StackPanel ${attrs.join(' ')}>\n`;
-                for (let child of comp.children) {
-                    xaml += this.generateXAML([child], indent + 1);
-                }
-                xaml += `${spaces}</StackPanel>\n\n`;
-            }
-            else if (comp.type === 'text') {
-                attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
-                if (comp.props.FontSize) attrs.push(`FontSize="${comp.props.FontSize}"`);
-                if (comp.props.TextWrapping) attrs.push(`TextWrapping="${comp.props.TextWrapping}"`);
-                if (comp.props.Foreground) attrs.push(`Foreground="${comp.props.Foreground}"`);
-                xaml += `${spaces}<TextBlock ${attrs.join(' ')} />\n`;
-            }
-            else if (comp.type === 'hint') {
-                attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
-                if (comp.props.Theme) attrs.push(`Theme="${comp.props.Theme}"`);
-                xaml += `${spaces}<local:MyHint ${attrs.join(' ')} />\n`;
-            }
-            else if (comp.type === 'image') {
-                attrs.push(`Source="${Utils.escapeXml(comp.props.Source)}"`);
-                if (comp.props.Height) attrs.push(`Height="${comp.props.Height}"`);
-                if (comp.props.HorizontalAlignment) attrs.push(`HorizontalAlignment="${comp.props.HorizontalAlignment}"`);
-                xaml += `${spaces}<local:MyImage ${attrs.join(' ')} />\n`;
-            }
-            else if (comp.type === 'button') {
-                attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
-                if (comp.props.ColorType) attrs.push(`ColorType="${comp.props.ColorType}"`);
-                if (comp.props.Height) attrs.push(`Height="${comp.props.Height}"`);
-                if (comp.props.Padding) attrs.push(`Padding="${comp.props.Padding}"`);
-                if (comp.events?.type) attrs.push(`EventType="${Utils.escapeXml(comp.events.type)}" EventData="${Utils.escapeXml(comp.events.data || '')}"`);
-                xaml += `${spaces}<local:MyButton ${attrs.join(' ')} />\n`;
-            }
-            else if (comp.type === 'textbutton') {
-                attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
-                if (comp.events?.type) attrs.push(`EventType="${Utils.escapeXml(comp.events.type)}" EventData="${Utils.escapeXml(comp.events.data || '')}"`);
-                xaml += `${spaces}<local:MyTextButton ${attrs.join(' ')} />\n`;
-            }
-            else if (comp.type === 'listitem') {
-                attrs.push(`Title="${Utils.escapeXml(comp.props.Title)}"`);
-                attrs.push(`Info="${Utils.escapeXml(comp.props.Info)}"`);
-                attrs.push(`Logo="${Utils.escapeXml(comp.props.Logo)}"`);
-                attrs.push(`Type="${comp.props.Type || 'Clickable'}"`);
-                if (comp.events?.type) attrs.push(`EventType="${Utils.escapeXml(comp.events.type)}" EventData="${Utils.escapeXml(comp.events.data || '')}"`);
-                xaml += `${spaces}<local:MyListItem ${attrs.join(' ')} />\n`;
-            }
+            xaml += `${spaces}</local:MyCard>\n\n`;
         }
-        return xaml;
+        else if (comp.type === 'grid') {
+            xaml += `${spaces}<Grid ${attrs.join(' ')}>\n`;
+            if (comp.props.ColumnsDefinition) {
+                const cols = comp.props.ColumnsDefinition.split(';');
+                if (cols.length && !(cols.length === 1 && cols[0] === '')) {
+                    xaml += `${spaces}  <Grid.ColumnDefinitions>\n`;
+                    cols.forEach(w => {
+                        xaml += `${spaces}    <ColumnDefinition Width="${Utils.escapeXml(w.trim())}"/>\n`;
+                    });
+                    xaml += `${spaces}  </Grid.ColumnDefinitions>\n`;
+                }
+            }
+            if (comp.props.RowsDefinition) {
+                const rows = comp.props.RowsDefinition.split(';');
+                if (rows.length && !(rows.length === 1 && rows[0] === '')) {
+                    xaml += `${spaces}  <Grid.RowDefinitions>\n`;
+                    rows.forEach(h => {
+                        xaml += `${spaces}    <RowDefinition Height="${Utils.escapeXml(h.trim())}"/>\n`;
+                    });
+                    xaml += `${spaces}  </Grid.RowDefinitions>\n`;
+                }
+            }
+            for (let child of comp.children) {
+                xaml += this.generateXAML([child], indent + 1);
+            }
+            xaml += `${spaces}</Grid>\n\n`;
+        }
+        else if (comp.type === 'stackpanel') {
+            xaml += `${spaces}<StackPanel ${attrs.join(' ')}>\n`;
+            for (let child of comp.children) {
+                xaml += this.generateXAML([child], indent + 1);
+            }
+            xaml += `${spaces}</StackPanel>\n\n`;
+        }
+        else if (comp.type === 'horizontalstack') {
+            attrs.push('Orientation="Horizontal"');
+            xaml += `${spaces}<StackPanel ${attrs.join(' ')}>\n`;
+            for (let child of comp.children) {
+                xaml += this.generateXAML([child], indent + 1);
+            }
+            xaml += `${spaces}</StackPanel>\n\n`;
+        }
+        else if (comp.type === 'text') {
+            attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
+            if (comp.props.FontSize) attrs.push(`FontSize="${comp.props.FontSize}"`);
+            if (comp.props.TextWrapping) attrs.push(`TextWrapping="${comp.props.TextWrapping}"`);
+            if (comp.props.Foreground) attrs.push(`Foreground="${comp.props.Foreground}"`);
+            xaml += `${spaces}<TextBlock ${attrs.join(' ')} />\n`;
+        }
+        else if (comp.type === 'hint') {
+            attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
+            if (comp.props.Theme) attrs.push(`Theme="${comp.props.Theme}"`);
+            xaml += `${spaces}<local:MyHint ${attrs.join(' ')} />\n`;
+        }
+        else if (comp.type === 'image') {
+            attrs.push(`Source="${Utils.escapeXml(comp.props.Source)}"`);
+            if (comp.props.Height) attrs.push(`Height="${comp.props.Height}"`);
+            // 注意：HorizontalAlignment 已由 commonAttrs 处理，不再重复添加
+            xaml += `${spaces}<local:MyImage ${attrs.join(' ')} />\n`;
+        }
+        else if (comp.type === 'button') {
+            attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
+            if (comp.props.ColorType) attrs.push(`ColorType="${comp.props.ColorType}"`);
+            if (comp.props.Height) attrs.push(`Height="${comp.props.Height}"`);
+            if (comp.props.Padding) attrs.push(`Padding="${comp.props.Padding}"`);
+            // Margin 已由 commonAttrs 处理，不再重复添加
+            if (comp.events?.type) attrs.push(`EventType="${Utils.escapeXml(comp.events.type)}" EventData="${Utils.escapeXml(comp.events.data || '')}"`);
+            xaml += `${spaces}<local:MyButton ${attrs.join(' ')} />\n`;
+        }
+        else if (comp.type === 'textbutton') {
+            attrs.push(`Text="${Utils.escapeXml(comp.props.Text)}"`);
+            // Margin 已由 commonAttrs 处理，不再重复添加
+            if (comp.events?.type) attrs.push(`EventType="${Utils.escapeXml(comp.events.type)}" EventData="${Utils.escapeXml(comp.events.data || '')}"`);
+            xaml += `${spaces}<local:MyTextButton ${attrs.join(' ')} />\n`;
+        }
+        else if (comp.type === 'listitem') {
+            attrs.push(`Title="${Utils.escapeXml(comp.props.Title)}"`);
+            attrs.push(`Info="${Utils.escapeXml(comp.props.Info)}"`);
+            attrs.push(`Logo="${Utils.escapeXml(comp.props.Logo)}"`);
+            attrs.push(`Type="${comp.props.Type || 'Clickable'}"`);
+            // Margin 已由 commonAttrs 处理，不再重复添加
+            if (comp.events?.type) attrs.push(`EventType="${Utils.escapeXml(comp.events.type)}" EventData="${Utils.escapeXml(comp.events.data || '')}"`);
+            xaml += `${spaces}<local:MyListItem ${attrs.join(' ')} />\n`;
+        }
     }
+    return xaml;
+}
 }
 
 // modules/FileManager.js
