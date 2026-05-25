@@ -1,3 +1,4 @@
+// dragDropManager.js
 import { ComponentTypes } from './componentTypes.js';
 import { ComponentManager } from './componentManager.js';
 import { ComponentFinder } from './componentFinder.js';
@@ -8,6 +9,10 @@ export class DragDropManager {
     constructor() {
         this.dragSource = null;
         this.insertPlaceholder = null;
+        // 自动滚动相关属性
+        this.scrollAnimationId = null;
+        this.scrollStep = 10;          // 每次滚动的像素值
+        this.scrollThreshold = 35;     // 距离边缘触发滚动的阈值（像素）
     }
 
     createInsertPlaceholder(isHorizontal = false) {
@@ -42,6 +47,7 @@ export class DragDropManager {
         }
         this.insertPlaceholder = null;
         document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        this.stopAutoScroll();  // 清除时停止滚动
     }
 
     isParentHorizontal(parentId) {
@@ -156,6 +162,59 @@ export class DragDropManager {
             } else {
                 targetElement.appendChild(placeholder);
             }
+        }
+    }
+
+    // ----- 自动滚动方法 -----
+    stopAutoScroll() {
+        if (this.scrollAnimationId) {
+            cancelAnimationFrame(this.scrollAnimationId);
+            this.scrollAnimationId = null;
+        }
+    }
+
+    startAutoScroll(direction) {
+        // direction: 1 (向下滚动) 或 -1 (向上滚动)
+        if (this.scrollAnimationId) this.stopAutoScroll();
+        const previewContainer = document.getElementById('previewContainer');
+        if (!previewContainer) return;
+
+        const scroll = () => {
+            if (!this.dragSource) { // 如果没有正在拖拽，停止滚动
+                this.stopAutoScroll();
+                return;
+            }
+            const newScrollTop = previewContainer.scrollTop + this.scrollStep * direction;
+            if (newScrollTop < 0) previewContainer.scrollTop = 0;
+            else if (newScrollTop > previewContainer.scrollHeight - previewContainer.clientHeight) {
+                previewContainer.scrollTop = previewContainer.scrollHeight - previewContainer.clientHeight;
+                this.stopAutoScroll();
+                return;
+            } else {
+                previewContainer.scrollTop = newScrollTop;
+            }
+            this.scrollAnimationId = requestAnimationFrame(scroll);
+        };
+        this.scrollAnimationId = requestAnimationFrame(scroll);
+    }
+
+    handleEdgeScroll(clientY) {
+        const previewContainer = document.getElementById('previewContainer');
+        if (!previewContainer) return;
+        const rect = previewContainer.getBoundingClientRect();
+        const relativeY = clientY - rect.top;
+        const threshold = this.scrollThreshold;
+
+        // 检查是否能够滚动
+        const canScrollUp = previewContainer.scrollTop > 0;
+        const canScrollDown = previewContainer.scrollTop < previewContainer.scrollHeight - previewContainer.clientHeight;
+
+        if (relativeY < threshold && canScrollUp) {
+            this.startAutoScroll(-1);  // 向上
+        } else if (rect.height - relativeY < threshold && canScrollDown) {
+            this.startAutoScroll(1);   // 向下
+        } else {
+            this.stopAutoScroll();
         }
     }
 
@@ -304,7 +363,7 @@ export class DragDropManager {
                 if (wrapper) wrapper.style.opacity = '';
             }
             this.dragSource = null;
-            this.clearPlaceholder();
+            this.clearPlaceholder();    // 内部已经停止滚动
         });
         
         designContainer.addEventListener('dragover', (e) => {
@@ -321,10 +380,13 @@ export class DragDropManager {
             } else {
                 this.clearPlaceholder();
             }
+            // 边缘自动滚动
+            this.handleEdgeScroll(e.clientY);
         });
         
         designContainer.addEventListener('drop', (e) => {
             e.preventDefault();
+            this.stopAutoScroll();  // 放置时停止滚动
             if (!this.dragSource) {
                 this.clearPlaceholder();
                 return;
