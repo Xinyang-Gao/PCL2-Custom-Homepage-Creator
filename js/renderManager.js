@@ -461,12 +461,12 @@ export class RenderManager {
                 const fieldDiv = document.createElement('div');
                 fieldDiv.className = 'prop-field custom-property-row';
                 fieldDiv.innerHTML = `
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <input data-custom-key="${Utils.escapeHtmlAttr(field.key)}" value="${Utils.escapeHtmlAttr(field.key)}" placeholder="属性名" style="flex:1;">
-                        <input data-custom-val="${Utils.escapeHtmlAttr(field.key)}" value="${Utils.escapeHtmlAttr(field.val)}" placeholder="属性值" style="flex:2;">
-                        <button class="delete-custom-prop" data-key="${Utils.escapeHtmlAttr(field.key)}" style="background:none; border:none; color:var(--danger); cursor:pointer;"><i class="fas fa-trash-alt"></i></button>
-                    </div>
-                `;
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input data-custom-key="${Utils.escapeHtmlAttr(field.key)}" value="${Utils.escapeHtmlAttr(field.key)}" placeholder="属性名" style="flex:1;">
+                    <input data-custom-val="${Utils.escapeHtmlAttr(field.key)}" value="${Utils.escapeHtmlAttr(field.val)}" placeholder="属性值" style="flex:2;">
+                    <button class="delete-custom-prop" data-key="${Utils.escapeHtmlAttr(field.key)}" style="background:none; border:none; color:var(--danger); cursor:pointer;"><i class="fas fa-trash-alt"></i></button>
+                </div>
+            `;
                 section.appendChild(fieldDiv);
             });
             return section;
@@ -476,12 +476,12 @@ export class RenderManager {
             const addDiv = document.createElement('div');
             addDiv.className = 'prop-field';
             addDiv.innerHTML = `
-                <div style="display: flex; gap: 8px;">
-                    <input type="text" id="newCustomKey" placeholder="新属性名" style="flex:1;">
-                    <input type="text" id="newCustomVal" placeholder="属性值" style="flex:2;">
-                    <button id="addCustomPropBtn" class="btn" style="padding:6px 12px;">添加</button>
-                </div>
-            `;
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="newCustomKey" placeholder="新属性名" style="flex:1;">
+                <input type="text" id="newCustomVal" placeholder="属性值" style="flex:2;">
+                <button id="addCustomPropBtn" class="btn" style="padding:6px 12px;">添加</button>
+            </div>
+        `;
             section.appendChild(addDiv);
             return section;
         }
@@ -489,7 +489,7 @@ export class RenderManager {
         for (let field of group.fields) {
             const fieldDiv = document.createElement('div');
             fieldDiv.className = 'prop-field';
-            // renderManager.js - buildPropSection 内部
+            // 特殊处理 Margin 属性：生成四个滑块 + 数字输入
             if (field.key === 'Margin') {
                 const marginValues = parseMargin(field.val);
                 const [left, top, right, bottom] = marginValues;
@@ -497,28 +497,28 @@ export class RenderManager {
                 const marginGroup = document.createElement('div');
                 marginGroup.className = 'margin-visual-group';
                 marginGroup.innerHTML = `
-        <div class="margin-row">
-            <span class="margin-label"><i class="fas fa-arrow-left"></i> 左</span>
-            <input type="range" class="margin-slider" data-margin="left" min="-100" max="200" step="1" value="${left}">
-            <input type="number" class="margin-number" data-margin="left" value="${left}" step="1">
-        </div>
-        <div class="margin-row">
-            <span class="margin-label"><i class="fas fa-arrow-up"></i> 上</span>
-            <input type="range" class="margin-slider" data-margin="top" min="-100" max="200" step="1" value="${top}">
-            <input type="number" class="margin-number" data-margin="top" value="${top}" step="1">
-        </div>
-        <div class="margin-row">
-            <span class="margin-label"><i class="fas fa-arrow-right"></i> 右</span>
-            <input type="range" class="margin-slider" data-margin="right" min="-100" max="200" step="1" value="${right}">
-            <input type="number" class="margin-number" data-margin="right" value="${right}" step="1">
-        </div>
-        <div class="margin-row">
-            <span class="margin-label"><i class="fas fa-arrow-down"></i> 下</span>
-            <input type="range" class="margin-slider" data-margin="bottom" min="-100" max="200" step="1" value="${bottom}">
-            <input type="number" class="margin-number" data-margin="bottom" value="${bottom}" step="1">
-        </div>
-        <div class="margin-preview">当前边距：${formatMargin(left, top, right, bottom)}</div>
-    `;
+                <div class="margin-row">
+                    <span class="margin-label"><i class="fas fa-arrow-left"></i> 左</span>
+                    <input type="range" class="margin-slider" data-margin="left" min="-100" max="200" step="1" value="${left}">
+                    <input type="number" class="margin-number" data-margin="left" value="${left}" step="1">
+                </div>
+                <div class="margin-row">
+                    <span class="margin-label"><i class="fas fa-arrow-up"></i> 上</span>
+                    <input type="range" class="margin-slider" data-margin="top" min="-100" max="200" step="1" value="${top}">
+                    <input type="number" class="margin-number" data-margin="top" value="${top}" step="1">
+                </div>
+                <div class="margin-row">
+                    <span class="margin-label"><i class="fas fa-arrow-right"></i> 右</span>
+                    <input type="range" class="margin-slider" data-margin="right" min="-100" max="200" step="1" value="${right}">
+                    <input type="number" class="margin-number" data-margin="right" value="${right}" step="1">
+                </div>
+                <div class="margin-row">
+                    <span class="margin-label"><i class="fas fa-arrow-down"></i> 下</span>
+                    <input type="range" class="margin-slider" data-margin="bottom" min="-100" max="200" step="1" value="${bottom}">
+                    <input type="number" class="margin-number" data-margin="bottom" value="${bottom}" step="1">
+                </div>
+                <div class="margin-preview">当前边距：${formatMargin(left, top, right, bottom)}</div>
+            `;
 
                 // 绑定实时更新事件
                 const sliders = marginGroup.querySelectorAll('.margin-slider');
@@ -553,14 +553,15 @@ export class RenderManager {
                 section.appendChild(marginGroup);
                 continue;
             }
+
             const selectOptions = PROP_SELECT_OPTIONS[field.key];
             if (selectOptions) {
                 const selectHtml = `
-                    <label>${Utils.escapeHtml(field.key)}</label>
-                    <select data-prop="${Utils.escapeHtmlAttr(field.key)}" class="prop-select">
-                        ${selectOptions.map(opt => `<option value="${Utils.escapeHtmlAttr(opt)}" ${opt === field.val ? 'selected' : ''}>${Utils.escapeHtml(opt)}</option>`).join('')}
-                    </select>
-                `;
+                <label>${Utils.escapeHtml(field.key)}</label>
+                <select data-prop="${Utils.escapeHtmlAttr(field.key)}" class="prop-select">
+                    ${selectOptions.map(opt => `<option value="${Utils.escapeHtmlAttr(opt)}" ${opt === field.val ? 'selected' : ''}>${Utils.escapeHtml(opt)}</option>`).join('')}
+                </select>
+            `;
                 fieldDiv.innerHTML = selectHtml;
             } else {
                 const isLong = (field.key === 'Text' || field.key === 'Info' || field.key === 'ColumnsDefinition' || field.key === 'RowsDefinition');
@@ -572,6 +573,7 @@ export class RenderManager {
             section.appendChild(fieldDiv);
         }
 
+        // 如果组件是 Grid 类型，额外添加可视化编辑按钮
         if (comp.type === 'grid') {
             const btnDiv = document.createElement('div');
             btnDiv.className = 'prop-field';
