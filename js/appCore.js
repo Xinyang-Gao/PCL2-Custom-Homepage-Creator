@@ -1,3 +1,4 @@
+// appCore.js
 import { RenderManager } from './renderManager.js';
 import { XamlProcessor } from './xamlProcessor.js';
 import { FileManager } from './fileManager.js';
@@ -16,7 +17,7 @@ export const App = {
     autoBackupTimer: null,
     AUTO_BACKUP_DELAY: 1000,
 
-    // 管理器实例（将在 init 中赋值）
+    // 管理器实例
     renderManager: null,
     xamlProcessor: null,
     fileManager: null,
@@ -24,10 +25,6 @@ export const App = {
     dragDropManager: null,
     uiManager: null,
     history: null,
-
-    recordSnapshot() {
-        this.history.pushState();
-    },
 
     markDirty() {
         if (!this.state.dirty) {
@@ -64,7 +61,7 @@ export const App = {
         this.serverApi = new ServerApi();
         this.dragDropManager = new DragDropManager();
         this.uiManager = new UIManager();
-        this.history = new HistoryManager();
+        this.history = new HistoryManager();  // 使用新的增量历史管理器
 
         this.uiManager.buildComponentLibrary();
         this.dragDropManager.initGlobalFileDragAndDrop();
@@ -85,7 +82,7 @@ export const App = {
             }
         });
 
-        // 全局撤销/重做快捷键
+        // 全局撤销/重做快捷键（现在调用新的 history 方法）
         window.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 'z') {
                 e.preventDefault();

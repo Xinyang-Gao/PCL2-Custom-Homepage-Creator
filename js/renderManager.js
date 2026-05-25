@@ -2,6 +2,7 @@ import { ComponentTypes, PROP_SELECT_OPTIONS } from './componentTypes.js';
 import { ComponentFinder } from './componentFinder.js';
 import { App } from './appCore.js';
 import { Utils } from './utils.js';
+import { ActionType } from './historyManager.js';
 
 // margin 解析与格式化辅助函数
 function parseMargin(marginStr) {
@@ -43,7 +44,7 @@ function applyLayoutStyles(wrapper, comp) {
     // 获取并解析 Margin 值
     const margin = comp.props.Margin || '0';
     const [ml, mt, mr, mb] = parseMargin(margin);
-    
+
     // 先设置总 margin（会被后续单独的 left/right 覆盖）
     wrapper.style.margin = `${mt}px ${mr}px ${mb}px ${ml}px`;
 
@@ -75,7 +76,7 @@ function applyLayoutStyles(wrapper, comp) {
             if (isRightMarginSet) wrapper.style.marginRight = `${mr}px`;
         }
         if (!comp.props.Width) wrapper.style.width = 'auto';
-    } 
+    }
     else if (halign === 'Right') {
         if (!isRightMarginSet) {
             // 无右边距用户值时，按右对齐处理
@@ -87,7 +88,7 @@ function applyLayoutStyles(wrapper, comp) {
             wrapper.style.marginRight = `${mr}px`;
         }
         if (!comp.props.Width) wrapper.style.width = 'auto';
-    } 
+    }
     else if (halign === 'Left') {
         if (!isLeftMarginSet) {
             wrapper.style.marginLeft = '0';
@@ -98,7 +99,7 @@ function applyLayoutStyles(wrapper, comp) {
             else wrapper.style.marginRight = 'auto';
         }
         if (!comp.props.Width) wrapper.style.width = 'auto';
-    } 
+    }
     else { // Stretch 拉伸模式
         if (!comp.props.Width) wrapper.style.width = '100%';
         // 拉伸模式下也保留用户设置的左右边距
@@ -262,7 +263,7 @@ export class RenderManager {
         else {
             const innerContainer = document.createElement('div');
             innerContainer.className = 'component-inner';
-            
+
             if (comp.type === 'text') {
                 const textDiv = document.createElement('div');
                 textDiv.textContent = comp.props.Text || '文本';
@@ -330,7 +331,7 @@ export class RenderManager {
                 itemDiv.appendChild(contentDiv);
                 innerContainer.appendChild(itemDiv);
             }
-            
+
             wrapper.appendChild(innerContainer);
             applyPaddingStyles(comp, innerContainer);
         }
@@ -488,14 +489,14 @@ export class RenderManager {
         for (let field of group.fields) {
             const fieldDiv = document.createElement('div');
             fieldDiv.className = 'prop-field';
-// renderManager.js - buildPropSection 内部
-if (field.key === 'Margin') {
-    const marginValues = parseMargin(field.val);
-    const [left, top, right, bottom] = marginValues;
+            // renderManager.js - buildPropSection 内部
+            if (field.key === 'Margin') {
+                const marginValues = parseMargin(field.val);
+                const [left, top, right, bottom] = marginValues;
 
-    const marginGroup = document.createElement('div');
-    marginGroup.className = 'margin-visual-group';
-    marginGroup.innerHTML = `
+                const marginGroup = document.createElement('div');
+                marginGroup.className = 'margin-visual-group';
+                marginGroup.innerHTML = `
         <div class="margin-row">
             <span class="margin-label"><i class="fas fa-arrow-left"></i> 左</span>
             <input type="range" class="margin-slider" data-margin="left" min="-100" max="200" step="1" value="${left}">
@@ -519,39 +520,39 @@ if (field.key === 'Margin') {
         <div class="margin-preview">当前边距：${formatMargin(left, top, right, bottom)}</div>
     `;
 
-    // 绑定实时更新事件
-    const sliders = marginGroup.querySelectorAll('.margin-slider');
-    const numbers = marginGroup.querySelectorAll('.margin-number');
-    const previewSpan = marginGroup.querySelector('.margin-preview');
+                // 绑定实时更新事件
+                const sliders = marginGroup.querySelectorAll('.margin-slider');
+                const numbers = marginGroup.querySelectorAll('.margin-number');
+                const previewSpan = marginGroup.querySelector('.margin-preview');
 
-    const updateMargin = () => {
-        const newLeft = parseFloat(marginGroup.querySelector('[data-margin="left"] .margin-number')?.value || 0);
-        const newTop = parseFloat(marginGroup.querySelector('[data-margin="top"] .margin-number')?.value || 0);
-        const newRight = parseFloat(marginGroup.querySelector('[data-margin="right"] .margin-number')?.value || 0);
-        const newBottom = parseFloat(marginGroup.querySelector('[data-margin="bottom"] .margin-number')?.value || 0);
-        const newMarginStr = formatMargin(newLeft, newTop, newRight, newBottom);
-        previewSpan.innerText = `当前边距：${newMarginStr}`;
-        this.updateComponentMargin(comp.id, newMarginStr);
-    };
+                const updateMargin = () => {
+                    const newLeft = parseFloat(marginGroup.querySelector('[data-margin="left"] .margin-number')?.value || 0);
+                    const newTop = parseFloat(marginGroup.querySelector('[data-margin="top"] .margin-number')?.value || 0);
+                    const newRight = parseFloat(marginGroup.querySelector('[data-margin="right"] .margin-number')?.value || 0);
+                    const newBottom = parseFloat(marginGroup.querySelector('[data-margin="bottom"] .margin-number')?.value || 0);
+                    const newMarginStr = formatMargin(newLeft, newTop, newRight, newBottom);
+                    previewSpan.innerText = `当前边距：${newMarginStr}`;
+                    this.updateComponentMargin(comp.id, newMarginStr);
+                };
 
-    const syncControl = (target) => {
-        const marginDir = target.getAttribute('data-margin');
-        const slider = marginGroup.querySelector(`.margin-slider[data-margin="${marginDir}"]`);
-        const number = marginGroup.querySelector(`.margin-number[data-margin="${marginDir}"]`);
-        if (target.classList.contains('margin-slider')) {
-            number.value = target.value;
-        } else {
-            slider.value = target.value;
-        }
-        updateMargin();
-    };
+                const syncControl = (target) => {
+                    const marginDir = target.getAttribute('data-margin');
+                    const slider = marginGroup.querySelector(`.margin-slider[data-margin="${marginDir}"]`);
+                    const number = marginGroup.querySelector(`.margin-number[data-margin="${marginDir}"]`);
+                    if (target.classList.contains('margin-slider')) {
+                        number.value = target.value;
+                    } else {
+                        slider.value = target.value;
+                    }
+                    updateMargin();
+                };
 
-    sliders.forEach(slider => slider.addEventListener('input', (e) => syncControl(e.target)));
-    numbers.forEach(num => num.addEventListener('input', (e) => syncControl(e.target)));
+                sliders.forEach(slider => slider.addEventListener('input', (e) => syncControl(e.target)));
+                numbers.forEach(num => num.addEventListener('input', (e) => syncControl(e.target)));
 
-    section.appendChild(marginGroup);
-    continue;
-}
+                section.appendChild(marginGroup);
+                continue;
+            }
             const selectOptions = PROP_SELECT_OPTIONS[field.key];
             if (selectOptions) {
                 const selectHtml = `
@@ -586,27 +587,27 @@ if (field.key === 'Margin') {
     }
 
     // renderManager.js 中新增方法
-updateComponentMargin(compId, marginStr) {
-    const comp = ComponentFinder.findComponentById(compId);
-    if (!comp) return;
-    const wrapper = document.querySelector(`.component-item-wrapper[data-id="${compId}"]`);
-    if (!wrapper) return;
+    updateComponentMargin(compId, marginStr) {
+        const comp = ComponentFinder.findComponentById(compId);
+        if (!comp) return;
+        const wrapper = document.querySelector(`.component-item-wrapper[data-id="${compId}"]`);
+        if (!wrapper) return;
 
-    // 更新数据模型
-    comp.props.Margin = marginStr;
+        // 更新数据模型
+        comp.props.Margin = marginStr;
 
-    // 重新应用布局样式（包含 margin、宽高、对齐等）
-    applyLayoutStyles(wrapper, comp);
+        // 重新应用布局样式（包含 margin、宽高、对齐等）
+        applyLayoutStyles(wrapper, comp);
 
-    // 标记已修改并触发自动备份
-    App.markDirty();
-}
+        // 标记已修改并触发自动备份
+        App.markDirty();
+    }
 
     openGridEditor(gridComp) {
         let cols = [];
         let rows = [];
-        try { cols = JSON.parse(gridComp.props.ColumnsDefinition || "[]"); } catch(e) { cols = []; }
-        try { rows = JSON.parse(gridComp.props.RowsDefinition || "[]"); } catch(e) { rows = []; }
+        try { cols = JSON.parse(gridComp.props.ColumnsDefinition || "[]"); } catch (e) { cols = []; }
+        try { rows = JSON.parse(gridComp.props.RowsDefinition || "[]"); } catch (e) { rows = []; }
 
         const modal = document.createElement('div');
         modal.className = 'modal';
@@ -656,11 +657,11 @@ updateComponentMargin(compId, marginStr) {
                 div.style.cssText = 'display:flex; gap:8px; margin-bottom:8px; align-items:center;';
                 div.innerHTML = `
                     <select class="grid-unit" data-type="${type}" data-index="${idx}">
-                        <option value="px" ${unit==='px'?'selected':''}>像素(px)</option>
-                        <option value="star" ${unit==='star'?'selected':''}>星(*)</option>
-                        <option value="auto" ${unit==='auto'?'selected':''}>自动</option>
+                        <option value="px" ${unit === 'px' ? 'selected' : ''}>像素(px)</option>
+                        <option value="star" ${unit === 'star' ? 'selected' : ''}>星(*)</option>
+                        <option value="auto" ${unit === 'auto' ? 'selected' : ''}>自动</option>
                     </select>
-                    <input class="grid-value" data-type="${type}" data-index="${idx}" value="${val}" ${unit==='auto'?'disabled':''} style="width:80px;">
+                    <input class="grid-value" data-type="${type}" data-index="${idx}" value="${val}" ${unit === 'auto' ? 'disabled' : ''} style="width:80px;">
                     <input class="grid-min" placeholder="Min" data-type="${type}" data-index="${idx}" value="${Utils.escapeHtmlAttr(minVal)}" style="width:70px;">
                     <input class="grid-max" placeholder="Max" data-type="${type}" data-index="${idx}" value="${Utils.escapeHtmlAttr(maxVal)}" style="width:70px;">
                     <button class="grid-del" data-type="${type}" data-index="${idx}" style="background:none; border:none; color:red;"><i class="fas fa-trash"></i></button>
@@ -732,7 +733,7 @@ updateComponentMargin(compId, marginStr) {
                 const idx = parseInt(btn.getAttribute('data-index'));
                 if (type === 'col') cols.splice(idx, 1);
                 else rows.splice(idx, 1);
-                renderList(`${type}sEditor`, type==='col'?cols:rows, type);
+                renderList(`${type}sEditor`, type === 'col' ? cols : rows, type);
                 updateDefinition();
             }
         });
@@ -790,11 +791,17 @@ updateComponentMargin(compId, marginStr) {
         return groupsArray;
     }
 
+    // 在 renderManager.js 中，替换原有 applyCurrentProps 方法
     applyCurrentProps() {
         const comp = ComponentFinder.findComponentById(App.state.selectedId);
         if (!comp) return;
-        App.recordSnapshot();
 
+        // 保存旧值
+        const oldProps = { ...comp.props };
+        const oldEvents = { ...comp.events };
+        const oldCustom = { ...comp.customProps };
+
+        // 从 UI 控件读取新值并更新到 comp.props（原有逻辑）
         document.querySelectorAll('#dynamicProps input[data-prop], #dynamicProps textarea[data-prop], #dynamicProps select[data-prop]').forEach(inp => {
             const key = inp.getAttribute('data-prop');
             if (key) {
@@ -806,21 +813,21 @@ updateComponentMargin(compId, marginStr) {
             }
         });
 
-const marginLeft = document.querySelector('#dynamicProps .margin-number[data-margin="left"]');
-const marginTop = document.querySelector('#dynamicProps .margin-number[data-margin="top"]');
-const marginRight = document.querySelector('#dynamicProps .margin-number[data-margin="right"]');
-const marginBottom = document.querySelector('#dynamicProps .margin-number[data-margin="bottom"]');
-if (marginLeft && marginTop && marginRight && marginBottom) {
-    let left = parseFloat(marginLeft.value);
-    let top = parseFloat(marginTop.value);
-    let right = parseFloat(marginRight.value);
-    let bottom = parseFloat(marginBottom.value);
-    if (isNaN(left)) left = 0;
-    if (isNaN(top)) top = 0;
-    if (isNaN(right)) right = 0;
-    if (isNaN(bottom)) bottom = 0;
-    comp.props.Margin = formatMargin(left, top, right, bottom);
-}
+        const marginLeft = document.querySelector('#dynamicProps .margin-number[data-margin="left"]');
+        const marginTop = document.querySelector('#dynamicProps .margin-number[data-margin="top"]');
+        const marginRight = document.querySelector('#dynamicProps .margin-number[data-margin="right"]');
+        const marginBottom = document.querySelector('#dynamicProps .margin-number[data-margin="bottom"]');
+        if (marginLeft && marginTop && marginRight && marginBottom) {
+            let left = parseFloat(marginLeft.value);
+            let top = parseFloat(marginTop.value);
+            let right = parseFloat(marginRight.value);
+            let bottom = parseFloat(marginBottom.value);
+            if (isNaN(left)) left = 0;
+            if (isNaN(top)) top = 0;
+            if (isNaN(right)) right = 0;
+            if (isNaN(bottom)) bottom = 0;
+            comp.props.Margin = formatMargin(left, top, right, bottom);
+        }
 
         comp.events = {
             type: document.getElementById('eventTypeSelect').value,
@@ -847,16 +854,46 @@ if (marginLeft && marginTop && marginRight && marginBottom) {
             if (valInput) valInput.value = '';
         }
 
-        document.querySelectorAll('.delete-custom-prop').forEach(btn => {
-            btn.onclick = (e) => {
-                const key = btn.getAttribute('data-key');
-                if (key && comp.customProps[key] !== undefined) {
-                    delete comp.customProps[key];
-                    this.updatePropsPanel();
-                    App.markDirty();
-                }
-            };
-        });
+        // 构建变更对象（仅记录实际变更的属性）
+        const changedProps = {};
+        for (let key in comp.props) {
+            if (oldProps[key] !== comp.props[key]) {
+                changedProps[key] = comp.props[key];
+            }
+        }
+        if (Object.keys(changedProps).length > 0) {
+            // 提取旧值中对应的属性
+            const oldChanged = {};
+            for (let key in changedProps) {
+                oldChanged[key] = oldProps[key];
+            }
+            App.history.recordAction({
+                type: ActionType.UPDATE_PROPS,
+                componentId: comp.id,
+                newProps: changedProps,
+                oldProps: oldChanged
+            });
+        }
+
+        // 事件变更
+        if (JSON.stringify(oldEvents) !== JSON.stringify(comp.events)) {
+            App.history.recordAction({
+                type: ActionType.UPDATE_EVENTS,
+                componentId: comp.id,
+                newEvents: { ...comp.events },
+                oldEvents: { ...oldEvents }
+            });
+        }
+
+        // 自定义属性变更
+        if (JSON.stringify(oldCustom) !== JSON.stringify(comp.customProps)) {
+            App.history.recordAction({
+                type: ActionType.UPDATE_CUSTOM_PROPS,
+                componentId: comp.id,
+                newCustom: { ...comp.customProps },
+                oldCustom: { ...oldCustom }
+            });
+        }
 
         this.refreshComponent(comp.id);
         Utils.showToast('属性已更新');
