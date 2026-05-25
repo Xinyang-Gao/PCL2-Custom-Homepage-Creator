@@ -1024,3 +1024,19 @@ hr {
     color: var(--text-tertiary);
     text-align: center;
 }
+
+/* 源码编辑器提示信息样式 */
+.hint-info {
+    margin-top: 12px;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    background: var(--bg-subtle);
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--primary);
+}
+
+.hint-info i {
+    margin-right: 6px;
+    color: var(--primary);
+}

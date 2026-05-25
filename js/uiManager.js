@@ -153,6 +153,7 @@ export class UIManager {
             }
         };
 
+        // ========== 源码编辑器逻辑（替换旧的 XAML 工具） ==========
         document.getElementById('xamlExportBtn').onclick = () => {
             const modal = document.getElementById('xamlModal');
             const codeArea = document.getElementById('xamlCodeArea');
@@ -162,30 +163,27 @@ export class UIManager {
             modal.style.display = 'flex';
         };
 
-        document.getElementById('copyXamlBtn').onclick = async () => {
-            try {
-                await navigator.clipboard.writeText(document.getElementById('xamlCodeArea').value);
-                Utils.showToast('已复制XAML');
-            } catch (err) {
-                Utils.showToast('复制失败', true);
-            }
-        };
+        // 应用到设计按钮
+        const applyXamlBtn = document.getElementById('applyXamlBtn');
+        if (applyXamlBtn) {
+            applyXamlBtn.onclick = () => {
+                const xamlSource = document.getElementById('xamlCodeArea').value;
+                if (!xamlSource.trim()) {
+                    Utils.showToast('XAML 内容为空', true);
+                    return;
+                }
+                if (confirm('应用 XAML 源码将替换当前所有设计，是否继续？')) {
+                    // 导入前可先记录一次快照（由 importFromXAML 内部处理历史重置）
+                    App.xamlProcessor.importFromXAML(xamlSource);
+                    document.getElementById('xamlModal').style.display = 'none';
+                }
+            };
+        }
 
-        document.getElementById('downloadXamlBtn').onclick = () => {
-            const xaml = document.getElementById('xamlCodeArea').value;
-            if (xaml.trim()) {
-                const blob = new Blob([xaml], { type: 'text/plain' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = `pcl_export_${new Date().toISOString().slice(0, 19)}.xaml`;
-                link.click();
-                URL.revokeObjectURL(link.href);
-            } else {
-                Utils.showToast('无XAML内容', true);
-            }
-        };
-
+        // 关闭弹窗
         document.getElementById('closeModalBtn').onclick = () => document.getElementById('xamlModal').style.display = 'none';
+        // ======================================================
+
         document.getElementById('themeToggle').onclick = () => {
             document.body.classList.toggle('dark');
             localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');

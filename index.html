@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 
 <head>
@@ -29,7 +29,7 @@
             <div class="design-area">
                 <div class="toolbar">
                     <button class="btn" id="clearCanvasBtn"><i class="fas fa-trash"></i> 清空</button>
-                    <button class="btn btn-primary" id="xamlExportBtn"><i class="fas fa-code"></i> XAML工具</button>
+                    <button class="btn btn-primary" id="xamlExportBtn"><i class="fas fa-code"></i> 源码编辑器</button>
                 </div>
                 <div class="hierarchy-bar" id="hierarchyBar"></div>
                 <div class="preview-container" id="previewContainer">
@@ -83,21 +83,17 @@
         </div>
     </div>
 
-    <!-- XAML工具弹窗（仅代码预览，无导入功能） -->
+    <!-- 源码编辑器弹窗（支持编辑并应用） -->
     <div class="modal" id="xamlModal">
         <div class="modal-content">
-            <h3><i class="fas fa-code"></i> XAML 代码预览</h3>
-            <div style="margin-bottom: 12px;">
-                <textarea id="xamlCodeArea" class="code-editor" readonly></textarea>
-            </div>
+            <h3><i class="fas fa-code"></i> 源码编辑器 (XAML)</h3>
+            <textarea id="xamlCodeArea" class="code-editor" spellcheck="false"></textarea>
             <div class="modal-actions">
-                <button class="btn" id="copyXamlBtn"><i class="fas fa-copy"></i> 复制代码</button>
-                <button class="btn btn-primary" id="downloadXamlBtn"><i class="fas fa-download"></i> 下载为XAML文件</button>
+                <button class="btn btn-primary" id="applyXamlBtn"><i class="fas fa-sync-alt"></i> 应用到设计</button>
                 <button class="btn" id="closeModalBtn"><i class="fas fa-times"></i> 关闭</button>
             </div>
-            <div
-                style="margin-top: 12px; font-size: 0.75rem; color: var(--text-tertiary); background: var(--bg-subtle); padding: 8px; border-radius: var(--radius-md);">
-                <i class="fas fa-info-circle"></i> 提示：您也可以通过拖拽 .xaml 或 .xml 文件到页面直接导入设计。
+            <div class="hint-info">
+                <i class="fas fa-info-circle"></i> 直接编辑 XAML 源码，点击“应用到设计”即可将修改同步到画布。
             </div>
         </div>
     </div>
