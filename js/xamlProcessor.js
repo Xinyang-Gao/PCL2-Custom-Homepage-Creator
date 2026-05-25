@@ -12,7 +12,6 @@ export class XamlProcessor {
     }
 
     importFromXAML(xmlStr) {
-        App.recordSnapshot();
         const unknownTags = new Set();
         try {
             if (xmlStr.charCodeAt(0) === 0xFEFF) xmlStr = xmlStr.slice(1);

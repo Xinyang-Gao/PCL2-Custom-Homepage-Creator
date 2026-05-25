@@ -127,7 +127,6 @@ export class UIManager {
     bindUIEvents() {
         document.getElementById('clearCanvasBtn').onclick = () => {
             if (confirm('清空所有组件？')) {
-                App.recordSnapshot();
                 App.state.components = [];
                 App.state.selectedId = null;
                 App.renderManager.renderCanvas();
