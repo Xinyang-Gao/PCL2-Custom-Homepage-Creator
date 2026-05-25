@@ -41,8 +41,9 @@ export class XamlProcessor {
                 throw new Error(`XAML 解析失败: ${errMsg.substring(0, 200)}${location ? ` (${location})` : ''}`);
             }
 
-            let nextId = 1;
-            const getNextLocalId = () => nextId++;
+            // 【修复 #A3】基于当前组件树的最大全局 ID 生成新 ID，避免冲突
+            let maxId = ComponentManager.getMaxGlobalId();
+            let nextId = maxId + 1;
 
             const parseNode = (node, parentId = null) => {
                 const tagName = XamlProcessor.getLocalTagName(node);
@@ -67,7 +68,9 @@ export class XamlProcessor {
                     return null;
                 }
 
-                const comp = ComponentManager.createComponent(type, parentId, getNextLocalId());
+                // 使用全局唯一的 nextId 创建组件，并自动递增
+                const comp = ComponentManager.createComponent(type, parentId, nextId++);
+
                 const commonProps = ['Margin', 'ToolTip', 'HorizontalAlignment', 'VerticalAlignment', 'IsHitTestVisible'];
                 commonProps.forEach(prop => {
                     const val = node.getAttribute(prop);
@@ -261,8 +264,8 @@ export class XamlProcessor {
                 xaml += `${spaces}<Grid ${attrs.join(' ')}>\n`;
                 let cols = [];
                 let rows = [];
-                try { cols = JSON.parse(comp.props.ColumnsDefinition); } catch(e) { cols = []; }
-                try { rows = JSON.parse(comp.props.RowsDefinition); } catch(e) { rows = []; }
+                try { cols = JSON.parse(comp.props.ColumnsDefinition); } catch (e) { cols = []; }
+                try { rows = JSON.parse(comp.props.RowsDefinition); } catch (e) { rows = []; }
                 if (cols.length) {
                     xaml += `${spaces}  <Grid.ColumnDefinitions>\n`;
                     cols.forEach(def => {
