@@ -174,40 +174,36 @@ export class HistoryManager {
     }
 
     doMove(componentId, newParentId, newIndex, oldParentId, oldIndex) {
-        // 先找到组件并移除
-        let comp = null;
-        if (oldParentId === null) {
-            const idx = App.state.components.findIndex(c => c.id === componentId);
-            if (idx !== -1) {
-                comp = App.state.components[idx];
-                App.state.components.splice(idx, 1);
-            }
-        } else {
-            const oldParent = ComponentFinder.findComponentById(oldParentId);
-            if (oldParent) {
-                const idx = oldParent.children.findIndex(c => c.id === componentId);
-                if (idx !== -1) {
-                    comp = oldParent.children[idx];
-                    oldParent.children.splice(idx, 1);
-                }
-            }
-        }
+        // 先根据 ID 找到组件（可能在任意位置）
+        let comp = ComponentFinder.findComponentById(componentId);
         if (!comp) return;
-        comp.parentId = newParentId;
-        if (newParentId === null) {
-            if (newIndex !== undefined && newIndex >= 0 && newIndex <= App.state.components.length) {
-                App.state.components.splice(newIndex, 0, comp);
-            } else {
-                App.state.components.push(comp);
+
+        // 从当前位置移除（不依赖 oldIndex，直接查找并删除）
+        const removeFromTree = (list) => {
+            const idx = list.findIndex(c => c.id === componentId);
+            if (idx !== -1) {
+                list.splice(idx, 1);
+                return true;
             }
+            for (let c of list) {
+                if (c.children && removeFromTree(c.children)) return true;
+            }
+            return false;
+        };
+        removeFromTree(App.state.components);
+
+        // 更新 parentId
+        comp.parentId = newParentId;
+
+        // 插入新位置
+        if (newParentId === null) {
+            const idx = Math.min(newIndex, App.state.components.length);
+            App.state.components.splice(idx, 0, comp);
         } else {
             const newParent = ComponentFinder.findComponentById(newParentId);
-            if (newParent) {
-                if (newIndex !== undefined && newIndex >= 0 && newIndex <= newParent.children.length) {
-                    newParent.children.splice(newIndex, 0, comp);
-                } else {
-                    newParent.children.push(comp);
-                }
+            if (newParent && newParent.children) {
+                const idx = Math.min(newIndex, newParent.children.length);
+                newParent.children.splice(idx, 0, comp);
             }
         }
     }
