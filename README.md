@@ -2,7 +2,7 @@
 
 一个基于 Web 的图形化编辑器，用于可视化设计 **Plain Craft Launcher (PCL)** 的主页界面。支持拖拽组件、实时预览、XAML 导入/导出、本地文件同步及自动备份。
 
-![版本](https://img.shields.io/badge/version-1.1.0-blue)
+![版本](https://img.shields.io/badge/version-1.2.0-blue)
 ![语言](https://img.shields.io/badge/JavaScript-ES6+-yellow)
 ![后端](https://img.shields.io/badge/Flask-2.0+-lightgrey)
 ![许可](https://img.shields.io/badge/license-MIT-green)
@@ -33,10 +33,13 @@
   后端自动保存每次编辑（1 秒防抖），最多保留 30 个备份。支持浏览、恢复、手动备份。
 
 - **撤销/重做**  
-  支持最多 50 步历史记录，快捷键 `Ctrl+Z` / `Ctrl+Y`。
+  支持基于操作记录的增量历史（最多 100 步），快捷键 `Ctrl+Z` / `Ctrl+Y`，性能优于全量快照。
 
-- **事件绑定配置**（预览响应待实现）  
-  为按钮/列表项配置 `EventType`（打开网页、启动游戏、弹出窗口等）与 `EventData`，数据会保留在 XAML 中，供后续运行时使用。**目前编辑器内预览尚未绑定实际事件**。
+- **拖拽边缘自动滚动**  
+  拖拽组件至画布边缘时，预览区自动滚动，提升长页面操作体验。
+
+- **事件绑定配置**（仅数据存储，预览无实际响应）  
+  为按钮/列表项配置 `EventType`（打开网页、启动游戏等）与 `EventData`，数据会保留在 XAML 中。**注意：当前预览模式下点击组件不会触发任何操作**，此功能仅用于数据定义，待后续运行时集成。
 
 - **深色/浅色主题**  
   跟随系统或手动切换，界面风格贴近 PCL 原生。
@@ -80,7 +83,7 @@ python app.py
 #### 基础操作
 - **添加组件**：从左侧组件库拖拽到中间画布（支持嵌套容器）。
 - **选择组件**：单击已添加的组件，右侧属性面板自动加载。
-- **编辑属性**：修改属性后自动生效（部分输入框防抖暂未全量覆盖，建议手动点击“应用更改”）。
+- **编辑属性**：修改属性后自动生效（部分输入框暂未防抖，建议手动点击“应用更改”）。
 - **删除/复制**：选中组件后点击属性面板底部按钮。
 - **调整顺序**：拖拽已有组件改变其在容器内的位置（水平/垂直方向自动判断）。
 
@@ -120,12 +123,12 @@ python app.py
 │   ├── componentManager.js# 组件的增删改查、复制、移动
 │   ├── componentFinder.js # 递归查找组件
 │   ├── renderManager.js   # DOM 渲染、属性面板生成
-│   ├── dragDropManager.js # 拖拽逻辑、占位符、文件拖入
+│   ├── dragDropManager.js # 拖拽逻辑、占位符、文件拖入、边缘滚动
 │   ├── xamlProcessor.js   # XAML 解析与生成
 │   ├── fileManager.js     # 本地文件 API 封装
 │   ├── serverApi.js       # 后端备份接口调用
 │   ├── uiManager.js       # UI 事件绑定、组件库构建
-│   ├── historyManager.js  # 撤销/重做栈
+│   ├── historyManager.js  # 增量操作历史（撤销/重做）
 │   └── utils.js           # 通用工具函数
 ├── user_workspace/        # 自动创建，存放用户备份及本地文件
 │   └── backups/           # 自动备份目录
