@@ -94,4 +94,21 @@ export class ServerApi {
         }
         return await this.createBackup(content);
     }
+
+    //获取备份文件内容
+    async getBackupContent(filename) {
+        try {
+            const res = await fetch(`/api/backup/load?filename=${encodeURIComponent(filename)}`);
+            const data = await res.json();
+            if (data.success && data.content) {
+                return data.content;
+            } else {
+                Utils.showToast('获取备份内容失败: ' + (data.error || '未知错误'), true);
+                return null;
+            }
+        } catch (err) {
+            Utils.showToast('请求失败: ' + err.message, true);
+            return null;
+        }
+    }
 }
