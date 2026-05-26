@@ -246,19 +246,116 @@ export class RenderManager {
         }
         else if (comp.type === 'grid') {
             const containerDiv = document.createElement('div');
-            containerDiv.className = 'card-component grid-mock';
+            containerDiv.className = 'grid-component';
+
+            // 解析列定义和行定义
+            let cols = [], rows = [];
+            try { cols = JSON.parse(comp.props.ColumnsDefinition || "[]"); } catch (e) { cols = []; }
+            try { rows = JSON.parse(comp.props.RowsDefinition || "[]"); } catch (e) { rows = []; }
+
+            // 生成 CSS Grid 模板字符串
+            const gridTemplateColumns = cols.map(col => {
+                if (col.width === 'Auto') return 'auto';
+                if (col.width && typeof col.width === 'string' && col.width.endsWith('*')) {
+                    const frac = parseFloat(col.width) || 1;
+                    return `${frac}fr`;
+                }
+                // 数字或像素值
+                const widthVal = col.width ? parseFloat(col.width) : 1;
+                return isNaN(widthVal) ? '1fr' : `${widthVal}px`;
+            }).join(' ');
+
+            const gridTemplateRows = rows.map(row => {
+                if (row.height === 'Auto') return 'auto';
+                if (row.height && typeof row.height === 'string' && row.height.endsWith('*')) {
+                    const frac = parseFloat(row.height) || 1;
+                    return `${frac}fr`;
+                }
+                const heightVal = row.height ? parseFloat(row.height) : 1;
+                return isNaN(heightVal) ? '1fr' : `${heightVal}px`;
+            }).join(' ');
+
+            // 应用 Grid 样式
+            containerDiv.style.display = 'grid';
+            containerDiv.style.gap = '8px';
+            containerDiv.style.backgroundColor = 'var(--bg-card)';
+            containerDiv.style.border = '1px dashed var(--border)';
+            containerDiv.style.padding = '8px';
+            containerDiv.style.minHeight = '60px';
+            if (gridTemplateColumns && gridTemplateColumns.trim() !== '') {
+                containerDiv.style.gridTemplateColumns = gridTemplateColumns;
+            } else {
+                containerDiv.style.gridTemplateColumns = '1fr'; // 默认单列
+            }
+            if (gridTemplateRows && gridTemplateRows.trim() !== '') {
+                containerDiv.style.gridTemplateRows = gridTemplateRows;
+            } else {
+                containerDiv.style.gridTemplateRows = 'auto';
+            }
+
+            // 添加标题标签（占用第一行所有列）
             const labelDiv = document.createElement('div');
-            labelDiv.style.fontSize = '0.7rem';
-            labelDiv.style.marginBottom = '8px';
-            labelDiv.innerHTML = `<i class="fas fa-th"></i> 网格布局 (${Utils.escapeHtml(comp.props.ColumnsDefinition || '未定义列')})`;
-            const dropzone = document.createElement('div');
-            dropzone.className = 'nested-dropzone';
-            dropzone.setAttribute('data-parent-id', comp.id);
+            labelDiv.style.cssText = 'font-size:0.7rem; color:var(--text-light); margin-bottom:8px; grid-column:1/-1; display:flex; align-items:center; gap:8px;';
+            labelDiv.innerHTML = `<i class="fas fa-th"></i> 网格布局 (${cols.length}列 × ${rows.length}行)`;
             containerDiv.appendChild(labelDiv);
-            containerDiv.appendChild(dropzone);
+
+            // 将整个 Grid 容器作为可拖放区域
+            containerDiv.classList.add('nested-dropzone');
+            containerDiv.setAttribute('data-parent-id', comp.id);
             wrapper.appendChild(containerDiv);
-            applyPaddingStyles(comp, containerDiv);
-            comp.children.forEach(child => this.renderComponentDOM(child, dropzone));
+
+            // 渲染子组件，并应用 Grid 定位属性
+            for (let child of comp.children) {
+                // 递归生成子组件的 DOM（但不自动附加到容器）
+                const tempContainer = document.createElement('div');
+                this.renderComponentDOM(child, tempContainer);
+                let childWrapper = tempContainer.firstChild;
+                if (childWrapper) {
+                    // 解析 Grid 附加属性
+                    const gridRow = child.props['Grid.Row'];
+                    const gridColumn = child.props['Grid.Column'];
+                    const rowSpan = child.props['Grid.RowSpan'];
+                    const colSpan = child.props['Grid.ColumnSpan'];
+
+                    // 应用 grid 定位样式
+                    // 注意：CSS Grid 的行/列索引从 1 开始，而 XAML 的 Grid.Row/Column 从 0 开始
+                    if (gridRow !== undefined && gridRow !== null && gridRow !== '') {
+                        const rowIdx = parseInt(gridRow);
+                        if (!isNaN(rowIdx)) {
+                            childWrapper.style.gridRowStart = rowIdx + 1;
+                            if (rowSpan && !isNaN(parseInt(rowSpan))) {
+                                childWrapper.style.gridRowEnd = `span ${parseInt(rowSpan)}`;
+                            } else {
+                                childWrapper.style.gridRowEnd = `span 1`;
+                            }
+                        }
+                    } else {
+                        // 默认放到第一行（第一个可用行）
+                        childWrapper.style.gridRowStart = 'auto';
+                        childWrapper.style.gridRowEnd = 'span 1';
+                    }
+
+                    if (gridColumn !== undefined && gridColumn !== null && gridColumn !== '') {
+                        const colIdx = parseInt(gridColumn);
+                        if (!isNaN(colIdx)) {
+                            childWrapper.style.gridColumnStart = colIdx + 1;
+                            if (colSpan && !isNaN(parseInt(colSpan))) {
+                                childWrapper.style.gridColumnEnd = `span ${parseInt(colSpan)}`;
+                            } else {
+                                childWrapper.style.gridColumnEnd = `span 1`;
+                            }
+                        }
+                    } else {
+                        childWrapper.style.gridColumnStart = 'auto';
+                        childWrapper.style.gridColumnEnd = 'span 1';
+                    }
+
+                    // 移除 wrapper 自身的绝对定位或 flex 相关样式，让 Grid 控制布局
+                    childWrapper.style.position = 'relative';
+                    childWrapper.style.margin = '0'; // Grid 内的 margin 由用户定义的 Margin 属性控制，但会被 Grid 布局影响，这里保留原样
+                    containerDiv.appendChild(childWrapper);
+                }
+            }
         }
         else {
             const innerContainer = document.createElement('div');
@@ -346,7 +443,20 @@ export class RenderManager {
             const emptyPlaceholder = parentWrapper.querySelector('.empty-placeholder');
             if (emptyPlaceholder) emptyPlaceholder.remove();
         } else {
+            // 先尝试获取 .nested-dropzone，如果不存在（比如 Grid 容器本身就是 dropzone）则获取整个组件 wrapper 内的 dropzone 容器
             parentWrapper = document.querySelector(`.component-item-wrapper[data-id="${parentId}"] .nested-dropzone`);
+            if (!parentWrapper) {
+                // 某些容器（如 Grid）的 dropzone 就是自身，尝试获取 wrapper 下没有 nested-dropzone 但有 grid-component 的元素
+                const wrapper = document.querySelector(`.component-item-wrapper[data-id="${parentId}"]`);
+                if (wrapper) {
+                    parentWrapper = wrapper.querySelector('.grid-component');
+                    if (parentWrapper && parentWrapper.classList.contains('nested-dropzone')) {
+                        // 已正确
+                    } else {
+                        parentWrapper = null;
+                    }
+                }
+            }
         }
         if (!parentWrapper) {
             this.renderCanvas();
@@ -356,12 +466,30 @@ export class RenderManager {
         this.renderComponentDOM(comp, tempContainer);
         const newComponentNode = tempContainer.firstChild;
         if (newComponentNode) {
-            const childrenWrappers = Array.from(parentWrapper.querySelectorAll(':scope > .component-item-wrapper'));
-            const refNode = childrenWrappers[insertIndex] || null;
+            // 对于 Grid 容器，所有子元素都是直接添加到容器中，没有特定的顺序（按照索引插入即可）
+            const childrenWrappers = Array.from(parentWrapper.querySelectorAll(':scope > .component-item-wrapper, :scope > .grid-component > .component-item-wrapper'));
+            // 修正：因为 Grid 容器内可能有标签 div，需要跳过非组件元素
+            const actualChildren = childrenWrappers.filter(el => el.classList && el.classList.contains('component-item-wrapper'));
+            const refNode = actualChildren[insertIndex] || null;
             if (refNode) {
                 parentWrapper.insertBefore(newComponentNode, refNode);
             } else {
                 parentWrapper.appendChild(newComponentNode);
+            }
+            // 如果是 Grid 容器，需要为新添加的组件生成默认的 Grid.Row/Column（放到第一个空白单元格，简化处理：放到末尾）
+            const parentComp = ComponentFinder.findComponentById(parentId);
+            if (parentComp && parentComp.type === 'grid') {
+                // 设置默认的 Grid.Row 和 Grid.Column 为当前行数/列数的合理值（简单起见放在 (0,0)）
+                if (!newComponentNode._component) {
+                    // 获取新组件的 comp 对象
+                    const newComp = ComponentFinder.findComponentById(comp.id);
+                    if (newComp) {
+                        if (newComp.props['Grid.Row'] === undefined) newComp.props['Grid.Row'] = '0';
+                        if (newComp.props['Grid.Column'] === undefined) newComp.props['Grid.Column'] = '0';
+                        // 重新刷新样式
+                        this.refreshComponent(comp.id);
+                    }
+                }
             }
         }
     }
