@@ -1,3 +1,4 @@
+// renderManager.js
 import { ComponentTypes, PROP_SELECT_OPTIONS } from './componentTypes.js';
 import { ComponentFinder } from './componentFinder.js';
 import { App } from './appCore.js';
@@ -39,16 +40,13 @@ function formatMargin(left, top, right, bottom) {
     return `${left},${top},${right},${bottom}`;
 }
 
-// 应用外边距、宽高、对齐等通用布局样式（直接模拟位置，无虚线框）
+// 应用外边距、宽高、对齐等通用布局样式
 function applyLayoutStyles(wrapper, comp) {
-    // 获取并解析 Margin 值
     const margin = comp.props.Margin || '0';
     const [ml, mt, mr, mb] = parseMargin(margin);
 
-    // 先设置总 margin（会被后续单独的 left/right 覆盖）
     wrapper.style.margin = `${mt}px ${mr}px ${mb}px ${ml}px`;
 
-    // 宽度 / 高度处理
     if (comp.props.Width) {
         wrapper.style.width = comp.props.Width;
     } else {
@@ -61,17 +59,14 @@ function applyLayoutStyles(wrapper, comp) {
     }
 
     const halign = comp.props.HorizontalAlignment || 'Stretch';
-    const isLeftMarginSet = ml !== 0;   // 左边距是否被用户显式设置（非0）
-    const isRightMarginSet = mr !== 0;  // 右边距是否被用户显式设置（非0）
+    const isLeftMarginSet = ml !== 0;
+    const isRightMarginSet = mr !== 0;
 
-    // 根据水平对齐方式，决定是否覆盖左右边距
     if (halign === 'Center') {
         if (!isLeftMarginSet && !isRightMarginSet) {
-            // 无用户边距时，使用居中
             wrapper.style.marginLeft = 'auto';
             wrapper.style.marginRight = 'auto';
         } else {
-            // 有用户边距时，保留用户设置的具体像素值
             if (isLeftMarginSet) wrapper.style.marginLeft = `${ml}px`;
             if (isRightMarginSet) wrapper.style.marginRight = `${mr}px`;
         }
@@ -79,11 +74,9 @@ function applyLayoutStyles(wrapper, comp) {
     }
     else if (halign === 'Right') {
         if (!isRightMarginSet) {
-            // 无右边距用户值时，按右对齐处理
             wrapper.style.marginLeft = 'auto';
             wrapper.style.marginRight = '0';
         } else {
-            // 有右边距时优先使用用户值，左边距同理
             if (isLeftMarginSet) wrapper.style.marginLeft = `${ml}px`;
             wrapper.style.marginRight = `${mr}px`;
         }
@@ -100,14 +93,12 @@ function applyLayoutStyles(wrapper, comp) {
         }
         if (!comp.props.Width) wrapper.style.width = 'auto';
     }
-    else { // Stretch 拉伸模式
+    else { // Stretch
         if (!comp.props.Width) wrapper.style.width = '100%';
-        // 拉伸模式下也保留用户设置的左右边距
         if (isLeftMarginSet) wrapper.style.marginLeft = `${ml}px`;
         if (isRightMarginSet) wrapper.style.marginRight = `${mr}px`;
     }
 
-    // 垂直对齐处理（不变）
     const valign = comp.props.VerticalAlignment || 'Stretch';
     if (valign === 'Top') {
         wrapper.style.alignSelf = 'flex-start';
@@ -119,12 +110,10 @@ function applyLayoutStyles(wrapper, comp) {
         wrapper.style.alignSelf = 'stretch';
     }
 
-    // 记录属性到自定义 data 属性，便于调试
     wrapper.setAttribute('data-halign', halign);
     wrapper.setAttribute('data-valign', valign);
 }
 
-// 应用内边距到组件内部内容区
 function applyPaddingStyles(comp, contentElement) {
     if (!contentElement) return;
     const padding = comp.props.Padding || '';
@@ -144,7 +133,6 @@ function applyPaddingStyles(comp, contentElement) {
     }
 }
 
-// 文本样式应用
 function applyTextStyles(textElement, comp) {
     if (comp.props.Foreground) {
         textElement.style.color = comp.props.Foreground;
@@ -169,9 +157,9 @@ function applyTextStyles(textElement, comp) {
 
 export class RenderManager {
     constructor() {
-        // 创建防抖的 applyCurrentProps 方法
         this.debouncedApply = Utils.debounce(this.applyCurrentProps.bind(this), 300);
     }
+
     renderComponentDOM(comp, container) {
         const wrapper = document.createElement('div');
         wrapper.className = 'component-item-wrapper';
@@ -182,7 +170,6 @@ export class RenderManager {
             wrapper.setAttribute('title', comp.props.ToolTip);
         }
 
-        // 直接应用布局样式（Margin 等，无虚线框）
         applyLayoutStyles(wrapper, comp);
         wrapper._component = comp;
 
@@ -252,19 +239,16 @@ export class RenderManager {
             const containerDiv = document.createElement('div');
             containerDiv.className = 'grid-component';
 
-            // 解析列定义和行定义
             let cols = [], rows = [];
             try { cols = JSON.parse(comp.props.ColumnsDefinition || "[]"); } catch (e) { cols = []; }
             try { rows = JSON.parse(comp.props.RowsDefinition || "[]"); } catch (e) { rows = []; }
 
-            // 生成 CSS Grid 模板字符串
             const gridTemplateColumns = cols.map(col => {
                 if (col.width === 'Auto') return 'auto';
                 if (col.width && typeof col.width === 'string' && col.width.endsWith('*')) {
                     const frac = parseFloat(col.width) || 1;
                     return `${frac}fr`;
                 }
-                // 数字或像素值
                 const widthVal = col.width ? parseFloat(col.width) : 1;
                 return isNaN(widthVal) ? '1fr' : `${widthVal}px`;
             }).join(' ');
@@ -279,7 +263,6 @@ export class RenderManager {
                 return isNaN(heightVal) ? '1fr' : `${heightVal}px`;
             }).join(' ');
 
-            // 应用 Grid 样式
             containerDiv.style.display = 'grid';
             containerDiv.style.gap = '8px';
             containerDiv.style.backgroundColor = 'var(--bg-card)';
@@ -289,7 +272,7 @@ export class RenderManager {
             if (gridTemplateColumns && gridTemplateColumns.trim() !== '') {
                 containerDiv.style.gridTemplateColumns = gridTemplateColumns;
             } else {
-                containerDiv.style.gridTemplateColumns = '1fr'; // 默认单列
+                containerDiv.style.gridTemplateColumns = '1fr';
             }
             if (gridTemplateRows && gridTemplateRows.trim() !== '') {
                 containerDiv.style.gridTemplateRows = gridTemplateRows;
@@ -297,32 +280,25 @@ export class RenderManager {
                 containerDiv.style.gridTemplateRows = 'auto';
             }
 
-            // 添加标题标签（占用第一行所有列）
             const labelDiv = document.createElement('div');
             labelDiv.style.cssText = 'font-size:0.7rem; color:var(--text-light); margin-bottom:8px; grid-column:1/-1; display:flex; align-items:center; gap:8px;';
             labelDiv.innerHTML = `<i class="fas fa-th"></i> 网格布局 (${cols.length}列 × ${rows.length}行)`;
             containerDiv.appendChild(labelDiv);
 
-            // 将整个 Grid 容器作为可拖放区域
             containerDiv.classList.add('nested-dropzone');
             containerDiv.setAttribute('data-parent-id', comp.id);
             wrapper.appendChild(containerDiv);
 
-            // 渲染子组件，并应用 Grid 定位属性
             for (let child of comp.children) {
-                // 递归生成子组件的 DOM（但不自动附加到容器）
                 const tempContainer = document.createElement('div');
                 this.renderComponentDOM(child, tempContainer);
                 let childWrapper = tempContainer.firstChild;
                 if (childWrapper) {
-                    // 解析 Grid 附加属性
                     const gridRow = child.props['Grid.Row'];
                     const gridColumn = child.props['Grid.Column'];
                     const rowSpan = child.props['Grid.RowSpan'];
                     const colSpan = child.props['Grid.ColumnSpan'];
 
-                    // 应用 grid 定位样式
-                    // 注意：CSS Grid 的行/列索引从 1 开始，而 XAML 的 Grid.Row/Column 从 0 开始
                     if (gridRow !== undefined && gridRow !== null && gridRow !== '') {
                         const rowIdx = parseInt(gridRow);
                         if (!isNaN(rowIdx)) {
@@ -334,7 +310,6 @@ export class RenderManager {
                             }
                         }
                     } else {
-                        // 默认放到第一行（第一个可用行）
                         childWrapper.style.gridRowStart = 'auto';
                         childWrapper.style.gridRowEnd = 'span 1';
                     }
@@ -354,9 +329,8 @@ export class RenderManager {
                         childWrapper.style.gridColumnEnd = 'span 1';
                     }
 
-                    // 移除 wrapper 自身的绝对定位或 flex 相关样式，让 Grid 控制布局
                     childWrapper.style.position = 'relative';
-                    childWrapper.style.margin = '0'; // Grid 内的 margin 由用户定义的 Margin 属性控制，但会被 Grid 布局影响，这里保留原样
+                    childWrapper.style.margin = '0';
                     containerDiv.appendChild(childWrapper);
                 }
             }
@@ -380,17 +354,55 @@ export class RenderManager {
                 innerContainer.appendChild(hintDiv);
             }
             else if (comp.type === 'image') {
+                // ----- 图片组件增强：支持 LoadingSource、FallbackSource、EnableCache -----
+                const wrapperDiv = document.createElement('div');
+                wrapperDiv.style.position = 'relative';
+                wrapperDiv.style.display = 'inline-block';
+
                 const img = document.createElement('img');
                 img.style.maxWidth = '100%';
                 if (comp.props.Height) img.style.height = comp.props.Height;
-                const srcVal = comp.props.Source || '';
-                if (Utils.isSafeUrl(srcVal)) {
-                    img.src = srcVal;
-                } else {
-                    img.src = '#';
-                    img.alt = '非法图片地址';
+
+                // 标准化所有图片 URL
+                const targetSrc = Utils.normalizeImageUrl(comp.props.Source || '');
+                const fallbackSrc = Utils.normalizeImageUrl(comp.props.FallbackSource || '');
+                const loadingSrc = Utils.normalizeImageUrl(comp.props.LoadingSource || '');
+
+                // 设置占位图
+                if (loadingSrc && Utils.isSafeUrl(loadingSrc)) {
+                    img.src = loadingSrc;
                 }
-                innerContainer.appendChild(img);
+
+                // 加载实际图片
+                if (targetSrc && Utils.isSafeUrl(targetSrc)) {
+                    const actualImg = new Image();
+                    actualImg.onload = function() {
+                        img.src = targetSrc;
+                        img.onerror = null;
+                    };
+                    actualImg.onerror = function() {
+                        if (fallbackSrc && Utils.isSafeUrl(fallbackSrc)) {
+                            img.src = fallbackSrc;
+                        } else {
+                            // 内置默认占位图（转换为标准化路径）
+                            const defaultPlaceholder = Utils.normalizeImageUrl('pack://application:,,,/images/Icons/NoIcon.png');
+                            img.src = defaultPlaceholder || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24"%3E%3Cpath fill="%23999" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/%3E%3C/svg%3E';
+                        }
+                    };
+                    actualImg.src = targetSrc;
+                } else if (fallbackSrc && Utils.isSafeUrl(fallbackSrc)) {
+                    img.src = fallbackSrc;
+                }
+
+                // 处理 EnableCache
+                if (comp.props.EnableCache === 'False') {
+                    img.setAttribute('data-no-cache', 'true');
+                    // 添加时间戳避免缓存
+                    img.src += (img.src.includes('?') ? '&' : '?') + '_t=' + Date.now();
+                }
+
+                wrapperDiv.appendChild(img);
+                innerContainer.appendChild(wrapperDiv);
             }
             else if (comp.type === 'button') {
                 const btn = document.createElement('button');
@@ -416,11 +428,41 @@ export class RenderManager {
                 innerContainer.appendChild(btn);
             }
             else if (comp.type === 'listitem') {
+                // ----- 列表项 Logo 渲染，支持图片预览 -----
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'list-item-mock';
-                const icon = document.createElement('i');
-                icon.className = 'fas fa-cube';
+
+                const logoContainer = document.createElement('div');
+                logoContainer.style.width = '32px';
+                logoContainer.style.height = '32px';
+                logoContainer.style.flexShrink = '0';
+                logoContainer.style.marginRight = '12px';
+                logoContainer.style.display = 'flex';
+                logoContainer.style.alignItems = 'center';
+                logoContainer.style.justifyContent = 'center';
+
+                const logoImg = document.createElement('img');
+                logoImg.style.maxWidth = '100%';
+                logoImg.style.maxHeight = '100%';
+                logoImg.style.objectFit = 'contain';
+
+                // 标准化 Logo URL
+                const logoVal = Utils.normalizeImageUrl(comp.props.Logo || '');
+                const defaultIcon = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="%23666" d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/%3E%3C/svg%3E';
+
+                if (logoVal && Utils.isSafeUrl(logoVal)) {
+                    logoImg.src = logoVal;
+                    logoImg.onerror = function() {
+                        this.src = defaultIcon;
+                    };
+                } else {
+                    logoImg.src = defaultIcon;
+                }
+
+                logoContainer.appendChild(logoImg);
+
                 const contentDiv = document.createElement('div');
+                contentDiv.style.flex = '1';
                 const titleStrong = document.createElement('strong');
                 titleStrong.textContent = comp.props.Title || '';
                 const infoSpan = document.createElement('div');
@@ -428,7 +470,8 @@ export class RenderManager {
                 infoSpan.textContent = comp.props.Info || '';
                 contentDiv.appendChild(titleStrong);
                 contentDiv.appendChild(infoSpan);
-                itemDiv.appendChild(icon);
+
+                itemDiv.appendChild(logoContainer);
                 itemDiv.appendChild(contentDiv);
                 innerContainer.appendChild(itemDiv);
             }
@@ -447,15 +490,13 @@ export class RenderManager {
             const emptyPlaceholder = parentWrapper.querySelector('.empty-placeholder');
             if (emptyPlaceholder) emptyPlaceholder.remove();
         } else {
-            // 先尝试获取 .nested-dropzone，如果不存在（比如 Grid 容器本身就是 dropzone）则获取整个组件 wrapper 内的 dropzone 容器
             parentWrapper = document.querySelector(`.component-item-wrapper[data-id="${parentId}"] .nested-dropzone`);
             if (!parentWrapper) {
-                // 某些容器（如 Grid）的 dropzone 就是自身，尝试获取 wrapper 下没有 nested-dropzone 但有 grid-component 的元素
                 const wrapper = document.querySelector(`.component-item-wrapper[data-id="${parentId}"]`);
                 if (wrapper) {
                     parentWrapper = wrapper.querySelector('.grid-component');
                     if (parentWrapper && parentWrapper.classList.contains('nested-dropzone')) {
-                        // 已正确
+                        // ok
                     } else {
                         parentWrapper = null;
                     }
@@ -470,9 +511,7 @@ export class RenderManager {
         this.renderComponentDOM(comp, tempContainer);
         const newComponentNode = tempContainer.firstChild;
         if (newComponentNode) {
-            // 对于 Grid 容器，所有子元素都是直接添加到容器中，没有特定的顺序（按照索引插入即可）
             const childrenWrappers = Array.from(parentWrapper.querySelectorAll(':scope > .component-item-wrapper, :scope > .grid-component > .component-item-wrapper'));
-            // 修正：因为 Grid 容器内可能有标签 div，需要跳过非组件元素
             const actualChildren = childrenWrappers.filter(el => el.classList && el.classList.contains('component-item-wrapper'));
             const refNode = actualChildren[insertIndex] || null;
             if (refNode) {
@@ -480,19 +519,13 @@ export class RenderManager {
             } else {
                 parentWrapper.appendChild(newComponentNode);
             }
-            // 如果是 Grid 容器，需要为新添加的组件生成默认的 Grid.Row/Column（放到第一个空白单元格，简化处理：放到末尾）
             const parentComp = ComponentFinder.findComponentById(parentId);
             if (parentComp && parentComp.type === 'grid') {
-                // 设置默认的 Grid.Row 和 Grid.Column 为当前行数/列数的合理值（简单起见放在 (0,0)）
-                if (!newComponentNode._component) {
-                    // 获取新组件的 comp 对象
-                    const newComp = ComponentFinder.findComponentById(comp.id);
-                    if (newComp) {
-                        if (newComp.props['Grid.Row'] === undefined) newComp.props['Grid.Row'] = '0';
-                        if (newComp.props['Grid.Column'] === undefined) newComp.props['Grid.Column'] = '0';
-                        // 重新刷新样式
-                        this.refreshComponent(comp.id);
-                    }
+                const newComp = ComponentFinder.findComponentById(comp.id);
+                if (newComp) {
+                    if (newComp.props['Grid.Row'] === undefined) newComp.props['Grid.Row'] = '0';
+                    if (newComp.props['Grid.Column'] === undefined) newComp.props['Grid.Column'] = '0';
+                    this.refreshComponent(comp.id);
                 }
             }
         }
@@ -509,11 +542,10 @@ export class RenderManager {
         }
 
         const total = App.state.components.length;
-        const BATCH_SIZE = 50; // 每批渲染数量
+        const BATCH_SIZE = 50;
         let index = 0;
         const fragment = document.createDocumentFragment();
 
-        // 显示加载提示（如果组件很多）
         if (total > 100) {
             const loading = document.createElement('div');
             loading.id = 'renderLoading';
@@ -530,7 +562,6 @@ export class RenderManager {
             if (index < total) {
                 requestAnimationFrame(renderBatch);
             } else {
-                // 移除加载提示
                 const loadingEl = document.getElementById('renderLoading');
                 if (loadingEl) loadingEl.remove();
                 canvas.appendChild(fragment);
@@ -648,7 +679,6 @@ export class RenderManager {
         for (let field of group.fields) {
             const fieldDiv = document.createElement('div');
             fieldDiv.className = 'prop-field';
-            // 特殊处理 Margin 属性：生成四个滑块 + 数字输入
             if (field.key === 'Margin') {
                 const marginValues = parseMargin(field.val);
                 const [left, top, right, bottom] = marginValues;
@@ -679,20 +709,17 @@ export class RenderManager {
                 <div class="margin-preview">当前边距：${formatMargin(left, top, right, bottom)}</div>
             `;
 
-                // 绑定实时更新事件
                 const sliders = marginGroup.querySelectorAll('.margin-slider');
                 const numbers = marginGroup.querySelectorAll('.margin-number');
                 const previewSpan = marginGroup.querySelector('.margin-preview');
 
                 const updateMargin = () => {
-                    // 更新预览文本
                     const newLeft = parseFloat(marginGroup.querySelector('[data-margin="left"] .margin-number')?.value || 0);
                     const newTop = parseFloat(marginGroup.querySelector('[data-margin="top"] .margin-number')?.value || 0);
                     const newRight = parseFloat(marginGroup.querySelector('[data-margin="right"] .margin-number')?.value || 0);
                     const newBottom = parseFloat(marginGroup.querySelector('[data-margin="bottom"] .margin-number')?.value || 0);
                     const newMarginStr = formatMargin(newLeft, newTop, newRight, newBottom);
                     previewSpan.innerText = `当前边距：${newMarginStr}`;
-                    // 调用防抖的 applyCurrentProps 统一更新
                     this.debouncedApply();
                 };
 
@@ -734,7 +761,6 @@ export class RenderManager {
             section.appendChild(fieldDiv);
         }
 
-        // 如果组件是 Grid 类型，额外添加可视化编辑按钮
         if (comp.type === 'grid') {
             const btnDiv = document.createElement('div');
             btnDiv.className = 'prop-field';
@@ -749,20 +775,14 @@ export class RenderManager {
         return section;
     }
 
-    // renderManager.js 中新增方法
     updateComponentMargin(compId, marginStr) {
         const comp = ComponentFinder.findComponentById(compId);
         if (!comp) return;
         const wrapper = document.querySelector(`.component-item-wrapper[data-id="${compId}"]`);
         if (!wrapper) return;
 
-        // 更新数据模型
         comp.props.Margin = marginStr;
-
-        // 重新应用布局样式（包含 margin、宽高、对齐等）
         applyLayoutStyles(wrapper, comp);
-
-        // 标记已修改并触发自动备份
         App.markDirty();
     }
 
@@ -796,12 +816,10 @@ export class RenderManager {
         `;
         document.body.appendChild(modal);
 
-        // 渲染列表函数（增加拖拽和复制按钮）
         const renderList = (containerId, list, type) => {
             const container = modal.querySelector(`#${containerId}`);
             container.innerHTML = '';
             list.forEach((item, idx) => {
-                // 提取当前值（同原文）
                 let unit = 'px', val = 100, minVal = '', maxVal = '';
                 if (type === 'col') {
                     const w = item.width;
@@ -841,7 +859,6 @@ export class RenderManager {
                 container.appendChild(div);
             });
 
-            // 绑定拖拽事件
             container.querySelectorAll('.grid-def-item').forEach(item => {
                 item.addEventListener('dragstart', (e) => {
                     e.dataTransfer.setData('text/plain', JSON.stringify({
@@ -857,7 +874,6 @@ export class RenderManager {
                     const fromIdx = data.index;
                     const toIdx = parseInt(item.getAttribute('data-index'));
                     if (fromType === type && fromIdx !== toIdx) {
-                        // 交换位置
                         const listRef = (type === 'col') ? cols : rows;
                         const [removed] = listRef.splice(fromIdx, 1);
                         listRef.splice(toIdx, 0, removed);
@@ -867,7 +883,6 @@ export class RenderManager {
                 });
             });
 
-            // 复制按钮
             container.querySelectorAll('.grid-copy').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -880,7 +895,6 @@ export class RenderManager {
                 });
             });
 
-            // 删除按钮（原有）
             container.querySelectorAll('.grid-del').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -930,11 +944,9 @@ export class RenderManager {
             });
         };
 
-        // 初始渲染
         renderList('columnsEditor', cols, 'col');
         renderList('rowsEditor', rows, 'row');
 
-        // 添加列/行按钮
         modal.querySelector('#addColBtn').onclick = () => {
             cols.push({ width: '1*' });
             renderList('columnsEditor', cols, 'col');
@@ -944,14 +956,12 @@ export class RenderManager {
             renderList('rowsEditor', rows, 'row');
         };
 
-        // 监听输入变化更新定义
         modal.addEventListener('input', (e) => {
             if (e.target.closest('.grid-def-item')) {
                 updateDefinition();
             }
         });
 
-        // 保存和取消
         modal.querySelector('#gridEditorSave').onclick = () => {
             updateDefinition();
             gridComp.props.ColumnsDefinition = JSON.stringify(cols);
@@ -974,7 +984,8 @@ export class RenderManager {
             other: { title: "其他", icon: "fas fa-ellipsis-h", fields: [] }
         };
 
-        const specificContentKeys = ["Text", "Title", "Info", "Source", "Logo"];
+        // 扩展内容键包含图片新属性
+        const specificContentKeys = ["Text", "Title", "Info", "Source", "Logo", "FallbackSource", "LoadingSource"];
         const appearanceKeys = ["Foreground", "FontSize", "TextWrapping", "Theme", "ColorType", "LogoScale", "Type", "FontWeight"];
         const layoutKeys = ["Margin", "Padding", "Width", "Height", "HorizontalAlignment", "VerticalAlignment", "ColumnsDefinition", "RowsDefinition", "Orientation"];
         const gridAttachKeys = ["Grid.Row", "Grid.Column", "Grid.RowSpan", "Grid.ColumnSpan"];
@@ -1005,17 +1016,14 @@ export class RenderManager {
         return groupsArray;
     }
 
-    // 在 renderManager.js 中，替换原有 applyCurrentProps 方法
     applyCurrentProps() {
         const comp = ComponentFinder.findComponentById(App.state.selectedId);
         if (!comp) return;
 
-        // 保存旧值
         const oldProps = { ...comp.props };
         const oldEvents = { ...comp.events };
         const oldCustom = { ...comp.customProps };
 
-        // 从 UI 控件读取新值并更新到 comp.props（原有逻辑）
         document.querySelectorAll('#dynamicProps input[data-prop], #dynamicProps textarea[data-prop], #dynamicProps select[data-prop]').forEach(inp => {
             const key = inp.getAttribute('data-prop');
             if (key) {
@@ -1068,7 +1076,6 @@ export class RenderManager {
             if (valInput) valInput.value = '';
         }
 
-        // 构建变更对象（仅记录实际变更的属性）
         const changedProps = {};
         for (let key in comp.props) {
             if (oldProps[key] !== comp.props[key]) {
@@ -1076,7 +1083,6 @@ export class RenderManager {
             }
         }
         if (Object.keys(changedProps).length > 0) {
-            // 提取旧值中对应的属性
             const oldChanged = {};
             for (let key in changedProps) {
                 oldChanged[key] = oldProps[key];
@@ -1089,7 +1095,6 @@ export class RenderManager {
             });
         }
 
-        // 事件变更
         if (JSON.stringify(oldEvents) !== JSON.stringify(comp.events)) {
             App.history.recordAction({
                 type: ActionType.UPDATE_EVENTS,
@@ -1099,7 +1104,6 @@ export class RenderManager {
             });
         }
 
-        // 自定义属性变更
         if (JSON.stringify(oldCustom) !== JSON.stringify(comp.customProps)) {
             App.history.recordAction({
                 type: ActionType.UPDATE_CUSTOM_PROPS,

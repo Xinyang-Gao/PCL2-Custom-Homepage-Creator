@@ -63,6 +63,20 @@ def serve_css():
 def serve_js():
     return send_from_directory('.', 'script.js')
 
+# 新增：映射内置图片路径
+@app.route('/images/<path:filename>')
+def serve_images(filename):
+    # 安全检查：防止路径遍历
+    if '..' in filename or filename.startswith('/'):
+        return 'Forbidden', 403
+    base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'images')
+    safe_path = os.path.realpath(os.path.join(base, filename))
+    if not safe_path.startswith(base):
+        return 'Forbidden', 403
+    if not os.path.exists(safe_path):
+        return 'Not Found', 404
+    return send_from_directory('images', filename)
+
 # ================== API ==================
 @app.route('/api/files', methods=['GET'])
 def list_xml_files():

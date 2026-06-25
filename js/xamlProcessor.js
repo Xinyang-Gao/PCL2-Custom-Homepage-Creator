@@ -1,3 +1,4 @@
+// xamlProcessor.js
 import { ComponentTypes } from './componentTypes.js';
 import { ComponentManager } from './componentManager.js';
 import { App } from './appCore.js';
@@ -98,12 +99,14 @@ export class XamlProcessor {
                 const gridColumnSpan = node.getAttribute('Grid.ColumnSpan');
                 if (gridColumnSpan !== null) comp.props['Grid.ColumnSpan'] = gridColumnSpan;
 
+                // 已知属性集合（包含新增图片属性）
                 const knownProps = new Set([
                     ...commonProps,
                     'Title', 'Text', 'Source', 'Height', 'ColorType', 'Padding', 'FontSize', 'TextWrapping', 'Foreground',
                     'Theme', 'Logo', 'Type', 'Info', 'ColumnsDefinition', 'RowsDefinition', 'Orientation',
                     'CanSwap', 'IsSwapped', 'UseAnimation', 'SwapLogoRight', 'HasMouseAnimation',
-                    'Grid.Row', 'Grid.Column', 'Grid.RowSpan', 'Grid.ColumnSpan', 'EventType', 'EventData'
+                    'Grid.Row', 'Grid.Column', 'Grid.RowSpan', 'Grid.ColumnSpan', 'EventType', 'EventData',
+                    'EnableCache', 'FallbackSource', 'LoadingSource'
                 ]);
                 for (let attr of node.attributes) {
                     const name = attr.name;
@@ -176,6 +179,10 @@ export class XamlProcessor {
                     comp.props.Source = node.getAttribute('Source') || '';
                     comp.props.Height = node.getAttribute('Height') || '60';
                     comp.props.HorizontalAlignment = node.getAttribute('HorizontalAlignment') || 'Center';
+                    // 新增图片属性 #C1
+                    comp.props.EnableCache = node.getAttribute('EnableCache') ?? 'True';
+                    comp.props.FallbackSource = node.getAttribute('FallbackSource') || '';
+                    comp.props.LoadingSource = node.getAttribute('LoadingSource') || '';
                 }
                 else if (type === 'button') {
                     comp.props.Text = node.getAttribute('Text') || '按钮';
@@ -344,6 +351,10 @@ export class XamlProcessor {
             else if (comp.type === 'image') {
                 attrs.push(`Source="${Utils.escapeXml(comp.props.Source)}"`);
                 if (comp.props.Height) attrs.push(`Height="${comp.props.Height}"`);
+                // 新增图片属性 #C1
+                if (comp.props.EnableCache) attrs.push(`EnableCache="${comp.props.EnableCache}"`);
+                if (comp.props.FallbackSource) attrs.push(`FallbackSource="${Utils.escapeXml(comp.props.FallbackSource)}"`);
+                if (comp.props.LoadingSource) attrs.push(`LoadingSource="${Utils.escapeXml(comp.props.LoadingSource)}"`);
                 xaml += `${spaces}<local:MyImage ${attrs.join(' ')} />\n`;
             }
             else if (comp.type === 'button') {

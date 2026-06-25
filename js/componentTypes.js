@@ -1,4 +1,4 @@
-// 组件类型定义
+// componentTypes.js
 export const ComponentTypes = {
     card: {
         name: "卡片 (MyCard)",
@@ -58,7 +58,10 @@ export const ComponentTypes = {
             ToolTip: "",
             Margin: "0",
             VerticalAlignment: "Stretch",
-            IsHitTestVisible: "True"
+            IsHitTestVisible: "True",
+            EnableCache: "True",
+            FallbackSource: "",
+            LoadingSource: "pack://application:,,,/images/Icons/NoIcon.png"
         }
     },
     button: {
