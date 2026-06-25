@@ -51,4 +51,16 @@ export class Utils {
         if (lowerUrl.startsWith('data:') && !lowerUrl.startsWith('data:image/')) return false;
         return true;
     }
+
+    // 防抖函数
+    static debounce(fn, delay = 300) {
+        let timer = null;
+        return function (...args) {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = null;
+            }, delay);
+        };
+    }
 }

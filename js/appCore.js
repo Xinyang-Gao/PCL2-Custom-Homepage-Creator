@@ -6,6 +6,8 @@ import { ServerApi } from './serverApi.js';
 import { DragDropManager } from './dragDropManager.js';
 import { UIManager } from './uiManager.js';
 import { HistoryManager } from './historyManager.js';
+import { ComponentManager } from './componentManager.js';
+import { ComponentFinder } from './componentFinder.js';
 
 // 应用核心单例
 export const App = {
@@ -61,7 +63,7 @@ export const App = {
         this.serverApi = new ServerApi();
         this.dragDropManager = new DragDropManager();
         this.uiManager = new UIManager();
-        this.history = new HistoryManager();  // 使用新的增量历史管理器
+        this.history = new HistoryManager();
 
         this.uiManager.buildComponentLibrary();
         this.dragDropManager.initGlobalFileDragAndDrop();
@@ -82,14 +84,41 @@ export const App = {
             }
         });
 
-        // 全局撤销/重做快捷键（现在调用新的 history 方法）
+        // 全局快捷键
         window.addEventListener('keydown', (e) => {
+            // 撤销
             if (e.ctrlKey && e.key === 'z') {
                 e.preventDefault();
                 this.history.undo();
-            } else if (e.ctrlKey && e.key === 'y') {
+            }
+            // 重做
+            else if (e.ctrlKey && e.key === 'y') {
                 e.preventDefault();
                 this.history.redo();
+            }
+            // 保存 (Ctrl+S)
+            else if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                if (this.fileManager.currentFileName) {
+                    this.fileManager.saveToLinkedFile();
+                } else {
+                    this.fileManager.saveAsLocalFile();
+                }
+            }
+            // 删除 (Delete)
+            else if (e.key === 'Delete' && this.state.selectedId !== null) {
+                e.preventDefault();
+                if (confirm('删除选中的组件？')) {
+                    ComponentManager.removeComponentById(this.state.selectedId);
+                }
+            }
+            // 复制 (Ctrl+D)
+            else if (e.ctrlKey && e.key === 'd') {
+                e.preventDefault();
+                if (this.state.selectedId !== null) {
+                    const comp = ComponentFinder.findComponentById(this.state.selectedId);
+                    if (comp) ComponentManager.duplicateComponent(comp);
+                }
             }
         });
 
