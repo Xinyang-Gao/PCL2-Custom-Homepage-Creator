@@ -2,6 +2,7 @@ import { ComponentTypes } from './componentTypes.js';
 import { ComponentManager } from './componentManager.js';
 import { App } from './appCore.js';
 import { Utils } from './utils.js';
+import { ComponentFinder } from './componentFinder.js';
 
 export class XamlProcessor {
     static getLocalTagName(node) {
@@ -40,7 +41,7 @@ export class XamlProcessor {
                 throw new Error(`XAML 解析失败: ${errMsg.substring(0, 200)}${location ? ` (${location})` : ''}`);
             }
 
-            // 【修复 #A3】基于当前组件树的最大全局 ID 生成新 ID，避免冲突
+            // 基于当前组件树的最大全局 ID 生成新 ID，避免冲突
             let maxId = ComponentManager.getMaxGlobalId();
             let nextId = maxId + 1;
 
@@ -64,6 +65,18 @@ export class XamlProcessor {
 
                 if (!type || !ComponentTypes[type]) {
                     unknownTags.add(tagName);
+                    // 保留未知元素为注释：将整个节点序列化为字符串存入父组件的 customProps
+                    if (parentId !== null) {
+                        const parentComp = ComponentFinder.findComponentById(parentId);
+                        if (parentComp) {
+                            if (!parentComp.customProps._unknownChildren) {
+                                parentComp.customProps._unknownChildren = [];
+                            }
+                            const serializer = new XMLSerializer();
+                            const unknownXml = serializer.serializeToString(node);
+                            parentComp.customProps._unknownChildren.push(unknownXml);
+                        }
+                    }
                     return null;
                 }
 
@@ -201,14 +214,14 @@ export class XamlProcessor {
                 App.renderManager.renderCanvas();
                 Utils.showToast(`成功导入 ${newComponents.length} 个组件`);
                 if (unknownTags.size > 0) {
-                    Utils.showToast(`警告：发现未知组件类型: ${Array.from(unknownTags).join(', ')}，它们已被忽略`, true);
+                    Utils.showToast(`警告：发现未知组件类型: ${Array.from(unknownTags).join(', ')}，它们已被保留为注释`, true);
                 }
                 App.resetDirty();
                 App.history.reset();
             } else {
                 Utils.showToast('未找到有效组件', true);
                 if (unknownTags.size > 0) {
-                    Utils.showToast(`文件中仅包含未知组件: ${Array.from(unknownTags).join(', ')}`, true);
+                    Utils.showToast(`文件中仅包含未知组件: ${Array.from(unknownTags).join(', ')}，已保留为注释`, true);
                 }
             }
         } catch (e) {
@@ -222,6 +235,13 @@ export class XamlProcessor {
         const spaces = '  '.repeat(indent);
 
         for (let comp of comps) {
+            // 首先输出该组件之前保存的未知元素注释
+            if (comp.customProps && comp.customProps._unknownChildren) {
+                for (let unknownXml of comp.customProps._unknownChildren) {
+                    xaml += `${spaces}<!-- 未知元素保留: ${Utils.escapeXml(unknownXml)} -->\n`;
+                }
+            }
+
             const attrs = [];
             const commonAttrs = ['Margin', 'ToolTip', 'HorizontalAlignment', 'VerticalAlignment', 'IsHitTestVisible'];
             commonAttrs.forEach(attr => {
@@ -243,6 +263,8 @@ export class XamlProcessor {
             }
 
             for (const [key, val] of Object.entries(comp.customProps || {})) {
+                // 跳过内部使用的 _unknownChildren
+                if (key === '_unknownChildren') continue;
                 attrs.push(`${key}="${Utils.escapeXml(val)}"`);
             }
 
