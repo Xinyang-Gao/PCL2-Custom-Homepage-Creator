@@ -168,6 +168,10 @@ function applyTextStyles(textElement, comp) {
 }
 
 export class RenderManager {
+    constructor() {
+        // 创建防抖的 applyCurrentProps 方法
+        this.debouncedApply = Utils.debounce(this.applyCurrentProps.bind(this), 300);
+    }
     renderComponentDOM(comp, container) {
         const wrapper = document.createElement('div');
         wrapper.className = 'component-item-wrapper';
@@ -503,15 +507,42 @@ export class RenderManager {
             this.updatePropsPanel();
             return;
         }
+
+        const total = App.state.components.length;
+        const BATCH_SIZE = 50; // 每批渲染数量
+        let index = 0;
         const fragment = document.createDocumentFragment();
-        App.state.components.forEach(comp => this.renderComponentDOM(comp, fragment));
-        canvas.appendChild(fragment);
-        if (App.state.selectedId) {
-            const selEl = document.querySelector(`[data-id="${App.state.selectedId}"]`);
-            if (selEl) selEl.classList.add('selected');
+
+        // 显示加载提示（如果组件很多）
+        if (total > 100) {
+            const loading = document.createElement('div');
+            loading.id = 'renderLoading';
+            loading.style.cssText = 'text-align:center;padding:40px;color:var(--text-secondary)';
+            loading.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> 加载组件中...';
+            canvas.appendChild(loading);
         }
-        this.updateHierarchyBar();
-        this.updatePropsPanel();
+
+        const renderBatch = () => {
+            const end = Math.min(index + BATCH_SIZE, total);
+            for (; index < end; index++) {
+                this.renderComponentDOM(App.state.components[index], fragment);
+            }
+            if (index < total) {
+                requestAnimationFrame(renderBatch);
+            } else {
+                // 移除加载提示
+                const loadingEl = document.getElementById('renderLoading');
+                if (loadingEl) loadingEl.remove();
+                canvas.appendChild(fragment);
+                if (App.state.selectedId) {
+                    const selEl = document.querySelector(`[data-id="${App.state.selectedId}"]`);
+                    if (selEl) selEl.classList.add('selected');
+                }
+                this.updateHierarchyBar();
+                this.updatePropsPanel();
+            }
+        };
+        renderBatch();
     }
 
     refreshComponent(compId) {
@@ -654,13 +685,15 @@ export class RenderManager {
                 const previewSpan = marginGroup.querySelector('.margin-preview');
 
                 const updateMargin = () => {
+                    // 更新预览文本
                     const newLeft = parseFloat(marginGroup.querySelector('[data-margin="left"] .margin-number')?.value || 0);
                     const newTop = parseFloat(marginGroup.querySelector('[data-margin="top"] .margin-number')?.value || 0);
                     const newRight = parseFloat(marginGroup.querySelector('[data-margin="right"] .margin-number')?.value || 0);
                     const newBottom = parseFloat(marginGroup.querySelector('[data-margin="bottom"] .margin-number')?.value || 0);
                     const newMarginStr = formatMargin(newLeft, newTop, newRight, newBottom);
                     previewSpan.innerText = `当前边距：${newMarginStr}`;
-                    this.updateComponentMargin(comp.id, newMarginStr);
+                    // 调用防抖的 applyCurrentProps 统一更新
+                    this.debouncedApply();
                 };
 
                 const syncControl = (target) => {
@@ -763,29 +796,37 @@ export class RenderManager {
         `;
         document.body.appendChild(modal);
 
+        // 渲染列表函数（增加拖拽和复制按钮）
         const renderList = (containerId, list, type) => {
             const container = modal.querySelector(`#${containerId}`);
             container.innerHTML = '';
             list.forEach((item, idx) => {
-                let unit = 'px';
-                let val = 100;
+                // 提取当前值（同原文）
+                let unit = 'px', val = 100, minVal = '', maxVal = '';
                 if (type === 'col') {
                     const w = item.width;
                     if (w === 'Auto') unit = 'auto';
                     else if (w && w.endsWith('*')) { unit = 'star'; val = parseFloat(w); if (isNaN(val)) val = 1; }
                     else { unit = 'px'; val = parseFloat(w); if (isNaN(val)) val = 100; }
+                    minVal = item.minWidth || '';
+                    maxVal = item.maxWidth || '';
                 } else {
                     const h = item.height;
                     if (h === 'Auto') unit = 'auto';
                     else if (h && h.endsWith('*')) { unit = 'star'; val = parseFloat(h); if (isNaN(val)) val = 1; }
                     else { unit = 'px'; val = parseFloat(h); if (isNaN(val)) val = 100; }
+                    minVal = item.minHeight || '';
+                    maxVal = item.maxHeight || '';
                 }
-                const minVal = type === 'col' ? (item.minWidth || '') : (item.minHeight || '');
-                const maxVal = type === 'col' ? (item.maxWidth || '') : (item.maxHeight || '');
+
                 const div = document.createElement('div');
                 div.className = 'grid-def-item';
-                div.style.cssText = 'display:flex; gap:8px; margin-bottom:8px; align-items:center;';
+                div.draggable = true;
+                div.setAttribute('data-index', idx);
+                div.setAttribute('data-type', type);
+                div.style.cssText = 'display:flex; gap:8px; margin-bottom:8px; align-items:center; background:var(--bg-subtle); padding:6px 10px; border-radius:var(--radius-md); cursor:grab;';
                 div.innerHTML = `
+                    <span style="cursor:grab; color:var(--text-tertiary);"><i class="fas fa-grip-vertical"></i></span>
                     <select class="grid-unit" data-type="${type}" data-index="${idx}">
                         <option value="px" ${unit === 'px' ? 'selected' : ''}>像素(px)</option>
                         <option value="star" ${unit === 'star' ? 'selected' : ''}>星(*)</option>
@@ -794,22 +835,62 @@ export class RenderManager {
                     <input class="grid-value" data-type="${type}" data-index="${idx}" value="${val}" ${unit === 'auto' ? 'disabled' : ''} style="width:80px;">
                     <input class="grid-min" placeholder="Min" data-type="${type}" data-index="${idx}" value="${Utils.escapeHtmlAttr(minVal)}" style="width:70px;">
                     <input class="grid-max" placeholder="Max" data-type="${type}" data-index="${idx}" value="${Utils.escapeHtmlAttr(maxVal)}" style="width:70px;">
+                    <button class="grid-copy" data-type="${type}" data-index="${idx}" title="复制此定义" style="background:none; border:none; color:var(--primary);"><i class="fas fa-copy"></i></button>
                     <button class="grid-del" data-type="${type}" data-index="${idx}" style="background:none; border:none; color:red;"><i class="fas fa-trash"></i></button>
                 `;
                 container.appendChild(div);
             });
-        };
 
-        renderList('columnsEditor', cols, 'col');
-        renderList('rowsEditor', rows, 'row');
+            // 绑定拖拽事件
+            container.querySelectorAll('.grid-def-item').forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', JSON.stringify({
+                        type: item.getAttribute('data-type'),
+                        index: parseInt(item.getAttribute('data-index'))
+                    }));
+                });
+                item.addEventListener('dragover', (e) => e.preventDefault());
+                item.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                    const fromType = data.type;
+                    const fromIdx = data.index;
+                    const toIdx = parseInt(item.getAttribute('data-index'));
+                    if (fromType === type && fromIdx !== toIdx) {
+                        // 交换位置
+                        const listRef = (type === 'col') ? cols : rows;
+                        const [removed] = listRef.splice(fromIdx, 1);
+                        listRef.splice(toIdx, 0, removed);
+                        renderList(containerId, listRef, type);
+                        updateDefinition();
+                    }
+                });
+            });
 
-        modal.querySelector('#addColBtn').onclick = () => {
-            cols.push({ width: '1*' });
-            renderList('columnsEditor', cols, 'col');
-        };
-        modal.querySelector('#addRowBtn').onclick = () => {
-            rows.push({ height: '1*' });
-            renderList('rowsEditor', rows, 'row');
+            // 复制按钮
+            container.querySelectorAll('.grid-copy').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const idx = parseInt(btn.getAttribute('data-index'));
+                    const listRef = (type === 'col') ? cols : rows;
+                    const clone = JSON.parse(JSON.stringify(listRef[idx]));
+                    listRef.splice(idx + 1, 0, clone);
+                    renderList(containerId, listRef, type);
+                    updateDefinition();
+                });
+            });
+
+            // 删除按钮（原有）
+            container.querySelectorAll('.grid-del').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const idx = parseInt(btn.getAttribute('data-index'));
+                    const listRef = (type === 'col') ? cols : rows;
+                    listRef.splice(idx, 1);
+                    renderList(containerId, listRef, type);
+                    updateDefinition();
+                });
+            });
         };
 
         const updateDefinition = () => {
@@ -849,25 +930,28 @@ export class RenderManager {
             });
         };
 
+        // 初始渲染
+        renderList('columnsEditor', cols, 'col');
+        renderList('rowsEditor', rows, 'row');
+
+        // 添加列/行按钮
+        modal.querySelector('#addColBtn').onclick = () => {
+            cols.push({ width: '1*' });
+            renderList('columnsEditor', cols, 'col');
+        };
+        modal.querySelector('#addRowBtn').onclick = () => {
+            rows.push({ height: '1*' });
+            renderList('rowsEditor', rows, 'row');
+        };
+
+        // 监听输入变化更新定义
         modal.addEventListener('input', (e) => {
-            const target = e.target;
-            if (target.classList.contains('grid-unit') || target.classList.contains('grid-value') ||
-                target.classList.contains('grid-min') || target.classList.contains('grid-max')) {
-                updateDefinition();
-            }
-        });
-        modal.addEventListener('click', (e) => {
-            if (e.target.closest('.grid-del')) {
-                const btn = e.target.closest('.grid-del');
-                const type = btn.getAttribute('data-type');
-                const idx = parseInt(btn.getAttribute('data-index'));
-                if (type === 'col') cols.splice(idx, 1);
-                else rows.splice(idx, 1);
-                renderList(`${type}sEditor`, type === 'col' ? cols : rows, type);
+            if (e.target.closest('.grid-def-item')) {
                 updateDefinition();
             }
         });
 
+        // 保存和取消
         modal.querySelector('#gridEditorSave').onclick = () => {
             updateDefinition();
             gridComp.props.ColumnsDefinition = JSON.stringify(cols);
