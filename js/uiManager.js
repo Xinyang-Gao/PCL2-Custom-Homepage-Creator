@@ -163,7 +163,7 @@ export class UIManager {
             };
         });
     }
-    
+
     /**
      * 显示当前设计与备份内容的并排差异弹窗
      * @param {string} backupContent - 备份的 XAML 内容
@@ -287,6 +287,15 @@ export class UIManager {
                 });
             }
         };
+        const dynamicProps = document.getElementById('dynamicProps');
+        if (dynamicProps) {
+            dynamicProps.addEventListener('input', (e) => {
+                // 忽略 margin 控件（它们有自己的独立更新）
+                if (e.target.closest('.margin-visual-group')) return;
+                // 调用防抖的 applyCurrentProps
+                App.renderManager.debouncedApply();
+            });
+        }
 
         // ========== 源码编辑器逻辑（替换旧的 XAML 工具） ==========
         document.getElementById('xamlExportBtn').onclick = () => {
