@@ -1,2 +1,10 @@
 user_workspace/
-Custom.xaml
+docs/
+
+# 依赖与构建产物
+node_modules/
+dist/
+.npm-cache/
+tests/.out*.cjs
+tests/.dbg.cjs
+*.tsbuildinfo

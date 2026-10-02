@@ -2,113 +2,108 @@
 
 一个基于 Web 的图形化编辑器，用于可视化设计 **Plain Craft Launcher (PCL)** 的主页界面。支持拖拽组件、实时预览、XAML 导入/导出、本地文件同步及自动备份。
 
-![版本](https://img.shields.io/badge/version-1.3.0-blue)
-![语言](https://img.shields.io/badge/JavaScript-ES6+-yellow)
-![后端](https://img.shields.io/badge/Flask-2.0+-lightgrey)
+![版本](https://img.shields.io/badge/version-2.0.0-blue)
+![语言](https://img.shields.io/badge/TypeScript-5.7-blue?logo=typescript)
+![构建](https://img.shields.io/badge/Vite-6.0-lightgrey?logo=vite)
+![后端](https://img.shields.io/badge/Flask-3.0-lightgrey)
 ![许可](https://img.shields.io/badge/license-MIT-green)
-
-<img width="1919" height="962" alt="捕获" src="https://github.com/user-attachments/assets/61d3feb3-d0d9-40cd-a3df-44dfc3a1e88a" />
 
 ---
 
 ## 主要功能
 
-- **可视化组件库**  
-  内置卡片、文本、图片、按钮、列表项、布局容器（StackPanel/Grid）等十余种 PCL 组件，支持拖拽到画布。
+### 组件与事件（对照 `docs/` 完整支持）
 
-- **属性面板编辑**  
-  按“内容”“外观”“布局”“行为”分组显示组件属性，支持 `Margin` 四边独立滑块编辑、枚举下拉、自定义属性。
+- **13 种组件类型**，与 PCL 控件一一对应：
+  `MyCard`、`StackPanel`（垂直/水平）、`Grid`、`TextBlock`、`MyHint`、`MyImage`、`MyButton`、`MyTextButton`、**`MyIconTextButton`**、**`MyIconButton`**、`MyListItem`、**`Path`**
+  （加粗为 2.0 新增，均支持拖拽、属性编辑与 XAML 双向转换）
+- **23 种 EventType**（对照 `docs/自定义事件.md` 全量注册），按分类分组下拉，选中后实时显示**参数说明、必填/可选标注、示例与版本限制**（如「加入房间需 PCL 2.11.1+」）。
+- **修正的枚举**：`ColorType`（Highlight/Red/留空=黑）、`MyIconTextButton.ColorType`（Black/Highlight）、`MyIconButton.Theme`（Color/White/Black/Red）、`MyListItem.Type`（留空/Clickable）等均与官方文档一致。
 
-- **网格布局可视化编辑器**  
-  以表格形式编辑 `Grid` 的列/行定义（像素、星号、自动），支持最小/最大宽度约束，支持拖拽调整行列顺序、复制定义。
+### 替换标记与主题色（新增）
 
-- **XAML 双向转换**  
-  一键导出当前设计为 XAML 代码，也可拖拽 `.xaml/.xml` 文件导入，智能解析未知标签并保留为注释，避免内容丢失。
+- **替换标记插入器**：属性面板中 `Text`、`Source`、`Logo`、`Foreground` 等字段旁的 `< >` 按钮，可一键插入 `docs/替换标记.md` 中的全部标记（`{date}`、`{variable:name:默认值}`、`{setup:...}` 等 26 项，按分类分组）。
+- **主题色预览**：支持 `{DynamicResource ColorBrush1-8}` —— 属性面板提供 8 档色块插入，顶栏 🎨 按钮可自定义预览主题色，画布中实时渲染实际颜色（仅影响预览，不改变导出的 XAML）。
 
-- **本地文件管理**  
-  - 使用现代浏览器 File System Access API 打开/保存 `.xaml` 文件，建立“链接文件”后可一键保存。  
-  - 兼容模式（不支持 API 时）以下载方式保存。
+### 编辑器能力
 
-- **自动备份与历史版本**  
-  后端自动保存每次编辑（1 秒防抖），最多保留 30 个备份。支持搜索备份、批量删除、恢复前差异对比（高亮变更行），手动备份同样可用。
-
-- **撤销/重做**  
-  基于操作记录的增量历史（最多 100 步），快捷键 `Ctrl+Z` / `Ctrl+Y`，性能优于全量快照。
-
-- **超大设计优化**  
-  组件超过 200 个时采用分批渲染（每批 50 个），避免 UI 卡顿。
-
-- **拖拽边缘自动滚动**  
-  拖拽组件至画布边缘时，预览区自动滚动，提升长页面操作体验。
-
-- **事件绑定配置**（仅数据存储，预览无实际响应）  
-  为按钮/列表项配置 `EventType`（打开网页、启动游戏等）与 `EventData`，数据会保留在 XAML 中。**注意：当前预览模式下点击组件不会触发任何操作**，此功能仅用于数据定义，待后续运行时集成。
-
-- **深色/浅色主题**  
-  跟随系统或手动切换，界面风格贴近 PCL 原生。
+- **可视化组件库**：按「容器 / 基础 / 控件 / 图形」分组，支持搜索过滤。
+- **属性面板编辑**：按“内容 / 外观 / 布局 / 行为”分组，`Margin` 四边滑块 + 数值联动编辑、枚举下拉、自定义属性增删。
+- **网格布局可视化编辑器**：以表格形式编辑 `Grid` 行/列定义（像素/星号/自动 + Min/Max 约束），支持拖拽排序、复制定义。
+- **XAML 双向转换**：一键导出/编辑源码，或拖拽 `.xaml/.xml` 文件导入。**往返幂等**：导出 → 导入 → 导出结果完全一致；未知标签与高级事件集合（`CustomEventService.Events`）**原样保留**，不丢失内容。
+- **本地文件管理**：File System Access API 直接读写 `.xaml` 文件（Chrome/Edge 86+），旧浏览器自动降级为下载。
+- **自动备份与历史版本**：1 秒防抖自动备份（上限 30 个），支持搜索、批量删除、行级差异对比、恢复。
+- **撤销/重做**：增量操作历史（100 步），`Ctrl+Z` / `Ctrl+Y`，输入框内不误触发。
+- **深色/浅色主题**：跟随手动切换，本地持久化。
 
 ---
 
 ## 技术栈
 
-| 前端                          | 后端                     |
-| ----------------------------- | ------------------------ |
-| 原生 JavaScript (ES6+ 模块化) | Flask 2.0+               |
-| Font Awesome 6                | Flask-CORS               |
-| 自定义 CSS（变量、响应式）     | 文件原子写入、路径安全校验 |
-| 无第三方 UI 库，轻量快速       | 自动备份清理策略          |
+| 前端 | 后端 |
+| --- | --- |
+| TypeScript 5.7（strict 模式） | Flask 3.0 |
+| Vite 6（dev 服务器 + 生产构建） | Flask-CORS |
+| 原生 DOM，无 UI 框架 | 原子写入、路径安全校验 |
+| jsdom 集成测试（3 组 / 96 项断言） | 自动备份清理策略 |
 
 ---
 
 ## 开始
 
 ### 1. 环境要求
-- Python 3.8+
-- 现代浏览器（Chrome/Edge 86+ 以获得完整本地文件支持）
+
+- Node.js 18+（构建前端）
+- Python 3.8+（运行后端）
+- 现代浏览器（Chrome/Edge 86+ 获得完整本地文件支持）
 
 ### 2. 安装与运行
 
 ```bash
-# 克隆或下载项目
-cd pcl-homepage-editor
+# 安装前端依赖
+npm install
 
-# 安装 Python 依赖
-pip install flask flask-cors
+# 开发模式（Vite 服务器 :5173，自动代理 /api 与 /images 到 :5000）
+npm run dev          # 终端 1
+python app.py        # 终端 2
 
-# 启动后端服务器
-python app.py
+# 生产模式
+npm run build        # 产出 dist/
+python app.py        # 访问 http://localhost:5000
 ```
 
-默认访问 `http://localhost:5000` 即可使用。
+### 3. 常用命令
 
-### 3. 使用指南
+| 命令 | 说明 |
+| --- | --- |
+| `npm run dev` | Vite 开发服务器（热更新） |
+| `npm run build` | 类型检查 + 生产构建 |
+| `npm run typecheck` | 仅 TypeScript 类型检查 |
+| `npm test` | 运行全部集成测试（XAML 往返 / 真实文档 / DOM 冒烟） |
+| `npm run server` | 启动 Flask 后端 |
+
+### 4. 使用指南
 
 #### 基础操作
 - **添加组件**：从左侧组件库拖拽到中间画布（支持嵌套容器）。
-- **选择组件**：单击已添加的组件，右侧属性面板自动加载。
-- **编辑属性**：修改属性后自动生效（输入框带 300ms 防抖，避免频繁刷新）。
-- **删除/复制**：选中组件后点击属性面板底部按钮，或使用快捷键 `Delete` / `Ctrl+D`。
-- **调整顺序**：拖拽已有组件改变其在容器内的位置（水平/垂直方向自动判断）。
+- **选择组件**：单击画布中的组件；`Esc` 取消选中。
+- **编辑属性**：修改后自动生效（输入 300ms 防抖），或点击「应用更改」。
+- **删除/复制**：属性面板底部按钮，或快捷键 `Delete` / `Ctrl+D`。
+- **插入替换标记**：属性标签旁的 `< >` 按钮打开标记菜单（含主题色块）。
 
-#### 布局容器
-- **StackPanel**：垂直排列子元素。
-- **水平布局 (Horizontal Stack)**：子元素水平排列（通过 `Orientation` 属性区分）。
-- **Grid**：需先通过可视化编辑器定义列/行，子元素可附加 `Grid.Row/Column` 等属性。行列定义支持拖拽排序和复制。
-
-#### 文件操作
-- **打开本地文件**：点击顶部“打开本地文件”按钮 → 选择 `.xaml` 文件 → 当前设计被替换。
-- **保存**：若已打开文件（且浏览器支持 API），按钮变为“保存到文件”，点击即可覆盖原文件；若未链接文件，可使用 `Ctrl+S` 触发“另存为”流程。
-- **另存为**：始终可用，下载或覆盖新文件。
-- **服务器备份**：点击顶部云图标 → 查看历史备份（支持搜索） → 可“对比”当前设计与备份差异（高亮行级变化） → 点击“恢复”回滚设计。
+#### 事件绑定
+右侧面板选择 `EventType` 后，下方会显示该事件的参数结构与示例；`EventData` 按 `参数1|参数2` 顺序填写。支持一个控件通过 `CustomEventService.Events` 触发多个事件（源码编辑器中编辑，导入导出原样保留）。
 
 #### 快捷键
-| 快捷键      | 操作             |
-| ----------- | ---------------- |
-| `Ctrl+Z`    | 撤销             |
-| `Ctrl+Y`    | 重做             |
-| `Ctrl+S`    | 保存到链接的文件（或另存为） |
-| `Delete`    | 删除选中组件     |
-| `Ctrl+D`    | 复制选中组件     |
+
+| 快捷键 | 操作 |
+| --- | --- |
+| `Ctrl+Z` | 撤销 |
+| `Ctrl+Y` / `Ctrl+Shift+Z` | 重做 |
+| `Ctrl+S` | 保存到链接文件（或另存为） |
+| `Ctrl+D` | 复制选中组件 |
+| `Delete` | 删除选中组件 |
+| `Esc` | 取消选中 |
 
 ---
 
@@ -116,71 +111,90 @@ python app.py
 
 ```
 .
-├── app.py                  # Flask 后端，提供备份及文件读写 API
-├── index.html              # 主页面结构
-├── style.css               # 样式表
-├── js/                     # 前端模块
-│   ├── main.js            # 入口
-│   ├── appCore.js         # 全局应用单例
-│   ├── componentTypes.js  # 组件定义及默认属性
-│   ├── componentManager.js# 组件的增删改查、复制、移动
-│   ├── componentFinder.js # 递归查找组件
-│   ├── renderManager.js   # DOM 渲染、属性面板生成
-│   ├── dragDropManager.js # 拖拽逻辑、占位符、文件拖入、边缘滚动
-│   ├── xamlProcessor.js   # XAML 解析与生成
-│   ├── fileManager.js     # 本地文件 API 封装
-│   ├── serverApi.js       # 后端备份接口调用
-│   ├── uiManager.js       # UI 事件绑定、组件库构建
-│   ├── historyManager.js  # 增量操作历史（撤销/重做）
-│   └── utils.js           # 通用工具函数（含路径标准化、防抖等）
-├── user_workspace/        # 自动创建，存放用户备份及本地文件
-│   └── backups/           # 自动备份目录
-├── images/                # 内置 PCL 图片资源（由后端静态提供）
-└── README.md
+├── index.html              # Vite 入口页面
+├── vite.config.ts          # Vite 配置（开发代理、构建输出）
+├── tsconfig.json           # TypeScript strict 配置
+├── app.py                  # Flask 后端（托管 dist/、备份与文件 API）
+├── src/
+│   ├── main.ts             # 应用入口：初始化、全局快捷键
+│   ├── core/
+│   │   ├── types.ts        # 数据模型类型定义
+│   │   ├── store.ts        # 状态中心（组件树、选中态、自动备份）
+│   │   └── history.ts      # 增量操作历史（撤销/重做）
+│   ├── components/
+│   │   ├── specs.ts        # ★ 组件声明式规格（类型、默认值、枚举选项）
+│   │   ├── tree.ts         # 组件树查找/插入/克隆
+│   │   ├── manager.ts      # 组件增删改查（自动记历史）
+│   │   └── dragDrop.ts     # 拖拽、占位符、边缘滚动、文件拖入
+│   ├── xaml/
+│   │   ├── parser.ts       # XAML → 模型（未知内容原样保留）
+│   │   ├── generator.ts    # 模型 → XAML（往返幂等）
+│   │   ├── eventTypes.ts   # ★ 23 种 EventType 注册表（参数文档）
+│   │   └── markers.ts      # ★ 替换标记注册表 + ColorBrush 主题色
+│   ├── render/
+│   │   ├── renderManager.ts# 画布渲染（13 种组件的 DOM 分支）
+│   │   ├── propsPanel.ts   # 属性面板、事件区、标记菜单、Grid 编辑器
+│   │   └── layout.ts       # Margin/Padding/对齐 → CSS
+│   ├── io/                 # serverApi（备份）、fileManager（本地文件）
+│   ├── ui/                 # uiManager（组件库、弹窗、差异对比）、toast
+│   ├── styles/main.css     # 全部样式（CSS 变量、深浅主题、响应式）
+│   └── util/dom.ts         # DOM/转义/防抖工具
+├── tests/                  # 集成测试（esbuild + jsdom）
+├── Images/                 # 内置 PCL 图片资源（Flask 静态提供）
+└── docs/                   # PCL 官方文档与 Custom.xaml 示例
 ```
 
 ---
 
 ## API 接口（后端）
 
-所有接口前缀 `/api`，返回 JSON 格式。
+所有接口前缀 `/api`，返回 JSON。所有路径均经过安全校验，防止目录遍历。
 
-| 端点                     | 方法 | 说明                       |
-| ------------------------ | ---- | -------------------------- |
-| `/backups`               | GET  | 获取备份列表               |
-| `/backup`                | POST | 创建备份（自动或手动）     |
-| `/backup/load`           | GET  | 加载指定备份文件内容       |
-| `/backup/delete`         | POST | 删除备份文件               |
-| `/local/load`            | POST | 读取本地文件（安全路径）   |
-| `/local/save`            | POST | 写入本地文件               |
-| `/files`                 | GET  | 列举用户工作区 xml 文件    |
-| `/save`                  | POST | 保存到工作区（旧，保留兼容）|
-| `/load`                  | GET  | 从工作区读取               |
-| `/delete`                | POST | 删除工作区文件             |
-| `/images/<path>`         | GET  | 提供内置图片资源           |
-
-> 所有路径均经过安全校验，防止目录遍历。
+| 端点 | 方法 | 说明 |
+| --- | --- | --- |
+| `/backups` | GET | 获取备份列表 |
+| `/backup` | POST | 创建备份（自动或手动） |
+| `/backup/load` | GET | 加载指定备份内容 |
+| `/backup/delete` | POST | 删除备份文件 |
+| `/local/load` | POST | 读取本地文件（安全路径） |
+| `/local/save` | POST | 写入本地文件 |
+| `/files` | GET | 列举工作区 xml 文件 |
+| `/save` `/load` `/delete` | — | 工作区文件（兼容保留） |
+| `/images/<path>` | GET | 内置图片资源 |
 
 ---
 
 ## 开发与扩展
 
 ### 添加新组件类型
-1. 在 `componentTypes.js` 的 `ComponentTypes` 中添加定义，指定 `name`、`icon`、`canNest` 及默认属性。
-2. 在 `renderManager.js` 的 `renderComponentDOM` 中增加渲染分支。
-3. （可选）在 `xamlProcessor.js` 的 `parseNode` 和 `generateXAML` 中增加映射。
+1. 在 `src/components/specs.ts` 的 `COMPONENT_SPECS` 中注册：键名、显示名、图标、XAML 标签、分类、默认属性。
+2. （可选）在 `TYPE_SELECT_OPTIONS` 中为该类型覆盖枚举选项。
+3. 在 `src/render/renderManager.ts` 的 `renderLeaf`/`renderCard` 等分支提供渲染。
+4. 在 `src/xaml/parser.ts` 的 `TAG_TO_TYPE` 中登记标签映射。
 
-### 自定义属性
-组件可动态添加任意键值对，存储于 `comp.customProps`，导入导出时会自动保留。
+### 添加新事件类型
+在 `src/xaml/eventTypes.ts` 的 `EVENT_TYPES` 中追加条目（分类、描述、参数文档、占位提示），属性面板与测试断言会自动生效。
 
-### 事件响应（待实现）
-目前仅存储配置，实际运行时交互需在 `RenderManager` 中为可点击组件绑定 `click` 事件，根据 `events.type` 执行对应动作（如 `window.open`、`alert` 等）。此部分为待开发项（详见 `TODOLIST.md`）。
+### 添加新替换标记
+在 `src/xaml/markers.ts` 的 `MARKERS` 中追加条目即可出现在插入菜单中。
+
+---
+
+## 测试
+
+```bash
+npm test
+```
+
+- **XAML 往返**（66 项）：全组件类型导入导出、幂等性、未知元素保留、错误处理。
+- **真实文档**（10 项）：`docs/Custom.xaml`（PCL 官方示例，14 张卡片）完整导入与二次往返。
+- **DOM 冒烟**（20 项）：加载真实 `index.html` 启动应用，覆盖组件增删复制、属性面板、事件区、标记菜单。
 
 ---
 
 ## 贡献
 
-欢迎提交 Issue 或 Pull Request。请确保代码风格与现有模块一致，并遵守安全规范（文件路径校验、XSS 防护等）。
+欢迎提交 Issue 或 Pull Request。请保持 TypeScript strict 通过（`npm run typecheck`）与测试全绿（`npm test`），并遵守安全规范（文件路径校验、XSS 转义）。
 
 ---
 

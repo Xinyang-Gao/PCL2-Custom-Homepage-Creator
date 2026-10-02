@@ -1,13 +1,18 @@
 # app.py
 import os
 import re
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, abort
 from flask_cors import CORS
 import werkzeug.utils
 from datetime import datetime
 
-app = Flask(__name__, static_folder='.', static_url_path='')
+# 静态资源限定在前端构建产物目录内（避免暴露源码/配置文件）
+app = Flask(__name__, static_folder='dist', static_url_path='')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+
+# 项目根目录与前端构建产物目录（npm run build 生成）
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+DIST_DIR = os.path.join(ROOT_DIR, 'dist')
 
 # ================== 安全配置 ==================
 # 定义本地文件操作的安全基目录
@@ -16,7 +21,10 @@ os.makedirs(BASE_DIR, exist_ok=True)
 
 # CORS 白名单（根据实际部署域名修改）
 ALLOWED_ORIGINS = [
-    'http://localhost:5000',      # 本地开发
+    'http://localhost:5000',      # 本地生产模式
+    'http://127.0.0.1:5000',
+    'http://localhost:5173',      # Vite 开发服务器
+    'http://127.0.0.1:5173',
     # 'https://your-domain.com',  # 生产环境
 ]
 CORS(app, resources={r"/api/*": {"origins": ALLOWED_ORIGINS}}, supports_credentials=True)
@@ -37,7 +45,8 @@ def safe_join(base_dir, user_path):
     if '..' in user_path.split('/'):
         return None
     absolute_path = os.path.realpath(os.path.join(base_dir, user_path))
-    if not absolute_path.startswith(base_dir):
+    # 使用 os.sep 结尾比较，避免前缀相似目录绕过（如 /a/user vs /a/user_backup）
+    if not (absolute_path == base_dir or absolute_path.startswith(base_dir + os.sep)):
         return None
     return absolute_path
 
@@ -53,29 +62,42 @@ def atomic_write(filepath: str, content: str):
 # ================== 路由 ==================
 @app.route('/')
 def index():
-    return send_from_directory('.', 'index.html')
+    if os.path.exists(os.path.join(DIST_DIR, 'index.html')):
+        return send_from_directory(DIST_DIR, 'index.html')
+    return (
+        '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">'
+        '<title>PCL 主页编辑器</title></head><body style="font-family:sans-serif;padding:40px">'
+        '<h2>尚未构建前端</h2><p>请先执行：</p><pre>npm install\nnpm run build</pre>'
+        '<p>开发模式请运行 <code>npm run dev</code>（Vite 开发服务器会自动代理 API）。</p>'
+        '</body></html>'
+    ), 200
 
+@app.route('/assets/<path:filename>')
+def serve_assets(filename):
+    return send_from_directory(os.path.join(DIST_DIR, 'assets'), filename)
+
+# 兼容旧链接：样式表已并入构建产物（/assets/index-*.css）
 @app.route('/style.css')
-def serve_css():
-    return send_from_directory('.', 'style.css')
+def serve_css_legacy():
+    assets_dir = os.path.join(DIST_DIR, 'assets')
+    if os.path.isdir(assets_dir):
+        css = [f for f in os.listdir(assets_dir) if f.endswith('.css')]
+        if css:
+            return send_from_directory(assets_dir, css[0])
+    abort(404)
 
-@app.route('/script.js')
-def serve_js():
-    return send_from_directory('.', 'script.js')
-
-# 新增：映射内置图片路径
+# 映射内置图片路径（目录名为 Images）
 @app.route('/images/<path:filename>')
 def serve_images(filename):
-    # 安全检查：防止路径遍历
     if '..' in filename or filename.startswith('/'):
         return 'Forbidden', 403
-    base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'images')
+    base = os.path.join(ROOT_DIR, 'Images')
     safe_path = os.path.realpath(os.path.join(base, filename))
-    if not safe_path.startswith(base):
+    if not safe_path.startswith(base + os.sep):
         return 'Forbidden', 403
     if not os.path.exists(safe_path):
         return 'Not Found', 404
-    return send_from_directory('images', filename)
+    return send_from_directory(base, filename)
 
 # ================== API ==================
 @app.route('/api/files', methods=['GET'])
