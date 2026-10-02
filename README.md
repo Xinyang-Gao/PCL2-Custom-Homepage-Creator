@@ -8,6 +8,8 @@
 ![后端](https://img.shields.io/badge/Flask-3.0-lightgrey)
 ![许可](https://img.shields.io/badge/license-MIT-green)
 
+> 📋 版本变更见 [CHANGELOG.md](CHANGELOG.md)
+
 ---
 
 ## 主要功能

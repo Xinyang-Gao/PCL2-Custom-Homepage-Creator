@@ -1,0 +1,74 @@
+# 更新日志
+
+本文件记录 PCL 主页编辑器的重要变更。
+
+格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+
+---
+
+## [2.0.0] - 2026-10-02
+
+本次为重构与现代化版本：前端全面迁移至 TypeScript + Vite，并对照 `docs/` 官方文档补齐组件、事件、替换标记三项核心能力，同时修复了一批影响数据完整性的存量缺陷。
+
+### 新增
+
+#### 组件类型
+- **`MyIconTextButton`（图标文本按钮）**：支持 `Logo`（SVG Path）、`LogoScale`、`ColorType`（Black / Highlight）属性，画布实时渲染图标。
+- **`MyIconButton`（图标按钮）**：支持 `Theme`（Color / White / Black / Red）属性，圆形按钮预览。
+- **`Path`（矢量图形）**：支持 `Data`、`Fill`、`Stretch`，`Fill` 支持主题色标记。
+- 组件库按「容器 / 基础 / 控件 / 图形」分组展示，并支持搜索过滤。
+
+#### 事件系统
+- EventType 由 11 种补全至 **23 种**（对照 `docs/自定义事件.md` 全量注册），新增：`执行命令`、`刷新主页`、`刷新帮助`、`今日人品`、`弹出提示`、`切换页面`、`导入整合包`、`修改设置`、`写入设置`、`写入变量`、`加入房间`、`检查更新` 等。
+- 事件下拉按「导航 / 系统 / 游戏 / 工具 / 刷新 / 弹窗 / 设置与变量」分类分组。
+- 选中事件后实时显示**参数说明**：参数名、必填/可选标注、用途解释、示例值。
+- 显示**版本限制提示**（如「加入房间需 PCL 2.11.1+，版本序号 ≥ 374」）。
+- `EventData` 输入框占位提示随所选事件动态更新（如 `\current|mc.hypixel.net`）。
+
+#### 替换标记与主题色
+- **替换标记插入器**：`Text`、`Source`、`Logo`、`Foreground` 等字段旁新增 `< >` 按钮，一键插入 `docs/替换标记.md` 全部 **26 种标记**（基础信息 / 时间 / MC 信息 / 登录信息 / 高级 五组分类），含 `{date}`、`{variable:变量名:默认值}`、`{setup:设置名}` 等。
+- **主题色预览**：支持 `{DynamicResource ColorBrush1-8}` 解析与渲染；属性面板提供 8 档色块插入；顶栏新增 🎉 调色板按钮，可自定义预览主题色（仅影响编辑器显示，不改变导出的 XAML）。
+- `Foreground`、`Fill`、`Background` 等颜色属性在画布中实时渲染主题色实际效果。
+
+#### 工程与测试
+- **迁移到 Vite**：`npm run dev` 启动开发服务器（热更新，自动代理 `/api` 与 `/images`），`npm run build` 产出生产构建。
+- **新增集成测试体系**（`npm test`，96 项断言）：
+  - XAML 往返测试（66 项）：全组件类型导入导出、幂等性、未知元素保留、错误处理。
+  - 真实文档测试（10 项）：`docs/Custom.xaml`（PCL 官方示例，14 张卡片）完整导入与二次往返。
+  - DOM 冒烟测试（20 项）：加载真实页面启动应用，覆盖组件增删复制、属性面板、事件区、标记菜单。
+- 新增 `npm run typecheck` 脚本（TypeScript strict 模式）。
+
+### 变更
+
+- **前端全面迁移至 TypeScript 5.7（strict 模式）**：12 个旧 JS 模块重构为 `src/` 下 20 个职责单一的 TS 模块，删除旧 `js/` 目录与根目录 `style.css`。
+- **组件定义改为声明式规格**（`src/components/specs.ts`）：新增组件只需注册规格 + 提供渲染分支，无需改动散落多处的分支逻辑。
+- **XAML 生成器改为顺序驱动**：通用属性、Grid 附加属性、类型专属属性、事件、自定义属性按固定顺序输出，替代原先按类型硬编码的拼接。
+- 属性面板 EventType 下拉改为分类分组（`<optgroup>`），并置于独立的「事件绑定」区块。
+- 组件库侧边栏增加分组标题；搜索时无匹配结果的分组整体隐藏。
+- `README.md` 全面重写，反映新架构、新命令与新功能。
+- `app.py` 静态托管改为 `dist/` 构建产物（不再暴露源码目录），新增 `dist` 未构建时的引导提示页。
+- 样式表整体现代化：新增标记菜单、事件参数提示、差异对比、主题色对话框等新 UI 样式；弹窗增加进入动画。
+
+### 修正
+
+- **XAML 往返不再幂等**：属性值中的换行符未做字符引用转义（应输出 `&#xA;`），XML 解析时空格归一化导致「导出 → 导入 → 导出」内容变形。
+- **高级事件集合丢失**：`MyButton` 等非容器控件内的 `CustomEventService.Events` 子元素会被静默丢弃，现原样保留并写回。
+- **未知标签处理策略修正**：由「转为 XML 注释」（注释在解析时被丢弃，无法再次导入）改为**原样保留子 XML**，保证可无限往返且内容不丢失。
+- 枚举选项与官方文档对齐：
+  - `ColorType`：`Highlight` / `Red` / 留空（默认黑色），移除不存在的 `Primary` / `Secondary` / `Success` / `Danger`。
+  - `MyIconTextButton.ColorType`：`Black`（默认）/ `Highlight`。
+  - `MyIconButton.Theme`：`Color` / `White` / `Black` / `Red`（原先与 `MyHint.Theme` 混用）。
+  - `MyListItem.Type`：留空（仅展示）/ `Clickable`，移除不存在的 `Toggle` / `Radio`。
+- Margin 滑块选择器错误（`[data-margin="left"] .margin-number` 层级选择器失效），四边联动与预览恢复正常。
+- 保存按钮双重绑定：`openLocalFileBtn` 同时挂载 `onclick` 与 `addEventListener`，点击会同时触发保存与打开文件选择器。
+- 向 Grid 添加子元素后未应用行列定位样式（原先刷新子元素而非 Grid 本身）。
+- 图片资源目录大小写不一致（`images` → `Images`），Linux 下 404。
+- 路径遍历校验使用 `startswith` 前缀比较存在的绕过风险（`/a/user` 可匹配 `/a/user_backup`），改为 `os.sep` 边界比较。
+- 解析错误信息中的行号/列号提取逻辑残缺，现在能正确附加位置信息。
+- 快捷键在输入框内误触发（撤销/删除/复制现在会忽略可编辑目标），新增 `Esc` 取消选中、`Ctrl+Shift+Z` 重做。
+- `clearCanvasBtn` 清空后属性面板未同步刷新。
+
+### 安全
+
+- Flask 静态文件服务范围从整个项目目录收窄至 `dist/`，避免源码与配置文件被访问。
+- `/style.css` 兼容路由改为从构建产物动态解析，不再直接映射任意路径。
