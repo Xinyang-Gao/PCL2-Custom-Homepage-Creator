@@ -164,7 +164,8 @@ export const COMPONENT_SPECS: Record<string, ComponentSpec> = {
         renderKind: 'leaf',
         defaults: {
             Text: '按钮',
-            ColorType: 'Highlight',
+            // 官方文档：ColorType 留空为默认黑色，Highlight 为当前主题色，Red 为红色
+            ColorType: '',
             Height: '35',
             Padding: '25,0,25,0',
             Margin: '0,4,0,10',

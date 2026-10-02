@@ -84,10 +84,11 @@ function initBeforeUnload(): void {
     });
 }
 
-/** 响应 store 变化（脏标记 → 顶栏按钮） */
+/** 响应 store 变化（脏标记 → 顶栏按钮、历史按钮） */
 function bindStore(): void {
     store.subscribe(() => {
         uiManager.updateSaveButton();
+        uiManager.updateHistoryButtons();
     });
 }
 
@@ -98,6 +99,8 @@ export function initApp(): void {
     }
 
     bindStore();
+    history.onChange = () => uiManager.updateHistoryButtons();
+    uiManager.updateHistoryButtons();
     uiManager.buildComponentLibrary();
     dragDropManager.initGlobalFileDragAndDrop();
     uiManager.bindUIEvents();

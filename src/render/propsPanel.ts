@@ -25,10 +25,21 @@ class PropsPanel {
         const nameEl = document.getElementById('compTypeName');
         const idEl = document.getElementById('compIdDisplay');
         const container = document.getElementById('dynamicProps');
+        const emptyEl = document.getElementById('propsEmpty');
+        const eventSection = document.getElementById('eventSection');
+        const actionsEl = document.getElementById('propActions');
+        const copyIdBtn = document.getElementById('copyIdBtn');
         if (!nameEl || !idEl || !container) return;
 
         nameEl.textContent = comp ? (getSpec(comp.type)?.name || comp.type) : '未选中';
         idEl.textContent = comp ? `#${comp.id}` : '-';
+        if (copyIdBtn) copyIdBtn.style.visibility = comp ? 'visible' : 'hidden';
+
+        // 未选中：显示空状态占位，隐藏属性、事件区与操作栏
+        if (emptyEl) emptyEl.hidden = !!comp;
+        if (eventSection) eventSection.hidden = !comp;
+        if (actionsEl) actionsEl.hidden = !comp;
+        container.hidden = !comp;
 
         this.updateEventSection(comp);
 
@@ -133,6 +144,8 @@ class PropsPanel {
         };
 
         const groupOf = (key: string): string => {
+            // ToolTip / IsHitTestVisible 提升到「通用」组，避免与「行为」组重复
+            if (key === 'ToolTip' || key === 'IsHitTestVisible') return '通用';
             for (const g of PROP_GROUP_DEFS) if (g.keys.includes(key)) return g.title;
             return '其他';
         };
@@ -140,7 +153,6 @@ class PropsPanel {
         for (const [key, val] of Object.entries(comp.props)) {
             // Grid 定义字段不直接展示（由可视化编辑器处理）
             if (key === 'ColumnsDefinition' || key === 'RowsDefinition') continue;
-            // 只显示当前组件类型默认属性 + 通用布局属性，避免展示空的无关默认值
             addTo(groupOf(key), { key, val });
         }
 
@@ -148,16 +160,14 @@ class PropsPanel {
             const def = PROP_GROUP_DEFS.find(g => g.title === title);
             return {
                 title,
-                icon: def?.icon || 'fas fa-circle',
+                icon: title === '通用' ? 'fas fa-cogs' : (def?.icon || 'fas fa-circle'),
                 fields: buckets.get(title)!
             };
         });
 
-        // 通用置顶
-        const common: PropField[] = [];
-        if (comp.props.ToolTip !== undefined) common.push({ key: 'ToolTip', val: comp.props.ToolTip });
-        if (comp.props.IsHitTestVisible !== undefined) common.push({ key: 'IsHitTestVisible', val: comp.props.IsHitTestVisible });
-        if (common.length) groups.unshift({ title: '通用', icon: 'fas fa-cogs', fields: common });
+        // 「通用」组置顶
+        const commonIdx = groups.findIndex(g => g.title === '通用');
+        if (commonIdx > 0) groups.unshift(...groups.splice(commonIdx, 1));
 
         // Grid 编辑按钮
         if (comp.type === 'grid') {

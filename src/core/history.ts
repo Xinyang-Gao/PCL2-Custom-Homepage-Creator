@@ -37,15 +37,22 @@ class HistoryManager {
     private redoStack: HistoryAction[] = [];
     private maxSize = 100;
     private isUndoRedo = false;
+    /** 栈变化回调（用于刷新撤销/重做按钮状态） */
+    onChange: (() => void) | null = null;
 
     get canUndo(): boolean { return this.undoStack.length > 0; }
     get canRedo(): boolean { return this.redoStack.length > 0; }
+
+    private emit(): void {
+        this.onChange?.();
+    }
 
     record(action: HistoryAction): void {
         if (this.isUndoRedo) return;
         this.redoStack = [];
         this.undoStack.push(action);
         if (this.undoStack.length > this.maxSize) this.undoStack.shift();
+        this.emit();
     }
 
     undo(): boolean {
@@ -58,6 +65,7 @@ class HistoryManager {
         } finally {
             this.isUndoRedo = false;
         }
+        this.emit();
         store.markDirty();
         return true;
     }
@@ -72,6 +80,7 @@ class HistoryManager {
         } finally {
             this.isUndoRedo = false;
         }
+        this.emit();
         store.markDirty();
         return true;
     }
@@ -148,6 +157,7 @@ class HistoryManager {
     reset(): void {
         this.undoStack = [];
         this.redoStack = [];
+        this.emit();
     }
 }
 

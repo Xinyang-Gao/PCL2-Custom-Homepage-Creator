@@ -8,3 +8,7 @@ dist/
 tests/.out*.cjs
 tests/.dbg.cjs
 *.tsbuildinfo
+
+# UI 视觉审查工具产物（npm run shot 需要本地下载 headless Chrome）
+.browsers/
+shots/

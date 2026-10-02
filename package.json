@@ -1,6 +1,6 @@
 {
   "name": "pcl2-custom-homepage-creator",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "type": "module",
   "description": "PCL 主页可视化编辑器（TypeScript + Vite）",
@@ -9,11 +9,13 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "shot": "node shot.cjs",
     "test": "esbuild tests/roundtrip.test.ts --bundle --platform=node --format=cjs --outfile=tests/.out.cjs --external:jsdom --loader:.css=empty && node tests/.out.cjs && esbuild tests/realDoc.test.ts --bundle --platform=node --format=cjs --outfile=tests/.out2.cjs --external:jsdom --loader:.css=empty && node tests/.out2.cjs && esbuild tests/dom.smoke.test.ts --bundle --platform=node --format=cjs --outfile=tests/.out3.cjs --external:jsdom --loader:.css=empty && node tests/.out3.cjs",
     "server": "python app.py"
   },
   "devDependencies": {
     "jsdom": "^30.1.1",
+    "puppeteer-core": "^25.12.0",
     "typescript": "^5.7.3",
     "vite": "^6.0.11"
   }

@@ -29,10 +29,13 @@
             </div>
             <div class="design-area">
                 <div class="toolbar">
-                    <button class="btn" id="clearCanvasBtn"><i class="fas fa-trash"></i> 清空</button>
+                    <button class="btn" id="undoBtn" title="撤销 (Ctrl+Z)" disabled><i class="fas fa-undo"></i></button>
+                    <button class="btn" id="redoBtn" title="重做 (Ctrl+Y)" disabled><i class="fas fa-redo"></i></button>
+                    <span class="toolbar-divider"></span>
+                    <button class="btn" id="clearCanvasBtn" title="清空画布"><i class="fas fa-trash"></i> 清空</button>
                     <button class="btn btn-primary" id="xamlExportBtn"><i class="fas fa-code"></i> 源码编辑器</button>
                     <div class="toolbar-spacer"></div>
-                    <span class="hierarchy-empty"><i class="fas fa-mouse-pointer"></i> 点击画布组件编辑其属性</span>
+                    <span class="toolbar-hint"><i class="fas fa-mouse-pointer"></i> 点击画布组件编辑其属性</span>
                 </div>
                 <div class="hierarchy-bar" id="hierarchyBar"></div>
                 <div class="preview-container" id="previewContainer">
@@ -52,22 +55,28 @@
                         <button class="id-copy-btn" id="copyIdBtn" title="复制ID"><i class="far fa-copy"></i></button>
                     </div>
                 </div>
-                <div id="dynamicProps" class="props-groups-container"></div>
-                <div class="prop-section" id="eventSection">
-                    <div class="prop-section-title"><i class="fas fa-bolt"></i> 事件绑定</div>
-                    <div class="prop-field">
-                        <label>EventType</label>
-                        <select id="eventTypeSelect">
-                            <option value="">无</option>
-                        </select>
+                <div class="props-scroll" id="propsScroll">
+                    <div class="props-empty" id="propsEmpty">
+                        <i class="fas fa-mouse-pointer"></i>
+                        点击画布中的组件<br>即可在此编辑它的属性
                     </div>
-                    <div class="prop-field">
-                        <label>EventData</label>
-                        <textarea id="eventDataInput" rows="2" placeholder="事件数据"></textarea>
+                    <div id="dynamicProps" class="props-groups-container"></div>
+                    <div class="prop-section" id="eventSection" hidden>
+                        <div class="prop-section-title"><i class="fas fa-bolt"></i> 事件绑定</div>
+                        <div class="prop-field">
+                            <label>EventType</label>
+                            <select id="eventTypeSelect">
+                                <option value="">无</option>
+                            </select>
+                        </div>
+                        <div class="prop-field">
+                            <label>EventData</label>
+                            <textarea id="eventDataInput" rows="2" placeholder="事件数据"></textarea>
+                        </div>
+                        <div id="eventParamHint"></div>
                     </div>
-                    <div id="eventParamHint"></div>
                 </div>
-                <div class="prop-actions">
+                <div class="prop-actions" id="propActions" hidden>
                     <button class="btn btn-primary" id="applyPropsBtn"><i class="fas fa-check"></i> 应用更改</button>
                     <button class="btn btn-danger" id="deleteCompBtn"><i class="fas fa-trash-alt"></i> 删除</button>
                     <button class="btn" id="duplicateCompBtn"><i class="fas fa-copy"></i> 复制</button>

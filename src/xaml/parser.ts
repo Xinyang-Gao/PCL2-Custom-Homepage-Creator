@@ -114,6 +114,11 @@ export function importFromXAML(xmlStr: string): ImportResult {
             ]);
 
             for (const attr of Array.from(node.attributes)) {
+                // 事件属性由 comp.events 单独承载，不进入 props（避免在属性面板重复展示）
+                if (attr.name === 'EventType' || attr.name === 'EventData' ||
+                    attr.name === 'eventtype' || attr.name === 'eventdata') {
+                    continue;
+                }
                 if (!knownProps.has(attr.name)) {
                     comp.customProps[attr.name] = attr.value;
                 } else {

@@ -83,9 +83,32 @@ class UIManager {
         }
     }
 
+    // ================== 撤销/重做按钮 ==================
+
+    updateHistoryButtons(): void {
+        const undoBtn = document.getElementById('undoBtn') as HTMLButtonElement | null;
+        const redoBtn = document.getElementById('redoBtn') as HTMLButtonElement | null;
+        if (undoBtn) {
+            undoBtn.disabled = !history.canUndo;
+            undoBtn.title = history.canUndo ? '撤销 (Ctrl+Z)' : '没有可撤销的操作';
+        }
+        if (redoBtn) {
+            redoBtn.disabled = !history.canRedo;
+            redoBtn.title = history.canRedo ? '重做 (Ctrl+Y)' : '没有可重做的操作';
+        }
+    }
+
     // ================== 主事件绑定 ==================
 
     bindUIEvents(): void {
+        // 撤销/重做
+        document.getElementById('undoBtn')?.addEventListener('click', () => {
+            if (history.undo()) renderManager.renderCanvas();
+        });
+        document.getElementById('redoBtn')?.addEventListener('click', () => {
+            if (history.redo()) renderManager.renderCanvas();
+        });
+
         // 清空
         document.getElementById('clearCanvasBtn')?.addEventListener('click', () => {
             if (!store.components.length) return;

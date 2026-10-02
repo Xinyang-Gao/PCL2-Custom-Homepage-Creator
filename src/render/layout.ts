@@ -22,15 +22,22 @@ export function formatMargin(l: number, t: number, r: number, b: number): string
     return `${l},${t},${r},${b}`;
 }
 
-/** WPF Thickness → CSS padding */
+/**
+ * WPF Thickness（顺序：左,上,右,下；1/2/3 值缩写规则同 WPF）→ CSS padding（顺序：上,右,下,左）。
+ * 直接按位输出会导致 Padding="25,0,25,0"（左右 25）被渲染成上下 25，
+ * 按钮被撑高且文字裁剪 —— 这是历史「按钮错位」bug 的根因。
+ */
 export function thicknessToCss(thickness: string): string {
     if (!thickness) return '';
-    const parts = thickness.split(',').map(p => parseFloat(p.trim()));
-    if (parts.some(isNaN)) return '';
-    if (parts.length === 1) return `${parts[0]}px`;
-    if (parts.length === 2) return `${parts[0]}px ${parts[1]}px`;
-    if (parts.length === 3) return `${parts[0]}px ${parts[1]}px ${parts[2]}px`;
-    return `${parts[0]}px ${parts[1]}px ${parts[2]}px ${parts[3]}px`;
+    const p = thickness.split(',').map(s => parseFloat(s.trim()));
+    if (p.some(isNaN)) return '';
+    let l: number, t: number, r: number, b: number;
+    if (p.length === 1) { l = t = r = b = p[0]; }
+    else if (p.length === 2) { l = r = p[0]; t = b = p[1]; }
+    else if (p.length === 3) { l = p[0]; t = b = p[1]; r = p[2]; }
+    else { l = p[0]; t = p[1]; r = p[2]; b = p[3]; }
+    // WPF (左,上,右,下) → CSS (上,右,下,左)
+    return `${t}px ${r}px ${b}px ${l}px`;
 }
 
 /** 数值自动补 px，其余（如 50%）原样返回 */

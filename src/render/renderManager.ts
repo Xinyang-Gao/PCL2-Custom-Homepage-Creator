@@ -3,7 +3,7 @@ import type { ComponentModel } from '../core/types';
 import { getSpec } from '../components/specs';
 import { findComponentById } from '../components/tree';
 import { store } from '../core/store';
-import { applyLayoutStyles, applyPaddingStyles, applyTextStyles, resolveBackground } from './layout';
+import { applyLayoutStyles, applyPaddingStyles, applyTextStyles, resolveBackground, thicknessToCss } from './layout';
 import { isSafeUrl, normalizeImageUrl, escapeHtml } from '../util/dom';
 import { colorBrush, resolveColorValue } from '../xaml/markers';
 import { propsPanel } from './propsPanel';
@@ -122,6 +122,9 @@ class RenderManager {
             return isNaN(px) ? fallback : `${px}px`;
         };
 
+        // .nested-dropzone 基础样式是 flex column，必须用内联 display:grid 覆盖，
+        // 否则列模板不生效，Grid 子元素会竖排
+        container.style.display = 'grid';
         container.style.gridTemplateColumns = cols.length
             ? cols.map(c => toTrack(c.width, '1fr')).join(' ')
             : '1fr';
@@ -188,11 +191,12 @@ class RenderManager {
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'btn canvas-btn';
-                const colorType = comp.props.ColorType || '';
-                if (colorType) btn.classList.add(`btn-${colorType.toLowerCase()}`);
+                // ColorType 留空 = PCL 默认黑色按钮；Highlight=主题色；Red=红色
+                const colorType = comp.props.ColorType || 'Black';
+                btn.classList.add(`btn-${colorType.toLowerCase()}`);
                 btn.textContent = comp.props.Text || '按钮';
-                if (comp.props.Height) btn.style.height = `${comp.props.Height}px`;
-                if (comp.props.Padding) btn.style.padding = parseButtonPadding(comp.props.Padding);
+                if (comp.props.Height) btn.style.height = cssPx(comp.props.Height);
+                if (comp.props.Padding) btn.style.padding = thicknessToCss(comp.props.Padding);
                 inner.appendChild(btn);
                 break;
             }
@@ -219,7 +223,14 @@ class RenderManager {
         }
 
         wrapper.appendChild(inner);
-        applyPaddingStyles(comp, inner);
+        // Padding 语义归属控件自身（MyButton 等按钮已把 Padding 应用到按钮元素上），
+        // 不再同时应用到外层容器，否则左右各多出一份空隙（按钮显示"错位/白边"）。
+        const ownsPadding = comp.type === 'button' || comp.type === 'textbutton' || comp.type === 'icontextbutton';
+        if (!ownsPadding) {
+            applyPaddingStyles(comp, inner);
+        } else {
+            inner.style.padding = '0';
+        }
     }
 
     private buildImage(comp: ComponentModel): HTMLElement {
@@ -482,10 +493,6 @@ class RenderManager {
 
 function cssPx(v: string): string {
     return /^\d+(\.\d+)?$/.test(v.trim()) ? `${v.trim()}px` : v;
-}
-
-function parseButtonPadding(p: string): string {
-    return p.split(',').map(s => `${parseFloat(s) || 0}px`).join(' ');
 }
 
 function buildSvgIcon(pathData: string, scale: number, color: string): SVGSVGElement | null {
