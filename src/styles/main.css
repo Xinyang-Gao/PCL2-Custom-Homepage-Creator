@@ -130,6 +130,15 @@ body {
     align-items: center;
 }
 
+/* 顶栏分组分隔线：文件操作 | 编辑器外观 */
+.header-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--border-light);
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
 .logo {
     display: flex;
     align-items: center;
@@ -1067,9 +1076,9 @@ body.dark .btn-black {
 
 .prop-actions {
     padding: 14px 16px;
-    display: grid;
-    grid-template-columns: 1.4fr 1fr 1fr;
+    display: flex;
     gap: 8px;
+    align-items: stretch;
     background: var(--bg-subtle);
     border-top: 1px solid var(--border-light);
     flex-shrink: 0;
@@ -1078,8 +1087,13 @@ body.dark .btn-black {
 .prop-actions .btn {
     justify-content: center;
     min-width: 0;
-    padding: 7px 8px;
+    padding: 7px 12px;
     font-size: 0.82rem;
+}
+
+/* 破坏性操作靠右隔离：主操作占左侧，删除独占最右并拉开距离 */
+.prop-actions .btn-danger {
+    margin-left: auto;
 }
 
 /* 自定义属性行 */

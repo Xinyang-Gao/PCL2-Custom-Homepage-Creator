@@ -13,11 +13,12 @@
         <div class="header">
             <div class="logo"><i class="fas fa-cube"></i> PCL 主页编辑器</div>
             <div class="header-actions">
+                <!-- 文件操作组：打开/保存 + 备份与文件管理 -->
                 <button class="btn" id="openLocalFileBtn"><i class="fas fa-folder-open"></i> 打开本地文件</button>
                 <button class="theme-btn" id="serverManageBtn" title="备份与文件管理"><i
                         class="fas fa-cloud-upload-alt"></i></button>
-                <button class="theme-btn" id="themeColorBtn" title="设置预览主题色（ColorBrush）"><i
-                        class="fas fa-palette"></i></button>
+                <span class="header-divider" aria-hidden="true"></span>
+                <!-- 编辑器外观：与文件操作分组隔开 -->
                 <button class="theme-btn" id="themeToggle" title="切换深浅主题"><i class="fas fa-moon"></i></button>
             </div>
         </div>
@@ -32,10 +33,14 @@
                     <button class="btn" id="undoBtn" title="撤销 (Ctrl+Z)" disabled><i class="fas fa-undo"></i></button>
                     <button class="btn" id="redoBtn" title="重做 (Ctrl+Y)" disabled><i class="fas fa-redo"></i></button>
                     <span class="toolbar-divider"></span>
-                    <button class="btn" id="clearCanvasBtn" title="清空画布"><i class="fas fa-trash"></i> 清空</button>
                     <button class="btn btn-primary" id="xamlExportBtn"><i class="fas fa-code"></i> 源码编辑器</button>
+                    <button class="btn" id="themeColorBtn" title="设置预览主题色（ColorBrush）"><i
+                            class="fas fa-palette"></i> 主题色</button>
                     <div class="toolbar-spacer"></div>
                     <span class="toolbar-hint"><i class="fas fa-mouse-pointer"></i> 点击画布组件编辑其属性</span>
+                    <span class="toolbar-divider"></span>
+                    <!-- 破坏性操作：与左侧高频按钮隔离，置于工具栏末端 -->
+                    <button class="btn" id="clearCanvasBtn" title="清空画布"><i class="fas fa-trash"></i> 清空</button>
                 </div>
                 <div class="hierarchy-bar" id="hierarchyBar"></div>
                 <div class="preview-container" id="previewContainer">
@@ -77,9 +82,10 @@
                     </div>
                 </div>
                 <div class="prop-actions" id="propActions" hidden>
+                    <!-- 破坏性的「删除」置于最右并与其它操作隔离，避免误触 -->
                     <button class="btn btn-primary" id="applyPropsBtn"><i class="fas fa-check"></i> 应用更改</button>
-                    <button class="btn btn-danger" id="deleteCompBtn"><i class="fas fa-trash-alt"></i> 删除</button>
                     <button class="btn" id="duplicateCompBtn"><i class="fas fa-copy"></i> 复制</button>
+                    <button class="btn btn-danger" id="deleteCompBtn"><i class="fas fa-trash-alt"></i> 删除</button>
                 </div>
             </div>
         </div>

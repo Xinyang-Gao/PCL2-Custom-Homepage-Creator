@@ -273,8 +273,8 @@ class UIManager {
         container.innerHTML = `
             <div class="backup-toolbar">
                 <input type="text" id="backupSearchInput" placeholder="搜索备份文件名..." value="${escapeAttr(keepSearch)}">
-                <button id="batchDeleteBackupsBtn" class="btn btn-danger btn-sm"><i class="fas fa-trash-alt"></i> 批量删除</button>
                 <button id="manualBackupBtn" class="btn btn-sm"><i class="fas fa-camera"></i> 手动备份</button>
+                <button id="batchDeleteBackupsBtn" class="btn btn-danger btn-sm"><i class="fas fa-trash-alt"></i> 批量删除</button>
             </div>
             ${backups.length ? `<div class="backup-items">${backups.map(b => this.backupItemHtml(b)).join('')}</div>`
             : `<div class="empty-placeholder" style="padding:24px"><i class="fas fa-cloud-upload-alt"></i><p>${filter ? '没有匹配的备份' : '暂无自动备份，编辑组件后将自动创建'}</p></div>`}`;
